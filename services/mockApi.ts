@@ -1,5 +1,5 @@
-import { FormData, Quote, ScheduleDay } from "../types";
-import { SERVICE_BASE_PRICES, IVA_RATE } from "../constants";
+import { FormData, Quote, ScheduleDay } from "../types.ts";
+import { SERVICE_BASE_PRICES, IVA_RATE } from "../constants.ts";
 
 // =========================
 // CONFIG
