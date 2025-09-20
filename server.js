@@ -3,7 +3,7 @@ import cors from "cors";
 import { MercadoPagoConfig, Preference, Payment } from "mercadopago";
 import bodyParser from "body-parser";
 import { sendConfirmationEmail } from "./email.js"; // 👈 import corregido
-import { TECHNICIAN_EMAIL } from "./src/constants.js"; // lo podés mover al backend si querés
+import { TECHNICIAN_EMAIL } from "./constants.js"; // lo podés mover al backend si querés
 
 const app = express();
 app.use(cors());
