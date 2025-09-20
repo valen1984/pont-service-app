@@ -1,0 +1,8 @@
+{
+  "name": "Pont Service App",
+  "description": "An application to request and schedule air conditioning and refrigeration services.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}
