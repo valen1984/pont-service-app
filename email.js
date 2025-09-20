@@ -1,8 +1,8 @@
 import emailjs from "@emailjs/browser";
 
-const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
-const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
-const PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY; 
+const SERVICE_ID = process.env.VITE_EMAILJS_SERVICE_ID;
+const TEMPLATE_ID = process.env.VITE_EMAILJS_TEMPLATE_ID;
+const PUBLIC_KEY = process.env.VITE_EMAILJS_PUBLIC_KEY;
 
 export const sendConfirmationEmail = async ({
   recipient,
@@ -13,20 +13,14 @@ export const sendConfirmationEmail = async ({
   location,
   coords,
   quote,
-  photos, // URLs de Cloudinary
-}: {
-  recipient: string;
-  fullName: string;
-  phone: string;
-  appointment: string;
-  address?: string;
-  location?: string;
-  coords?: { lat: number; lon: number };
-  quote?: { baseCost: string; travelCost: string; subtotal: string; iva: string; total: string };
-  photos?: string[];
+  photos,
 }) => {
-  const coordsText = coords ? `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}` : "No disponible";
-  const mapsLink = coords ? `https://www.google.com/maps?q=${coords.lat},${coords.lon}` : "";
+  const coordsText = coords
+    ? `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}`
+    : "No disponible";
+  const mapsLink = coords
+    ? `https://www.google.com/maps?q=${coords.lat},${coords.lon}`
+    : "";
 
   const photos_block =
     photos && photos.length > 0
@@ -61,6 +55,7 @@ export const sendConfirmationEmail = async ({
       },
       PUBLIC_KEY
     );
+
     console.log("📧 Correo enviado a:", recipient);
   } catch (error) {
     console.error("❌ Error enviando email:", error);
