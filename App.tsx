@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { FormData, Quote } from './types';
-import { STEPS } from './constants';
+import { FormData, Quote } from './types.ts';
+import { STEPS } from './constants.ts';
 
 // ✅ Import corregidos (sin ./src/)
 import LogoHeader from '@/components/LogoHeader';
