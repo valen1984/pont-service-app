@@ -120,3 +120,17 @@ const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
 });
+
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// ⚡ Servir archivos estáticos de Vite compilado
+app.use(express.static(path.join(__dirname, "dist")));
+
+// ⚡ Cualquier ruta que no sea API, que devuelva index.html (para React Router)
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "dist", "index.html"));
+});

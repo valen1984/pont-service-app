@@ -1,6 +1,6 @@
 
 export enum ServiceType {
-  NEW_INSTALLATION = 'Instalación nueva',
+  NEW_INSTALLATION = 'Instalación hogar',
   HIGH_ALTITUDE_INSTALLATION = 'Instalación en altura',
   AUTOMOTIVE_INSTALLATION = 'Instalación automotriz',
   HOME_DIAGNOSIS = 'Diagnóstico hogar',
