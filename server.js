@@ -1,20 +1,19 @@
-// server.cjs (CommonJS)
+import express from "express";
+import cors from "cors";
+import bodyParser from "body-parser";
+import { MercadoPagoConfig, Preference, Payment } from "mercadopago";
+import path from "path";
+import { fileURLToPath } from "url";
 
-const express = require("express");
-const cors = require("cors");
-const bodyParser = require("body-parser");
-const { MercadoPagoConfig, Preference, Payment } = require("mercadopago");
-const path = require("path");
-
-const { sendConfirmationEmail } = require("./email.js"); // 👈 ajusta ruta si está en /src/utils
-const { TECHNICIAN_EMAIL } = require("./constants.js");  // 👈 ajusta ruta si está en /src
+import { sendConfirmationEmail } from "./email.js"; // 👈 ajusta la ruta
+import { TECHNICIAN_EMAIL } from "./constants.js";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// ⚡ Credenciales de Mercado Pago
+// ⚡ Credenciales MercadoPago
 const client = new MercadoPagoConfig({
   accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN,
 });
@@ -34,10 +33,7 @@ app.post("/create_preference", async (req, res) => {
           pending: `${process.env.BACKEND_URL}/pending`,
         },
         auto_return: "approved",
-        metadata: {
-          formData,
-          quote,
-        },
+        metadata: { formData, quote },
       },
     });
 
@@ -62,14 +58,12 @@ app.post("/webhook", async (req, res) => {
       const paymentClient = new Payment(client);
       const payment = await paymentClient.get({ id: paymentId });
 
-      const status = payment.status; // "approved", "rejected", "pending"
+      const status = payment.status;
       const metadata = payment.metadata || {};
       const formData = metadata.formData || {};
       const quote = metadata.quote || {};
 
       if (status === "approved") {
-        console.log("✅ Pago aprobado. Enviando correos...");
-
         await sendConfirmationEmail({
           recipient: formData.email,
           fullName: formData.fullName,
@@ -96,8 +90,6 @@ app.post("/webhook", async (req, res) => {
       }
 
       if (status === "rejected") {
-        console.log("❌ Pago rechazado. Avisando al cliente...");
-
         await sendConfirmationEmail({
           recipient: formData.email,
           fullName: formData.fullName,
@@ -119,11 +111,11 @@ app.post("/webhook", async (req, res) => {
   }
 });
 
-// 🚀 Servir frontend (Vite build en "dist")
-const __dirname = path.resolve();
+// 🚀 Servir frontend compilado
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 app.use(express.static(path.join(__dirname, "dist")));
-
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "dist", "index.html"));
 });
