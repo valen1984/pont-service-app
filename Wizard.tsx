@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import { FormData, Quote } from "./types";
-import { STEPS } from "./constants";
+import { FormData, Quote } from "./types.ts";
+import { STEPS } from "./constants.ts";
 
 import LogoHeader from "@/components/LogoHeader";
 import ProgressBar from "@/components/ProgressBar";
