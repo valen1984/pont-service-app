@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import type { FormData, Quote } from "../../types";
-import { SERVICE_BASE_PRICES, COST_PER_KM, IVA_RATE } from "../../constants";
+import { SERVICE_BASE_PRICES, COST_PER_KM, IVA_RATE } from "../../constants.ts";
 
 interface Props {
   formData: FormData;
