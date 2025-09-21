@@ -50,16 +50,17 @@ function App() {
   const handlePaymentFailure = () => setCurrentStep(8);
 
   // 🔹 Detectar resultado de Mercado Pago en la URL
-  useEffect(() => {
-    const queryParams = new URLSearchParams(window.location.search);
-    const status = queryParams.get('status');
+useEffect(() => {
+  const url = new URL(window.location.href);
+  const status = url.searchParams.get("status");
+  const pid = url.searchParams.get("payment_id");
 
-    if (status === 'success') {
-      setCurrentStep(7); // Confirmación
-    } else if (status === 'failure') {
-      setCurrentStep(8); // Error de pago
-    }
-  }, []);
+  if (status === "success" && pid) {
+    setCurrentStep(7); // Confirmación
+  } else if (status === "failure" && pid) {
+    setCurrentStep(8); // Error de pago
+  }
+}, []);
 
   const renderStep = () => {
     switch (currentStep) {
@@ -126,7 +127,7 @@ function App() {
         );
       case 8:
         return (
-          <Step8PaymentError
+          <StepPaymentError
             formData={formData}
             quote={quote}
             restart={restart}

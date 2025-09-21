@@ -26,16 +26,18 @@ const Step7Confirmation: React.FC<Props> = ({ restart }) => {
   const [formData, setFormData] = useState<FormData | null>(null);
   const [quote, setQuote] = useState<Quote | null>(null);
 
+  // Tomar el payment_id de la URL
   useEffect(() => {
     const url = new URL(window.location.href);
     const pid = url.searchParams.get("payment_id");
+
     if (!pid) return;
 
     (async () => {
       try {
         const res = await fetch(`/api/payment-status/${pid}`);
         const data = await res.json();
-        setFormData(data.formData || {});
+        setFormData(data.formData || null);
         setQuote(data.quote || null);
       } catch (err) {
         console.error("❌ Error trayendo datos de pago:", err);
@@ -62,20 +64,16 @@ const Step7Confirmation: React.FC<Props> = ({ restart }) => {
       <div className="text-left p-4 bg-slate-50 rounded-lg space-y-2">
         <div>
           <span className="font-semibold">Servicio: </span>
-          {formData?.serviceType || "—"}
+          {formData?.serviceType || "-"}
         </div>
         <div>
           <span className="font-semibold">Fecha: </span>
-          {formData?.appointmentSlot?.day || "—"},{" "}
-          {formData?.appointmentSlot?.time
-            ? `${formData.appointmentSlot.time}hs`
-            : "—"}
+          {formData?.appointmentSlot?.date},{" "}
+          {formData?.appointmentSlot?.time}hs
         </div>
         <div>
           <span className="font-semibold">Dirección: </span>
-          {[formData?.address, formData?.location]
-            .filter(Boolean)
-            .join(", ") || "—"}
+          {formData?.address}, {formData?.location}
         </div>
         <div>
           <span className="font-semibold">Total Pagado: </span>
