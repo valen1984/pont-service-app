@@ -112,6 +112,7 @@ function App() {
         return (
           <Step6Payment
             quote={quote}
+            formData={formData}
             onPaymentSuccess={handlePaymentSuccess}
             onPaymentFailure={handlePaymentFailure}
             prevStep={prevStep}
