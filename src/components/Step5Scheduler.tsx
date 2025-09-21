@@ -20,7 +20,7 @@ const Step5Scheduler: React.FC<Props> = ({
   useEffect(() => {
     const fetchSchedule = async () => {
       try {
-        const res = await fetch("/api/schedule"); // ✅ Backend ya devuelve solo días válidos
+        const res = await fetch("/api/schedule"); // ✅ Backend devuelve disponibilidad
         const data = await res.json();
         setSchedule(data);
       } catch (err) {
@@ -58,7 +58,12 @@ const Step5Scheduler: React.FC<Props> = ({
         {schedule.map((day) => (
           <div key={day.date} className="p-4 border rounded-lg bg-slate-50">
             <h3 className="font-semibold">
-              {day.day} - {day.date}
+              {new Date(day.date).toLocaleDateString("es-AR", {
+                weekday: "short", // lun, mar, mié...
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+              })}
             </h3>
             <div className="flex flex-wrap gap-2 mt-2">
               {day.slots.map((slot) => (
