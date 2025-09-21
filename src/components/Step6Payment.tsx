@@ -4,75 +4,56 @@ import { initMercadoPago, Wallet } from "@mercadopago/sdk-react";
 
 interface Props {
   quote: Quote | null;
+  prevStep: () => void;
   onPaymentSuccess: () => void;
   onPaymentFailure: () => void;
-  prevStep: () => void;
-  formData: FormData;
 }
 
-const Step6Payment: React.FC<Props> = ({
-  quote,
-  onPaymentSuccess,
-  onPaymentFailure,
-  prevStep,
-  formData,
-}) => {
+const Step6Payment: React.FC<Props> = ({ quote, prevStep, onPaymentSuccess, onPaymentFailure }) => {
   const [preferenceId, setPreferenceId] = useState<string | null>(null);
 
   useEffect(() => {
-    // ⚡ Usamos la PUBLIC_KEY de Mercado Pago desde .env
-    const mpPublicKey = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
-    if (mpPublicKey) {
-      initMercadoPago(mpPublicKey);
-    } else {
-      console.error("⚠️ Falta VITE_MERCADOPAGO_PUBLIC_KEY en .env");
-    }
+    // ⚡ Usá la Public Key (modo test primero)
+    initMercadoPago(import.meta.env.VITE_MP_PUBLIC_KEY || "");
   }, []);
 
   const createPreference = async () => {
     if (!quote) return;
 
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/create_preference`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: "Servicio técnico Pont",
-            quantity: 1,
-            unit_price: quote.total,
-            formData,
-            quote,
-          }),
-        }
-      );
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/create_preference`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: "Servicio técnico Pont",
+          quantity: 1,
+          unit_price: quote.total,
+          formData: {}, // 👈 si querés pasar datos del cliente acá
+          quote,
+        }),
+      });
 
       if (!response.ok) {
-        throw new Error(`Error HTTP ${response.status}`);
+        throw new Error("Error creando preferencia en el backend");
       }
 
       const data = await response.json();
-      if (data.id) {
-        setPreferenceId(data.id);
-      } else {
-        throw new Error("No se recibió preferenceId");
-      }
+      setPreferenceId(data.id);
     } catch (error) {
       console.error("❌ Error creando preferencia:", error);
       onPaymentFailure();
     }
   };
 
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(amount);
+
   return (
     <div className="space-y-6 text-center">
       <h2 className="text-xl font-bold">¿Realizar el pago?</h2>
 
       <p className="text-5xl font-bold tracking-tighter text-slate-800">
-        {new Intl.NumberFormat("es-AR", {
-          style: "currency",
-          currency: "ARS",
-        }).format(quote?.total || 0)}
+        {formatCurrency(quote?.total || 0)}
       </p>
 
       {!preferenceId ? (
@@ -88,9 +69,7 @@ const Step6Payment: React.FC<Props> = ({
         </div>
       )}
 
-      <p className="text-xs text-slate-500">
-        Serás redirigido a Mercado Pago para finalizar tu compra
-      </p>
+      <p className="text-xs text-slate-500">Serás redirigido a Mercado Pago</p>
 
       <div className="pt-4">
         <button
