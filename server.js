@@ -117,9 +117,9 @@ app.post("/create_preference", async (req, res) => {
       body: {
         items: [{ title, quantity, unit_price }],
         back_urls: {
-          success: `${process.env.FRONTEND_URL}/#/success`,
-          failure: `${process.env.FRONTEND_URL}/#/failure`,
-          pending: `${process.env.FRONTEND_URL}/#/pending`,
+          success: `${process.env.FRONTEND_URL}/?status=success`,
+          failure: `${process.env.FRONTEND_URL}/?status=failure`,
+          pending: `${process.env.FRONTEND_URL}/?status=pending`,
         },
         auto_return: "approved",
         metadata: {

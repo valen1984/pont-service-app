@@ -1,20 +1,25 @@
 import React, { useEffect, useState } from "react";
-import { Quote } from "../../types";
+import { Quote, FormData } from "../../types";
 import { initMercadoPago, Wallet } from "@mercadopago/sdk-react";
 
 interface Props {
   quote: Quote | null;
+  formData: FormData;
   onPaymentSuccess: () => void;
   onPaymentFailure: () => void;
   prevStep: () => void;
 }
 
-const Step6Payment: React.FC<Props> = ({ quote, onPaymentSuccess, onPaymentFailure, prevStep }) => {
+const Step6Payment: React.FC<Props> = ({ quote, formData, onPaymentSuccess, onPaymentFailure, prevStep }) => {
   const [preferenceId, setPreferenceId] = useState<string | null>(null);
-  const [paymentId, setPaymentId] = useState<string | null>(null);
 
   useEffect(() => {
-    initMercadoPago(import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY); // ⚡ ahora lee del .env
+    // ⚡ Usamos la PUBLIC_KEY de Mercado Pago desde .env
+    if (import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY) {
+      initMercadoPago(import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY);
+    } else {
+      console.error("❌ Falta VITE_MERCADOPAGO_PUBLIC_KEY en el .env");
+    }
   }, []);
 
   const createPreference = async () => {
@@ -28,38 +33,27 @@ const Step6Payment: React.FC<Props> = ({ quote, onPaymentSuccess, onPaymentFailu
           title: "Servicio técnico Pont",
           quantity: 1,
           unit_price: quote.total,
+          formData,
+          quote,
         }),
       });
 
+      if (!response.ok) {
+        throw new Error(`Error HTTP ${response.status}`);
+      }
+
       const data = await response.json();
-      setPreferenceId(data.id);
-      setPaymentId(data.id); // usamos preferenceId como ID para consultar después
+
+      if (data.id) {
+        setPreferenceId(data.id);
+      } else {
+        throw new Error("No se recibió un preferenceId");
+      }
     } catch (error) {
-      console.error("Error creando preferencia:", error);
+      console.error("❌ Error creando preferencia:", error);
       onPaymentFailure();
     }
   };
-
-  // ✅ Consultar estado del pago
-  useEffect(() => {
-    if (!paymentId) return;
-
-    const interval = setInterval(async () => {
-      try {
-        const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/payment-status/${paymentId}`);
-        const data = await response.json();
-
-        if (data.status === "approved") {
-          clearInterval(interval);
-          onPaymentSuccess();
-        }
-      } catch (err) {
-        console.error("Error consultando estado del pago:", err);
-      }
-    }, 5000); // consulta cada 5 segundos
-
-    return () => clearInterval(interval);
-  }, [paymentId]);
 
   return (
     <div className="space-y-6 text-center">
@@ -80,7 +74,10 @@ const Step6Payment: React.FC<Props> = ({ quote, onPaymentSuccess, onPaymentFailu
         </button>
       ) : (
         <div className="flex justify-center">
-          <Wallet initialization={{ preferenceId }} />
+          <Wallet
+            initialization={{ preferenceId }}
+            onSubmit={onPaymentSuccess}
+          />
         </div>
       )}
 
