@@ -19,94 +19,7 @@ const client = new MercadoPagoConfig({
 });
 
 // ======================
-// 📌 Configuración de agenda
-// ======================
-const WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // lunes a sábado
-const START_HOUR = 9;
-const END_HOUR = 17;
-const INTERVAL = 2; // horas por turno
-
-let busySlots = [];
-let confirmedPayments = []; // 📌 Guardamos pagos aprobados
-
-function generateSchedule() {
-  const today = new Date();
-  const result = [];
-
-  for (let i = 0; i < 14; i++) {
-    const date = new Date(today);
-    date.setDate(today.getDate() + i);
-
-    const dayOfWeek = date.getDay();
-    if (!WORKING_DAYS.includes(dayOfWeek)) continue;
-
-    const yyyy = date.getFullYear();
-    const mm = String(date.getMonth() + 1).padStart(2, "0");
-    const dd = String(date.getDate()).padStart(2, "0");
-    const formattedDate = `${yyyy}-${mm}-${dd}`;
-
-    const slots = [];
-    for (let hour = START_HOUR; hour < END_HOUR; hour += INTERVAL) {
-      const slotTime = `${hour.toString().padStart(2, "0")}:00`;
-
-      const now = new Date();
-      const slotDateTime = new Date(`${formattedDate}T${slotTime}:00`);
-      const within48h =
-        slotDateTime.getTime() - now.getTime() < 48 * 60 * 60 * 1000;
-
-      const isBusy = busySlots.some(
-        (s) => s.date === formattedDate && s.time === slotTime
-      );
-
-      slots.push({
-        time: slotTime,
-        isAvailable: !within48h && !isBusy,
-      });
-    }
-
-    result.push({
-      day: date.toLocaleDateString("es-AR", { weekday: "long" }),
-      date: formattedDate,
-      slots,
-    });
-  }
-
-  return result;
-}
-
-// ======================
-// 📌 API Agenda
-// ======================
-app.get("/api/schedule", (req, res) => {
-  res.json(generateSchedule());
-});
-
-app.get("/api/busy-slots", (req, res) => {
-  res.json(busySlots);
-});
-
-app.post("/api/book-slot", (req, res) => {
-  const { date, time } = req.body;
-  if (!date || !time) {
-    return res.status(400).json({ error: "Faltan parámetros (date, time)" });
-  }
-
-  const alreadyBusy = busySlots.some(
-    (slot) => slot.date === date && slot.time === time
-  );
-
-  if (alreadyBusy) {
-    return res.status(400).json({ error: "Turno ya ocupado" });
-  }
-
-  busySlots.push({ date, time });
-  console.log("📌 Nuevo turno reservado:", date, time);
-
-  res.json({ success: true });
-});
-
-// ======================
-// 📌 Mercado Pago
+// 📌 Crear preferencia
 // ======================
 app.post("/create_preference", async (req, res) => {
   try {
@@ -117,15 +30,12 @@ app.post("/create_preference", async (req, res) => {
       body: {
         items: [{ title, quantity, unit_price }],
         back_urls: {
-          success: `${process.env.FRONTEND_URL}/?status=success`,
-          failure: `${process.env.FRONTEND_URL}/?status=failure`,
-          pending: `${process.env.FRONTEND_URL}/?status=pending`,
+          success: `${process.env.FRONTEND_URL}/#/success`,
+          failure: `${process.env.FRONTEND_URL}/#/failure`,
+          pending: `${process.env.FRONTEND_URL}/#/pending`,
         },
         auto_return: "approved",
-        metadata: {
-          formData,
-          quote,
-        },
+        metadata: { formData, quote }, // 👈 guardamos datos acá
       },
     });
 
@@ -137,7 +47,9 @@ app.post("/create_preference", async (req, res) => {
   }
 });
 
-// ✅ Webhook de Mercado Pago
+// ======================
+// 📌 Webhook (opcional, para emails)
+// ======================
 app.post("/webhook", async (req, res) => {
   try {
     const { type, data } = req.body;
@@ -154,9 +66,6 @@ app.post("/webhook", async (req, res) => {
       if (status === "approved") {
         console.log("✅ Pago aprobado:", paymentId);
 
-        confirmedPayments.push({ paymentId, formData, quote });
-
-        // Emails
         await sendConfirmationEmail({
           recipient: formData.email,
           fullName: formData.fullName,
@@ -180,29 +89,8 @@ app.post("/webhook", async (req, res) => {
           quote,
           photos: formData.photos,
         });
-
-        if (formData.appointmentSlot) {
-          busySlots.push(formData.appointmentSlot);
-        }
-      }
-
-      if (status === "rejected") {
-        console.log("❌ Pago rechazado:", paymentId);
-
-        await sendConfirmationEmail({
-          recipient: formData.email,
-          fullName: formData.fullName,
-          phone: formData.phone,
-          appointment: "❌ Pago rechazado, el turno no fue confirmado",
-          address: formData.address,
-          location: formData.location,
-          coords: formData.coords,
-          quote,
-          photos: formData.photos,
-        });
       }
     }
-
     res.sendStatus(200);
   } catch (err) {
     console.error("❌ Error en webhook:", err);
@@ -210,15 +98,24 @@ app.post("/webhook", async (req, res) => {
   }
 });
 
-// ✅ Endpoint para que el frontend consulte
-app.get("/api/payment-status/:paymentId", (req, res) => {
-  const { paymentId } = req.params;
-  const payment = confirmedPayments.find((p) => p.paymentId === paymentId);
+// ======================
+// 📌 Consultar estado de un pago (para Step7)
+// ======================
+app.get("/api/payment-status/:paymentId", async (req, res) => {
+  try {
+    const { paymentId } = req.params;
+    const paymentClient = new Payment(client);
+    const payment = await paymentClient.get({ id: paymentId });
 
-  if (payment) {
-    return res.json({ status: "approved", ...payment });
-  } else {
-    return res.json({ status: "pending" });
+    const status = payment.status;
+    const metadata = payment.metadata || {};
+    const formData = metadata.formData || {};
+    const quote = metadata.quote || {};
+
+    res.json({ status, formData, quote });
+  } catch (err) {
+    console.error("❌ Error consultando pago:", err.message || err);
+    res.status(404).json({ status: "error", message: "Pago no encontrado" });
   }
 });
 
