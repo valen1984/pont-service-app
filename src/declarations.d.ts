@@ -13,6 +13,7 @@ interface ImportMetaEnv {
   readonly BACKEND_URL: string;
   readonly VITE_MERCADOPAGO_PUBLIC_KEY: string;
   readonly VITE_API_URL: string;
+  readonly VITE_BACKEND_URL: string;
 }
 
 interface ImportMeta {

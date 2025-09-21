@@ -11,42 +11,55 @@ interface Props {
 
 const Step6Payment: React.FC<Props> = ({ quote, onPaymentSuccess, onPaymentFailure, prevStep }) => {
   const [preferenceId, setPreferenceId] = useState<string | null>(null);
+  const [paymentId, setPaymentId] = useState<string | null>(null);
 
   useEffect(() => {
-    // ⚡ Inicializar con la PUBLIC KEY desde env
-    const publicKey = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
-    if (publicKey) {
-      initMercadoPago(publicKey);
-    } else {
-      console.error("❌ Falta VITE_MERCADOPAGO_PUBLIC_KEY en .env");
-    }
+    initMercadoPago(import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY); // ⚡ ahora lee del .env
   }, []);
 
   const createPreference = async () => {
     if (!quote) return;
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4000";
-
-      const response = await fetch(`${apiUrl}/create_preference`, {
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/create_preference`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: "Servicio técnico Pont",
           quantity: 1,
           unit_price: quote.total,
-          formData: {}, // ⚡ si querés pasar datos del cliente
-          quote,        // ⚡ pasa el presupuesto también
         }),
       });
 
       const data = await response.json();
       setPreferenceId(data.id);
+      setPaymentId(data.id); // usamos preferenceId como ID para consultar después
     } catch (error) {
-      console.error("❌ Error creando preferencia:", error);
+      console.error("Error creando preferencia:", error);
       onPaymentFailure();
     }
   };
+
+  // ✅ Consultar estado del pago
+  useEffect(() => {
+    if (!paymentId) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/payment-status/${paymentId}`);
+        const data = await response.json();
+
+        if (data.status === "approved") {
+          clearInterval(interval);
+          onPaymentSuccess();
+        }
+      } catch (err) {
+        console.error("Error consultando estado del pago:", err);
+      }
+    }, 5000); // consulta cada 5 segundos
+
+    return () => clearInterval(interval);
+  }, [paymentId]);
 
   return (
     <div className="space-y-6 text-center">
