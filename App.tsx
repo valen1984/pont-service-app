@@ -13,7 +13,8 @@ import Step4Quote from '@/components/Step4Quote';
 import Step5Scheduler from '@/components/Step5Scheduler';
 import Step6Payment from '@/components/Step6Payment';
 import Step7Confirmation from '@/components/Step7Confirmation';
-import StepPaymentError from '.@/components/StepPaymentError';
+import StepPaymentError from '@/components/StepPaymentError.tsx';
+import { HashRouter as Router, Routes, Route } from "react-router-dom";
 
 const initialFormData: FormData = {
   fullName: '',

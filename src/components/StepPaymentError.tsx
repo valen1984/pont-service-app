@@ -14,6 +14,10 @@ const ErrorIcon: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 const StepPaymentError: React.FC<Props> = ({ formData, quote, restart }) => {
+  // Extraer payment_id si existe
+  const queryParams = new URLSearchParams(window.location.search);
+  const paymentId = queryParams.get('payment_id');
+
   return (
     <div className="space-y-6 text-center">
       <div className="flex justify-center">
@@ -24,9 +28,19 @@ const StepPaymentError: React.FC<Props> = ({ formData, quote, restart }) => {
         Lo sentimos, {formData.fullName}. Tu pago fue rechazado o no se pudo procesar.  
         Recibirás un correo con más detalles.
       </p>
+
+      {paymentId && (
+        <p className="text-sm text-slate-500">
+          Nº de comprobante: {paymentId}
+        </p>
+      )}
+
       <div className="flex flex-col gap-4 pt-4">
-        <button onClick={restart} className="w-full px-4 py-3 bg-slate-200 text-slate-800 font-semibold rounded-lg hover:bg-slate-300 transition-colors">
-          Volver a Intentar
+        <button
+          onClick={restart}
+          className="w-full px-4 py-3 bg-slate-200 text-slate-800 font-semibold rounded-lg hover:bg-slate-300 transition-colors"
+        >
+          Volver al inicio
         </button>
       </div>
     </div>

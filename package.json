@@ -2,8 +2,7 @@
   "name": "pont-service-app",
   "private": true,
   "version": "0.0.0",
-  "type":"module",
-
+  "type": "module",
   "scripts": {
     "dev:frontend": "vite",
     "dev:backend": "node server.js",
@@ -20,7 +19,8 @@
     "express": "^4.21.2",
     "mercadopago": "^2.9.0",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "react-router-dom": "^7.9.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
