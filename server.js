@@ -140,6 +140,13 @@ app.listen(PORT, () => {
 // 📌 API Agenda
 // ======================
 
+// Configuración de disponibilidad
+const WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // Lunes a Sábado
+const START_HOUR = 9;
+const END_HOUR = 17;
+const INTERVAL = 2; // cada 2 horas
+let busySlots = []; // turnos ocupados
+
 function generateSchedule() {
   const today = new Date();
   const result = [];
@@ -149,7 +156,7 @@ function generateSchedule() {
     date.setDate(today.getDate() + i);
 
     const dayOfWeek = date.getDay(); // 0 = Domingo, 1 = Lunes...
-    if (!WORKING_DAYS.includes(dayOfWeek)) continue; // solo lunes a sábado
+    if (!WORKING_DAYS.includes(dayOfWeek)) continue;
 
     const yyyy = date.getFullYear();
     const mm = String(date.getMonth() + 1).padStart(2, "0");
@@ -164,8 +171,6 @@ function generateSchedule() {
       const now = new Date();
 
       const diffMs = slotDateTime.getTime() - now.getTime();
-
-      // 🔹 Bloquear turnos dentro de las próximas 48h
       const within48h = diffMs >= 0 && diffMs < 48 * 60 * 60 * 1000;
 
       const isBusy = busySlots.some(
@@ -188,3 +193,34 @@ function generateSchedule() {
   return result;
 }
 
+// Endpoint para obtener disponibilidad
+app.get("/api/schedule", (req, res) => {
+  res.json(generateSchedule());
+});
+
+// Endpoint para obtener turnos ocupados
+app.get("/api/busy-slots", (req, res) => {
+  res.json(busySlots);
+});
+
+// Endpoint para marcar un turno como ocupado
+app.post("/api/book-slot", (req, res) => {
+  const { date, time } = req.body;
+
+  if (!date || !time) {
+    return res.status(400).json({ error: "Faltan parámetros (date, time)" });
+  }
+
+  const alreadyBusy = busySlots.some(
+    (slot) => slot.date === date && slot.time === time
+  );
+
+  if (alreadyBusy) {
+    return res.status(400).json({ error: "Turno ya ocupado" });
+  }
+
+  busySlots.push({ date, time });
+  console.log("📌 Nuevo turno reservado:", date, time);
+
+  res.json({ success: true });
+});
