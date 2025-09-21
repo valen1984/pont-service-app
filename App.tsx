@@ -50,15 +50,14 @@ function App() {
   // ✅ Detectar resultado de Mercado Pago al volver desde la pasarela
   useEffect(() => {
     const url = new URL(window.location.href);
-    const status = url.searchParams.get("status");
-    const pid = url.searchParams.get("payment_id");
 
-    if (status && pid) {
-      if (status === "approved") {
-        setCurrentStep(7); // Pantalla de confirmación
-      } else {
-        setCurrentStep(8); // Pantalla de error
-      }
+    const paymentStatus = url.searchParams.get("collection_status"); // lo que devuelve MP
+    const paymentId = url.searchParams.get("payment_id");
+
+    if (paymentStatus === "approved" && paymentId) {
+      setCurrentStep(7); // Confirmación
+    } else if (paymentStatus === "rejected" && paymentId) {
+      setCurrentStep(8); // Error de pago
     }
   }, []);
 
