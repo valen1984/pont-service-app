@@ -8,7 +8,7 @@ interface Props {
   prevStep: () => void;
 }
 
-const Step5Calendar: React.FC<Props> = ({
+const Step5Scheduler: React.FC<Props> = ({
   formData,
   updateFormData,
   nextStep,
@@ -102,4 +102,4 @@ const Step5Calendar: React.FC<Props> = ({
   );
 };
 
-export default Step5Calendar;
+export default Step5Scheduler;
