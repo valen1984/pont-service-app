@@ -1,134 +1,96 @@
 import express from "express";
 import cors from "cors";
+import { google } from "googleapis";
 import { MercadoPagoConfig, Preference, Payment } from "mercadopago";
-import bodyParser from "body-parser";
-import { sendConfirmationEmail } from "./email.js"; 
-import { TECHNICIAN_EMAIL } from "./constants.js"; 
-import path from "path";
-import { fileURLToPath } from "url";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(bodyParser.urlencoded({ extended: true }));
 
-// ⚡ Credenciales de prueba (sacadas de .env en Railway)
+// ✅ Autenticación con Google
+const auth = new google.auth.JWT(
+  process.env.GOOGLE_CLIENT_EMAIL,
+  undefined,
+  process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+  ["https://www.googleapis.com/auth/gmail.send", "https://www.googleapis.com/auth/calendar"]
+);
+
+const gmail = google.gmail({ version: "v1", auth });
+const calendar = google.calendar({ version: "v3", auth });
+
+// 📧 Función para enviar email
+async function sendGmail(to, subject, html) {
+  const encodedMessage = Buffer.from(
+    `To: ${to}\r\nSubject: ${subject}\r\nContent-Type: text/html; charset=utf-8\r\n\r\n${html}`
+  ).toString("base64");
+
+  await gmail.users.messages.send({
+    userId: "me",
+    requestBody: { raw: encodedMessage },
+  });
+}
+
+// 📅 Función para agendar evento
+async function createCalendarEvent({ summary, description, start, end }) {
+  const event = {
+    summary,
+    description,
+    start: { dateTime: start, timeZone: "America/Argentina/Buenos_Aires" },
+    end: { dateTime: end, timeZone: "America/Argentina/Buenos_Aires" },
+    attendees: [{ email: process.env.GMAIL_USER }],
+  };
+
+  await calendar.events.insert({
+    calendarId: "primary",
+    requestBody: event,
+  });
+}
+
+// ⚡ MercadoPago config
 const client = new MercadoPagoConfig({
   accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN,
 });
 
-// ======================================================
-// Función para normalizar el presupuesto antes del mail
-// ======================================================
-const normalizeQuote = (quote) => ({
-  baseCost: quote?.baseCost?.toString() ?? "0",
-  travelCost:
-    typeof quote?.travelCost === "string"
-      ? quote.travelCost
-      : quote?.travelCost?.toString() ?? "0",
-  subtotal: quote?.subtotal?.toString() ?? "0",
-  iva: quote?.iva?.toString() ?? "0",
-  total: quote?.total?.toString() ?? "0",
-});
-
-// ======================================================
-// Crear preferencia de pago
-// ======================================================
-app.post("/create_preference", async (req, res) => {
-  try {
-    const { title, quantity, unit_price, formData, quote } = req.body;
-
-    const preference = new Preference(client);
-    const result = await preference.create({
-      body: {
-        items: [{ title, quantity, unit_price }],
-        back_urls: {
-          success: `${process.env.BACKEND_URL}/success`,
-          failure: `${process.env.BACKEND_URL}/failure`,
-          pending: `${process.env.BACKEND_URL}/pending`,
-        },
-        auto_return: "approved",
-        metadata: {
-          formData,
-          quote,
-        },
-      },
-    });
-
-    console.log("✅ Preference creada:", result.id);
-    res.json({ id: result.id });
-  } catch (error) {
-    console.error("❌ Error creando preferencia:", error);
-    res.status(500).send("Error creando preferencia");
-  }
-});
-
-// ======================================================
-// Webhook de Mercado Pago
-// ======================================================
+// Webhook de MercadoPago
 app.post("/webhook", async (req, res) => {
   try {
     const { type, data } = req.body;
-
     if (type === "payment") {
       const paymentId = data.id;
-      console.log("🔔 Pago recibido, consultando a Mercado Pago:", paymentId);
-
       const paymentClient = new Payment(client);
       const payment = await paymentClient.get({ id: paymentId });
 
-      const status = payment.status; // "approved", "rejected", "pending"
-      const metadata = payment.metadata || {};
-      const formData = metadata.formData || {};
-      const quote = normalizeQuote(metadata.quote || {});
+      const status = payment.status;
+      const formData = payment.metadata.formData || {};
+      const quote = payment.metadata.quote || {};
 
       if (status === "approved") {
-        console.log("✅ Pago aprobado. Enviando correos...");
+        // ✅ Correo
+        await sendGmail(
+          formData.email,
+          "✅ Pago confirmado - Turno agendado",
+          `<h2>Confirmación de turno</h2>
+           <p>Hola ${formData.fullName}, tu pago fue aprobado.</p>
+           <p><b>Total:</b> ${quote.total}</p>`
+        );
 
-        // Cliente
-        await sendConfirmationEmail({
-          recipient: formData.email,
-          fullName: formData.fullName,
-          phone: formData.phone,
-          appointment: "✅ Pago confirmado, turno agendado",
-          address: formData.address,
-          location: formData.location,
-          coords: formData.coords,
-          quote,
-          photos: formData.photos,
-        });
-
-        // Técnico
-        await sendConfirmationEmail({
-          recipient: TECHNICIAN_EMAIL,
-          fullName: formData.fullName,
-          phone: formData.phone,
-          appointment: "✅ Pago confirmado, turno agendado",
-          address: formData.address,
-          location: formData.location,
-          coords: formData.coords,
-          quote,
-          photos: formData.photos,
+        // 📅 Evento en Calendar (ejemplo 1 hora)
+        await createCalendarEvent({
+          summary: `Servicio para ${formData.fullName}`,
+          description: `Dirección: ${formData.address}, ${formData.location}`,
+          start: new Date().toISOString(),
+          end: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
         });
       }
 
       if (status === "rejected") {
-        console.log("❌ Pago rechazado. Avisando al cliente...");
-
-        await sendConfirmationEmail({
-          recipient: formData.email,
-          fullName: formData.fullName,
-          phone: formData.phone,
-          appointment: "❌ Pago rechazado, el turno no fue confirmado",
-          address: formData.address,
-          location: formData.location,
-          coords: formData.coords,
-          quote,
-          photos: formData.photos,
-        });
+        await sendGmail(
+          formData.email,
+          "❌ Pago rechazado",
+          `<p>Hola ${formData.fullName}, lamentablemente tu pago fue rechazado.</p>`
+        );
       }
     }
-
     res.sendStatus(200);
   } catch (err) {
     console.error("❌ Error en webhook:", err);
@@ -136,20 +98,5 @@ app.post("/webhook", async (req, res) => {
   }
 });
 
-// ======================================================
-// Servir frontend compilado con Vite
-// ======================================================
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-app.use(express.static(path.join(__dirname, "dist")));
-
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "dist", "index.html"));
-});
-
-// ======================================================
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
-});
+app.listen(PORT, () => console.log(`🚀 Servidor en puerto ${PORT}`));
