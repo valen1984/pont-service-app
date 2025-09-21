@@ -4,21 +4,28 @@ import { initMercadoPago, Wallet } from "@mercadopago/sdk-react";
 
 interface Props {
   quote: Quote | null;
-  formData: FormData;
   onPaymentSuccess: () => void;
   onPaymentFailure: () => void;
   prevStep: () => void;
+  formData: FormData;
 }
 
-const Step6Payment: React.FC<Props> = ({ quote, formData, onPaymentSuccess, onPaymentFailure, prevStep }) => {
+const Step6Payment: React.FC<Props> = ({
+  quote,
+  onPaymentSuccess,
+  onPaymentFailure,
+  prevStep,
+  formData,
+}) => {
   const [preferenceId, setPreferenceId] = useState<string | null>(null);
 
   useEffect(() => {
     // ⚡ Usamos la PUBLIC_KEY de Mercado Pago desde .env
-    if (import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY) {
-      initMercadoPago(import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY);
+    const mpPublicKey = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
+    if (mpPublicKey) {
+      initMercadoPago(mpPublicKey);
     } else {
-      console.error("❌ Falta VITE_MERCADOPAGO_PUBLIC_KEY en el .env");
+      console.error("⚠️ Falta VITE_MERCADOPAGO_PUBLIC_KEY en .env");
     }
   }, []);
 
@@ -26,28 +33,30 @@ const Step6Payment: React.FC<Props> = ({ quote, formData, onPaymentSuccess, onPa
     if (!quote) return;
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/create_preference`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: "Servicio técnico Pont",
-          quantity: 1,
-          unit_price: quote.total,
-          formData,
-          quote,
-        }),
-      });
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/create_preference`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: "Servicio técnico Pont",
+            quantity: 1,
+            unit_price: quote.total,
+            formData,
+            quote,
+          }),
+        }
+      );
 
       if (!response.ok) {
         throw new Error(`Error HTTP ${response.status}`);
       }
 
       const data = await response.json();
-
       if (data.id) {
         setPreferenceId(data.id);
       } else {
-        throw new Error("No se recibió un preferenceId");
+        throw new Error("No se recibió preferenceId");
       }
     } catch (error) {
       console.error("❌ Error creando preferencia:", error);
@@ -60,9 +69,10 @@ const Step6Payment: React.FC<Props> = ({ quote, formData, onPaymentSuccess, onPa
       <h2 className="text-xl font-bold">¿Realizar el pago?</h2>
 
       <p className="text-5xl font-bold tracking-tighter text-slate-800">
-        {new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(
-          quote?.total || 0
-        )}
+        {new Intl.NumberFormat("es-AR", {
+          style: "currency",
+          currency: "ARS",
+        }).format(quote?.total || 0)}
       </p>
 
       {!preferenceId ? (
@@ -74,14 +84,13 @@ const Step6Payment: React.FC<Props> = ({ quote, formData, onPaymentSuccess, onPa
         </button>
       ) : (
         <div className="flex justify-center">
-          <Wallet
-            initialization={{ preferenceId }}
-            onSubmit={onPaymentSuccess}
-          />
+          <Wallet initialization={{ preferenceId }} />
         </div>
       )}
 
-      <p className="text-xs text-slate-500">Serás redirigido a Mercado Pago</p>
+      <p className="text-xs text-slate-500">
+        Serás redirigido a Mercado Pago para finalizar tu compra
+      </p>
 
       <div className="pt-4">
         <button
