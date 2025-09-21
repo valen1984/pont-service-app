@@ -2,10 +2,7 @@ import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
 import { MercadoPagoConfig, Preference, Payment } from "mercadopago";
-import path from "path";
-import { fileURLToPath } from "url";
-
-import { sendConfirmationEmail } from "./email.js"; // 👈 ajusta la ruta
+import { sendConfirmationEmail } from "./email.js";
 import { TECHNICIAN_EMAIL } from "./constants.js";
 
 const app = express();
@@ -13,12 +10,83 @@ app.use(cors());
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// ⚡ Credenciales MercadoPago
+// ⚡ Credenciales (Railway → Variables de Entorno)
 const client = new MercadoPagoConfig({
   accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN,
 });
 
-// Crear preferencia
+// ======================
+// 📌 Datos en memoria
+// ======================
+
+// Disponibilidad inicial (ejemplo: 7 días con horarios fijos)
+const schedule = [
+  {
+    day: "Lunes",
+    date: "2025-09-22",
+    slots: [
+      { time: "10:00", isAvailable: true },
+      { time: "14:00", isAvailable: true },
+      { time: "16:00", isAvailable: true },
+    ],
+  },
+  {
+    day: "Martes",
+    date: "2025-09-23",
+    slots: [
+      { time: "10:00", isAvailable: true },
+      { time: "14:00", isAvailable: true },
+      { time: "16:00", isAvailable: true },
+    ],
+  },
+  // 👉 podés agregar más días...
+];
+
+// Lista dinámica de turnos ocupados
+let busySlots = [];
+
+// ======================
+// 📌 API Endpoints
+// ======================
+
+// Devuelve la disponibilidad semanal
+app.get("/api/schedule", (req, res) => {
+  res.json(schedule);
+});
+
+// Devuelve los turnos ocupados
+app.get("/api/busy-slots", (req, res) => {
+  res.json(busySlots);
+});
+
+// Reservar un turno (lo marca como ocupado)
+app.post("/api/book-slot", (req, res) => {
+  const { day, time } = req.body;
+
+  if (!day || !time) {
+    return res.status(400).json({ error: "Faltan parámetros (day, time)" });
+  }
+
+  // Verificamos si ya está ocupado
+  const alreadyBusy = busySlots.some(
+    (slot) => slot.day === day && slot.time === time
+  );
+
+  if (alreadyBusy) {
+    return res.status(400).json({ error: "Turno ya ocupado" });
+  }
+
+  // Guardamos como ocupado
+  busySlots.push({ day, time });
+  console.log("📌 Nuevo turno reservado:", day, time);
+
+  res.json({ success: true });
+});
+
+// ======================
+// 📌 Pago con Mercado Pago
+// ======================
+
 app.post("/create_preference", async (req, res) => {
   try {
     const { title, quantity, unit_price, formData, quote } = req.body;
@@ -33,7 +101,10 @@ app.post("/create_preference", async (req, res) => {
           pending: `${process.env.BACKEND_URL}/pending`,
         },
         auto_return: "approved",
-        metadata: { formData, quote },
+        metadata: {
+          formData,
+          quote,
+        },
       },
     });
 
@@ -45,16 +116,12 @@ app.post("/create_preference", async (req, res) => {
   }
 });
 
-// Webhook de Mercado Pago
 app.post("/webhook", async (req, res) => {
   try {
     const { type, data } = req.body;
 
     if (type === "payment") {
       const paymentId = data.id;
-
-      console.log("🔔 Pago recibido, consultando a Mercado Pago:", paymentId);
-
       const paymentClient = new Payment(client);
       const payment = await paymentClient.get({ id: paymentId });
 
@@ -64,6 +131,8 @@ app.post("/webhook", async (req, res) => {
       const quote = metadata.quote || {};
 
       if (status === "approved") {
+        console.log("✅ Pago aprobado. Enviando correos...");
+
         await sendConfirmationEmail({
           recipient: formData.email,
           fullName: formData.fullName,
@@ -87,9 +156,16 @@ app.post("/webhook", async (req, res) => {
           quote,
           photos: formData.photos,
         });
+
+        // 👉 Guardamos el turno como ocupado
+        if (formData.appointmentSlot) {
+          busySlots.push(formData.appointmentSlot);
+        }
       }
 
       if (status === "rejected") {
+        console.log("❌ Pago rechazado. Avisando al cliente...");
+
         await sendConfirmationEmail({
           recipient: formData.email,
           fullName: formData.fullName,
@@ -111,7 +187,12 @@ app.post("/webhook", async (req, res) => {
   }
 });
 
-// 🚀 Servir frontend compilado
+// ======================
+// 📌 Servir frontend
+// ======================
+
+import path from "path";
+import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 

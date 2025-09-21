@@ -29,25 +29,16 @@ const Step4Quote: React.FC<Props> = ({ formData, setQuote, nextStep, prevStep })
     };
 
     fetchQuote();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData, setQuote]);
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("es-AR", {
-      style: "currency",
-      currency: "ARS",
-    }).format(amount);
-  };
+  const formatCurrency = (amount: number) =>
+    new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(amount);
 
   if (isLoading) {
     return (
       <div>
-        <h2 className="text-xl font-bold text-center mb-2">
-          Calculando presupuesto...
-        </h2>
-        <p className="text-center text-slate-500 mb-6">
-          Por favor, espere un momento.
-        </p>
+        <h2 className="text-xl font-bold text-center mb-2">Calculando presupuesto...</h2>
+        <p className="text-center text-slate-500 mb-6">Por favor, espere un momento.</p>
         <LoadingSpinner />
       </div>
     );
@@ -66,17 +57,13 @@ const Step4Quote: React.FC<Props> = ({ formData, setQuote, nextStep, prevStep })
         </div>
         <div className="flex justify-between">
           <span className="text-slate-600">Costo base:</span>
-          <span className="font-medium">
-            {formatCurrency(localQuote?.baseCost || 0)}
-          </span>
+          <span className="font-medium">{formatCurrency(localQuote?.baseCost || 0)}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-slate-600">Costo por traslado:</span>
           <span
             className={`font-medium ${
-              localQuote?.travelCost === "💵 Bonificado"
-                ? "text-green-600"
-                : "text-slate-800"
+              localQuote?.travelCost === "💵 Bonificado" ? "text-green-600" : "text-slate-800"
             }`}
           >
             {typeof localQuote?.travelCost === "string"
@@ -87,15 +74,11 @@ const Step4Quote: React.FC<Props> = ({ formData, setQuote, nextStep, prevStep })
         <hr className="my-2" />
         <div className="flex justify-between">
           <span className="text-slate-600">Subtotal:</span>
-          <span className="font-medium">
-            {formatCurrency(localQuote?.subtotal || 0)}
-          </span>
+          <span className="font-medium">{formatCurrency(localQuote?.subtotal || 0)}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-slate-600">IVA (21%):</span>
-          <span className="font-medium">
-            {formatCurrency(localQuote?.iva || 0)}
-          </span>
+          <span className="font-medium">{formatCurrency(localQuote?.iva || 0)}</span>
         </div>
         <div className="flex justify-between text-lg font-bold">
           <span>Total:</span>
