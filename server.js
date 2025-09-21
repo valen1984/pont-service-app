@@ -16,34 +16,97 @@ const client = new MercadoPagoConfig({
 });
 
 // ======================
-// 📌 Datos en memoria
+// 📌 Generador de disponibilidad
 // ======================
 
-// Disponibilidad inicial (ejemplo: 7 días con horarios fijos)
-const schedule = [
-  {
-    day: "Lunes",
-    date: "2025-09-22",
-    slots: [
-      { time: "10:00", isAvailable: true },
-      { time: "14:00", isAvailable: true },
-      { time: "16:00", isAvailable: true },
-    ],
-  },
-  {
-    day: "Martes",
-    date: "2025-09-23",
-    slots: [
-      { time: "10:00", isAvailable: true },
-      { time: "14:00", isAvailable: true },
-      { time: "16:00", isAvailable: true },
-    ],
-  },
-  // 👉 podés agregar más días...
-];
+const WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // Lunes (1) a Sábado (6)
+const START_HOUR = 9;
+const END_HOUR = 17;
+const INTERVAL = 2; // horas por turno
 
 // Lista dinámica de turnos ocupados
 let busySlots = [];
+
+// Función para generar próximos 14 días de disponibilidad
+function generateSchedule() {
+  const today = new Date();
+  const result = [];
+
+  for (let i = 0; i < 14; i++) {
+    const date = new Date(today);
+    date.setDate(today.getDate() + i);
+
+    const dayOfWeek = date.getDay(); // 0 = Domingo, 1 = Lunes...
+    if (!WORKING_DAYS.includes(dayOfWeek)) continue; // solo lunes a sábado
+
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    const dd = String(date.getDate()).padStart(2, "0");
+    const formattedDate = `${yyyy}-${mm}-${dd}`;
+
+    const slots = [];
+    for (let hour = START_HOUR; hour < END_HOUR; hour += INTERVAL) {
+      const slotTime = `${hour.toString().padStart(2, "0")}:00`;
+
+      // 📌 Reglas:
+      const now = new Date();
+      const slotDateTime = new Date(`${formattedDate}T${slotTime}:00`);
+
+      const within48h = (slotDateTime.getTime() - now.getTime()) < 48 * 60 * 60 * 1000;
+      const isBusy = busySlots.some(
+        (s) => s.date === formattedDate && s.time === slotTime
+      );
+
+      slots.push({
+        time: slotTime,
+        isAvailable: !within48h && !isBusy,
+      });
+    }
+
+    result.push({
+      day: date.toLocaleDateString("es-AR", { weekday: "long" }),
+      date: formattedDate,
+      slots,
+    });
+  }
+
+  return result;
+}
+
+// ======================
+// 📌 API Endpoints
+// ======================
+
+app.get("/api/schedule", (req, res) => {
+  const schedule = generateSchedule();
+  res.json(schedule);
+});
+
+app.get("/api/busy-slots", (req, res) => {
+  res.json(busySlots);
+});
+
+app.post("/api/book-slot", (req, res) => {
+  const { date, time } = req.body;
+
+  if (!date || !time) {
+    return res.status(400).json({ error: "Faltan parámetros (date, time)" });
+  }
+
+  const alreadyBusy = busySlots.some(
+    (slot) => slot.date === date && slot.time === time
+  );
+
+  if (alreadyBusy) {
+    return res.status(400).json({ error: "Turno ya ocupado" });
+  }
+
+  busySlots.push({ date, time });
+  console.log("📌 Nuevo turno reservado:", date, time);
+
+  res.json({ success: true });
+});
+
 
 // ======================
 // 📌 API Endpoints
