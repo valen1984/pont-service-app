@@ -19,91 +19,6 @@ const client = new MercadoPagoConfig({
 });
 
 // ======================
-// 📌 API Agenda
-// ======================
-const WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // Lunes a Sábado
-const START_HOUR = 9;
-const END_HOUR = 17;
-const INTERVAL = 2; // cada 2 horas
-let busySlots = []; // turnos ocupados
-
-function generateSchedule() {
-  const today = new Date();
-  const result = [];
-
-  for (let i = 0; i < 14; i++) {
-    const date = new Date(today);
-    date.setDate(today.getDate() + i);
-
-    const dayOfWeek = date.getDay();
-    if (!WORKING_DAYS.includes(dayOfWeek)) continue;
-
-    const yyyy = date.getFullYear();
-    const mm = String(date.getMonth() + 1).padStart(2, "0");
-    const dd = String(date.getDate()).padStart(2, "0");
-    const formattedDate = `${yyyy}-${mm}-${dd}`;
-
-    const slots = [];
-    for (let hour = START_HOUR; hour < END_HOUR; hour += INTERVAL) {
-      const slotTime = `${hour.toString().padStart(2, "0")}:00`;
-
-      const slotDateTime = new Date(`${formattedDate}T${slotTime}:00`);
-      const now = new Date();
-
-      const diffMs = slotDateTime.getTime() - now.getTime();
-      const within48h = diffMs >= 0 && diffMs < 48 * 60 * 60 * 1000;
-
-      const isBusy = busySlots.some(
-        (s) => s.date === formattedDate && s.time === slotTime
-      );
-
-      slots.push({
-        time: slotTime,
-        isAvailable: !within48h && !isBusy,
-      });
-    }
-
-    result.push({
-      day: date.toLocaleDateString("es-AR", { weekday: "long" }),
-      date: formattedDate,
-      slots,
-    });
-  }
-
-  return result;
-}
-
-// Endpoints Agenda
-app.get("/api/schedule", (req, res) => {
-  res.json(generateSchedule());
-});
-
-app.get("/api/busy-slots", (req, res) => {
-  res.json(busySlots);
-});
-
-app.post("/api/book-slot", (req, res) => {
-  const { date, time } = req.body;
-
-  if (!date || !time) {
-    return res.status(400).json({ error: "Faltan parámetros (date, time)" });
-  }
-
-  const alreadyBusy = busySlots.some(
-    (slot) => slot.date === date && slot.time === time
-  );
-
-  if (alreadyBusy) {
-    return res.status(400).json({ error: "Turno ya ocupado" });
-  }
-
-  busySlots.push({ date, time });
-  console.log("📌 Nuevo turno reservado:", date, time);
-
-  res.json({ success: true });
-});
-
-// ======================
 // 📌 Crear preferencia
 // ======================
 app.post("/create_preference", async (req, res) => {
@@ -133,7 +48,7 @@ app.post("/create_preference", async (req, res) => {
 });
 
 // ======================
-// 📌 Webhook
+// 📌 Webhook (para emails)
 // ======================
 app.post("/webhook", async (req, res) => {
   try {
@@ -184,7 +99,7 @@ app.post("/webhook", async (req, res) => {
 });
 
 // ======================
-// 📌 Consultar estado de un pago
+// 📌 Consultar estado de un pago (Step7)
 // ======================
 app.get("/api/payment-status/:paymentId", async (req, res) => {
   try {
@@ -202,6 +117,96 @@ app.get("/api/payment-status/:paymentId", async (req, res) => {
     console.error("❌ Error consultando pago:", err.message || err);
     res.status(404).json({ status: "error", message: "Pago no encontrado" });
   }
+});
+
+// ======================
+// 📌 API Agenda
+// ======================
+const WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // Lunes a Sábado
+const START_HOUR = 9;
+const END_HOUR = 17;
+const INTERVAL = 2;
+let busySlots = [];
+
+function generateSchedule() {
+  const today = new Date();
+  const result = [];
+
+  for (let i = 0; i < 14; i++) {
+    const date = new Date(today);
+    date.setDate(today.getDate() + i);
+
+    const dayOfWeek = date.getDay();
+    if (!WORKING_DAYS.includes(dayOfWeek)) continue;
+
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    const dd = String(date.getDate()).padStart(2, "0");
+    const formattedDate = `${yyyy}-${mm}-${dd}`;
+
+    const slots = [];
+    for (let hour = START_HOUR; hour < END_HOUR; hour += INTERVAL) {
+      const slotTime = `${hour.toString().padStart(2, "0")}:00`;
+
+      const slotDateTime = new Date(`${formattedDate}T${slotTime}:00`);
+      const now = new Date();
+      const diffMs = slotDateTime.getTime() - now.getTime();
+      const within48h = diffMs >= 0 && diffMs < 48 * 60 * 60 * 1000;
+
+      const isBusy = busySlots.some(
+        (s) => s.date === formattedDate && s.time === slotTime
+      );
+
+      slots.push({
+        time: slotTime,
+        isAvailable: !within48h && !isBusy,
+      });
+    }
+
+    // 👇 Formato `Mie 24/09/2025`
+    const dayFormatted = date.toLocaleDateString("es-AR", {
+      weekday: "short",
+    });
+    const dateFormatted = date.toLocaleDateString("es-AR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+
+    result.push({
+      day: `${dayFormatted} ${dateFormatted}`,
+      date: formattedDate, // lógica interna
+      slots,
+    });
+  }
+
+  return result;
+}
+
+app.get("/api/schedule", (req, res) => {
+  res.json(generateSchedule());
+});
+
+app.get("/api/busy-slots", (req, res) => {
+  res.json(busySlots);
+});
+
+app.post("/api/book-slot", (req, res) => {
+  const { date, time } = req.body;
+  if (!date || !time) {
+    return res.status(400).json({ error: "Faltan parámetros (date, time)" });
+  }
+
+  const alreadyBusy = busySlots.some(
+    (slot) => slot.date === date && slot.time === time
+  );
+  if (alreadyBusy) {
+    return res.status(400).json({ error: "Turno ya ocupado" });
+  }
+
+  busySlots.push({ date, time });
+  console.log("📌 Nuevo turno reservado:", date, time);
+  res.json({ success: true });
 });
 
 // ======================
