@@ -39,3 +39,21 @@ export const STEPS = [
   "Calendario",
   "Pago",
 ];
+
+// ====================================================================
+// UTILIDADES DE FORMATEO
+// ====================================================================
+
+/**
+ * Devuelve el texto para el costo de traslado.
+ * Si el costo es 0 => 💵 Bonificado
+ * Si no => lo devuelve como string con formato $ARS.
+ */
+export const formatTravelCost = (cost: number): string => {
+  if (cost === 0) return "💵 Bonificado";
+  return new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "ARS",
+    minimumFractionDigits: 0,
+  }).format(cost);
+};
