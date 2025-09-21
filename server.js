@@ -139,13 +139,52 @@ app.listen(PORT, () => {
 // ======================
 // 📌 API Agenda
 // ======================
-app.get("/api/schedule", (req, res) => {
-  const fullSchedule = generateSchedule();
 
-  // 🔹 Filtrar solo días con al menos un turno disponible
-  const availableDays = fullSchedule.filter((day) =>
-    day.slots.some((slot) => slot.isAvailable)
-  );
+function generateSchedule() {
+  const today = new Date();
+  const result = [];
 
-  res.json(availableDays);
-});
+  for (let i = 0; i < 14; i++) {
+    const date = new Date(today);
+    date.setDate(today.getDate() + i);
+
+    const dayOfWeek = date.getDay(); // 0 = Domingo, 1 = Lunes...
+    if (!WORKING_DAYS.includes(dayOfWeek)) continue; // solo lunes a sábado
+
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, "0");
+    const dd = String(date.getDate()).padStart(2, "0");
+    const formattedDate = `${yyyy}-${mm}-${dd}`;
+
+    const slots = [];
+    for (let hour = START_HOUR; hour < END_HOUR; hour += INTERVAL) {
+      const slotTime = `${hour.toString().padStart(2, "0")}:00`;
+
+      const slotDateTime = new Date(`${formattedDate}T${slotTime}:00`);
+      const now = new Date();
+
+      const diffMs = slotDateTime.getTime() - now.getTime();
+
+      // 🔹 Bloquear turnos dentro de las próximas 48h
+      const within48h = diffMs >= 0 && diffMs < 48 * 60 * 60 * 1000;
+
+      const isBusy = busySlots.some(
+        (s) => s.date === formattedDate && s.time === slotTime
+      );
+
+      slots.push({
+        time: slotTime,
+        isAvailable: !within48h && !isBusy,
+      });
+    }
+
+    result.push({
+      day: date.toLocaleDateString("es-AR", { weekday: "long" }),
+      date: formattedDate,
+      slots,
+    });
+  }
+
+  return result;
+}
+
