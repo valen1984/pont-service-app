@@ -16,67 +16,59 @@ const Step5Calendar: React.FC<Props> = ({
 }) => {
   const [schedule, setSchedule] = useState<ScheduleDay[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDay, setSelectedDay] = useState<string | null>(null);
-  const [selectedTime, setSelectedTime] = useState<string | null>(null);
 
-  // 🚀 Traer disponibilidad desde el backend
   useEffect(() => {
     const fetchSchedule = async () => {
       try {
-        const res = await fetch("/api/schedule");
-        const data: ScheduleDay[] = await res.json();
+        const res = await fetch("/api/schedule"); // tu backend
+        const data = await res.json();
         setSchedule(data);
       } catch (err) {
-        console.error("❌ Error cargando turnos:", err);
+        console.error("❌ Error cargando agenda:", err);
       } finally {
         setLoading(false);
       }
     };
+
     fetchSchedule();
   }, []);
 
-  const handleSelectSlot = (day: string, date: string, time: string) => {
-    setSelectedDay(date);
-    setSelectedTime(time);
+  const handleSelectSlot = (day: ScheduleDay, time: string) => {
     updateFormData({
-      appointmentSlot: { day: `${day} (${date})`, time },
+      appointmentSlot: {
+        day: day.day,
+        date: day.date, // 👈 nuevo: guardamos fecha exacta
+        time,
+      },
     });
   };
 
-  const handleNext = () => {
-    if (selectedDay && selectedTime) {
-      nextStep();
-    } else {
-      alert("Por favor, seleccioná un turno disponible.");
-    }
-  };
-
   if (loading) {
-    return <p className="text-center">Cargando turnos disponibles...</p>;
+    return <p className="text-center text-slate-500">Cargando disponibilidad...</p>;
   }
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold text-center">📅 Seleccioná tu turno</h2>
-
-      <div className="space-y-4">
+      <h2 className="text-xl font-bold text-center">Seleccionar Turno</h2>
+      <div className="grid gap-4">
         {schedule.map((day) => (
-          <div key={day.date} className="border p-3 rounded-lg">
-            <p className="font-semibold mb-2">
-              {day.day} ({day.date})
-            </p>
-            <div className="grid grid-cols-2 gap-2">
+          <div key={day.date} className="p-4 border rounded-lg bg-slate-50">
+            <h3 className="font-semibold">
+              {day.day} - {day.date}
+            </h3>
+            <div className="flex flex-wrap gap-2 mt-2">
               {day.slots.map((slot) => (
                 <button
                   key={slot.time}
-                  onClick={() => handleSelectSlot(day.day, day.date, slot.time)}
+                  onClick={() => handleSelectSlot(day, slot.time)}
                   disabled={!slot.isAvailable}
-                  className={`px-3 py-2 rounded-lg text-sm ${
+                  className={`px-3 py-2 rounded-lg text-sm font-medium ${
                     !slot.isAvailable
-                      ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-                      : selectedDay === day.date && selectedTime === slot.time
+                      ? "bg-slate-200 text-slate-500 cursor-not-allowed"
+                      : formData.appointmentSlot?.date === day.date &&
+                        formData.appointmentSlot?.time === slot.time
                       ? "bg-sky-600 text-white"
-                      : "bg-sky-100 text-sky-700 hover:bg-sky-200"
+                      : "bg-white border border-slate-300 hover:bg-sky-50"
                   }`}
                 >
                   {slot.time}
@@ -95,8 +87,9 @@ const Step5Calendar: React.FC<Props> = ({
           Anterior
         </button>
         <button
-          onClick={handleNext}
-          className="w-full px-4 py-3 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition-colors"
+          onClick={nextStep}
+          disabled={!formData.appointmentSlot}
+          className="w-full px-4 py-3 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition-colors disabled:bg-slate-300"
         >
           Confirmar Turno
         </button>
