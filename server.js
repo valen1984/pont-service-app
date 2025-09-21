@@ -30,14 +30,14 @@ app.post("/create_preference", async (req, res) => {
       body: {
         items: [{ title, quantity, unit_price }],
         back_urls: {
-          success: `${process.env.FRONTEND_URL}/#/success`,
-          failure: `${process.env.FRONTEND_URL}/#/failure`,
-          pending: `${process.env.FRONTEND_URL}/#/failure`,
+          success: `${process.env.FRONTEND_URL}/?status=success`,
+          failure: `${process.env.FRONTEND_URL}/?status=failure`,
+          pending: `${process.env.FRONTEND_URL}/?status=pending`,
         },
         auto_return: "approved",
         metadata: {
-          formData: JSON.stringify(formData), // 👈 serializamos
-          quote: JSON.stringify(quote),       // 👈 serializamos
+          formData: JSON.stringify(formData), // 👈 guardamos como string
+          quote: JSON.stringify(quote),       // 👈 guardamos como string
         },
       },
     });
@@ -51,7 +51,7 @@ app.post("/create_preference", async (req, res) => {
 });
 
 // ======================
-// 📌 Webhook (emails y reservas)
+// 📌 Webhook (para emails)
 // ======================
 app.post("/webhook", async (req, res) => {
   try {
@@ -65,6 +65,7 @@ app.post("/webhook", async (req, res) => {
 
       let formData = {};
       let quote = {};
+
       try {
         if (payment.metadata.formData) {
           formData = JSON.parse(payment.metadata.formData);
@@ -73,7 +74,7 @@ app.post("/webhook", async (req, res) => {
           quote = JSON.parse(payment.metadata.quote);
         }
       } catch (err) {
-        console.error("❌ Error parseando metadata en webhook:", err);
+        console.error("❌ Error parseando metadata:", err);
       }
 
       if (status === "approved") {
@@ -103,22 +104,6 @@ app.post("/webhook", async (req, res) => {
           photos: formData.photos,
         });
       }
-
-      if (status === "rejected") {
-        console.log("❌ Pago rechazado:", paymentId);
-
-        await sendConfirmationEmail({
-          recipient: formData.email,
-          fullName: formData.fullName,
-          phone: formData.phone,
-          appointment: "❌ Pago rechazado, el turno no fue confirmado",
-          address: formData.address,
-          location: formData.location,
-          coords: formData.coords,
-          quote,
-          photos: formData.photos,
-        });
-      }
     }
     res.sendStatus(200);
   } catch (err) {
@@ -128,7 +113,7 @@ app.post("/webhook", async (req, res) => {
 });
 
 // ======================
-// 📌 Consultar estado de un pago (para Step7)
+// 📌 Consultar estado de un pago (Step7)
 // ======================
 app.get("/api/payment-status/:paymentId", async (req, res) => {
   try {
@@ -140,6 +125,7 @@ app.get("/api/payment-status/:paymentId", async (req, res) => {
 
     let formData = {};
     let quote = {};
+
     try {
       if (payment.metadata.formData) {
         formData = JSON.parse(payment.metadata.formData);
@@ -148,7 +134,7 @@ app.get("/api/payment-status/:paymentId", async (req, res) => {
         quote = JSON.parse(payment.metadata.quote);
       }
     } catch (err) {
-      console.error("❌ Error parseando metadata en payment-status:", err);
+      console.error("❌ Error parseando metadata:", err);
     }
 
     res.json({ status, formData, quote });
@@ -159,23 +145,7 @@ app.get("/api/payment-status/:paymentId", async (req, res) => {
 });
 
 // ======================
-// 📌 Servir frontend
-// ======================
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-app.use(express.static(path.join(__dirname, "dist")));
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "dist", "index.html"));
-});
-
-const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
-});
-
-// ======================
-// 📌 API Agenda
+// 📌 API Agenda (tu lógica original intacta)
 // ======================
 const WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // Lunes a Sábado
 const START_HOUR = 9;
@@ -202,6 +172,7 @@ function generateSchedule() {
     const slots = [];
     for (let hour = START_HOUR; hour < END_HOUR; hour += INTERVAL) {
       const slotTime = `${hour.toString().padStart(2, "0")}:00`;
+
       const slotDateTime = new Date(`${formattedDate}T${slotTime}:00`);
       const now = new Date();
       const diffMs = slotDateTime.getTime() - now.getTime();
@@ -217,13 +188,17 @@ function generateSchedule() {
       });
     }
 
+    const dayFormatted = date.toLocaleDateString("es-AR", {
+      weekday: "short",
+    });
+    const dateFormatted = date.toLocaleDateString("es-AR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+
     result.push({
-      day: date.toLocaleDateString("es-AR", {
-        weekday: "short",
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      }),
+      day: `${dayFormatted} ${dateFormatted}`,
       date: formattedDate,
       slots,
     });
@@ -242,7 +217,6 @@ app.get("/api/busy-slots", (req, res) => {
 
 app.post("/api/book-slot", (req, res) => {
   const { date, time } = req.body;
-
   if (!date || !time) {
     return res.status(400).json({ error: "Faltan parámetros (date, time)" });
   }
@@ -250,13 +224,27 @@ app.post("/api/book-slot", (req, res) => {
   const alreadyBusy = busySlots.some(
     (slot) => slot.date === date && slot.time === time
   );
-
   if (alreadyBusy) {
     return res.status(400).json({ error: "Turno ya ocupado" });
   }
 
   busySlots.push({ date, time });
   console.log("📌 Nuevo turno reservado:", date, time);
-
   res.json({ success: true });
+});
+
+// ======================
+// 📌 Servir frontend
+// ======================
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+app.use(express.static(path.join(__dirname, "dist")));
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "dist", "index.html"));
+});
+
+const PORT = process.env.PORT || 4000;
+app.listen(PORT, () => {
+  console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
 });
