@@ -135,3 +135,17 @@ const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
 });
+
+// ======================
+// 📌 API Agenda
+// ======================
+app.get("/api/schedule", (req, res) => {
+  const fullSchedule = generateSchedule();
+
+  // 🔹 Filtrar solo días con al menos un turno disponible
+  const availableDays = fullSchedule.filter((day) =>
+    day.slots.some((slot) => slot.isAvailable)
+  );
+
+  res.json(availableDays);
+});
