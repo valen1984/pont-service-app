@@ -34,15 +34,37 @@ function App() {
 
   const nextStep = () => setCurrentStep((prev) => prev + 1);
   const prevStep = () => setCurrentStep((prev) => prev - 1);
+
   const restart = () => {
     setCurrentStep(1);
     setFormData(initialFormData);
     setQuote(null);
+    localStorage.removeItem("formData");
+    localStorage.removeItem("quote");
   };
 
+  // ✅ Guardar cambios en formData en localStorage
   const updateFormData = (data: Partial<FormData>) => {
-    setFormData((prev) => ({ ...prev, ...data }));
+    const newForm = { ...formData, ...data };
+    setFormData(newForm);
+    localStorage.setItem("formData", JSON.stringify(newForm));
   };
+
+  // ✅ Guardar cambios en quote en localStorage
+  useEffect(() => {
+    if (quote) {
+      localStorage.setItem("quote", JSON.stringify(quote));
+    }
+  }, [quote]);
+
+  // ✅ Restaurar desde localStorage al cargar la app
+  useEffect(() => {
+    const cachedForm = localStorage.getItem("formData");
+    const cachedQuote = localStorage.getItem("quote");
+
+    if (cachedForm) setFormData(JSON.parse(cachedForm));
+    if (cachedQuote) setQuote(JSON.parse(cachedQuote));
+  }, []);
 
   const handlePaymentSuccess = () => setCurrentStep(7);
   const handlePaymentFailure = () => setCurrentStep(8);
@@ -119,11 +141,19 @@ function App() {
         );
       case 7:
         return (
-          <Step7Confirmation formData={formData} quote={quote} restart={restart} />
+          <Step7Confirmation
+            formData={formData}
+            quote={quote}
+            restart={restart}
+          />
         );
       case 8:
         return (
-          <StepPaymentError formData={formData} quote={quote} restart={restart} />
+          <StepPaymentError
+            formData={formData}
+            quote={quote}
+            restart={restart}
+          />
         );
       default:
         return (
@@ -148,7 +178,10 @@ function App() {
               <h1 className="text-2xl font-bold text-center text-slate-800 mb-2">
                 {STEPS[currentStep - 1]}
               </h1>
-              <ProgressBar currentStep={currentStep} totalSteps={STEPS.length} />
+              <ProgressBar
+                currentStep={currentStep}
+                totalSteps={STEPS.length}
+              />
             </>
           )}
           {renderStep()}
