@@ -14,7 +14,7 @@ const Step6Payment: React.FC<Props> = ({ quote, prevStep, onPaymentSuccess, onPa
 
   useEffect(() => {
     // ⚡ Usá la Public Key (modo test primero)
-    initMercadoPago(import.meta.env.VITE_MP_PUBLIC_KEY || "");
+    initMercadoPago(import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY || "");
   }, []);
 
   const createPreference = async () => {
