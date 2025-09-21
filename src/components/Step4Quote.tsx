@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import type { FormData, Quote } from "../../types";
-import { SERVICE_BASE_PRICES, COST_PER_KM, IVA_RATE } from "../../constants.ts";
+import { calculateQuote } from "../../services/mockApi";
 
 interface Props {
   formData: FormData;
@@ -9,56 +9,89 @@ interface Props {
   prevStep: () => void;
 }
 
+const LoadingSpinner: React.FC = () => (
+  <div className="flex justify-center items-center py-10">
+    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-sky-600"></div>
+  </div>
+);
+
 const Step4Quote: React.FC<Props> = ({ formData, setQuote, nextStep, prevStep }) => {
-  const [quote, setLocalQuote] = useState<Quote | null>(null);
+  const [localQuote, setLocalQuote] = useState<Quote | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!formData.serviceType) return;
-
-    // 💰 Precio base del servicio
-    const baseCost = SERVICE_BASE_PRICES[formData.serviceType] || 0;
-
-    // 🚗 Costo de traslado (ejemplo fijo por ahora)
-    const travelCost = 1000; // podés reemplazar por cálculo de km si tenés coords
-
-    const subtotal = baseCost + travelCost;
-    const iva = subtotal * IVA_RATE;
-    const total = subtotal + iva;
-
-    const newQuote: Quote = {
-      baseCost,
-      travelCost,
-      subtotal,
-      iva,
-      total,
+    const fetchQuote = async () => {
+      setIsLoading(true);
+      const newQuote = await calculateQuote(formData);
+      setLocalQuote(newQuote);
+      setQuote(newQuote);
+      setIsLoading(false);
     };
 
-    setLocalQuote(newQuote);
-    setQuote(newQuote); // 👈 lo mandamos al padre
-  }, [formData.serviceType, setQuote]);
-
-  if (!quote) {
-    return <p className="text-center text-slate-500">Calculando presupuesto...</p>;
-  }
+    fetchQuote();
+  }, [formData, setQuote]);
 
   const formatCurrency = (amount: number) =>
     new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(amount);
 
+  if (isLoading) {
+    return (
+      <div>
+        <h2 className="text-xl font-bold text-center mb-2">Calculando presupuesto...</h2>
+        <p className="text-center text-slate-500 mb-6">Por favor, espere un momento.</p>
+        <LoadingSpinner />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold text-center">Presupuesto</h2>
-      <div className="p-4 bg-slate-50 rounded-lg space-y-2">
-        <div><span className="font-semibold">Servicio: </span>{formData.serviceType}</div>
-        <div><span className="font-semibold">Costo base: </span>{formatCurrency(quote.baseCost)}</div>
-        <div><span className="font-semibold">Traslado: </span>{formatCurrency(quote.travelCost)}</div>
-        <div><span className="font-semibold">Subtotal: </span>{formatCurrency(quote.subtotal)}</div>
-        <div><span className="font-semibold">IVA: </span>{formatCurrency(quote.iva)}</div>
-        <div className="font-bold text-lg">
-          Total: {formatCurrency(quote.total)}
+      <div className="text-center">
+        <h2 className="text-xl font-bold">Presupuesto Estimado</h2>
+      </div>
+
+      <div className="space-y-3 p-4 bg-slate-50 rounded-lg">
+        <div className="flex justify-between">
+          <span className="text-slate-600">Localidad de instalación:</span>
+          <span className="font-medium">{localQuote?.location}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-slate-600">Costo base:</span>
+          <span className="font-medium">{formatCurrency(localQuote?.baseCost || 0)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-slate-600">Costo por traslado:</span>
+          <span
+            className={`font-medium ${
+              localQuote?.travelCost === "💵 Bonificado" ? "text-green-600" : "text-slate-800"
+            }`}
+          >
+            {typeof localQuote?.travelCost === "string"
+              ? localQuote.travelCost
+              : formatCurrency(localQuote?.travelCost || 0)}
+          </span>
+        </div>
+        <hr className="my-2" />
+        <div className="flex justify-between">
+          <span className="text-slate-600">Subtotal:</span>
+          <span className="font-medium">{formatCurrency(localQuote?.subtotal || 0)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-slate-600">IVA (21%):</span>
+          <span className="font-medium">{formatCurrency(localQuote?.iva || 0)}</span>
+        </div>
+        <div className="flex justify-between text-lg font-bold">
+          <span>Total:</span>
+          <span>{formatCurrency(localQuote?.total || 0)}</span>
         </div>
       </div>
 
-      <div className="flex gap-4 pt-4">
+      <p className="text-xs text-center text-slate-500">
+        ℹ️ Atención: el presupuesto se encuentra sujeto a cambios.  
+        El monto requerido tiene como fin garantizar la disponibilidad de los materiales.
+      </p>
+
+      <div className="flex gap-4 pt-2">
         <button
           onClick={prevStep}
           className="w-full px-4 py-3 bg-slate-200 text-slate-800 font-semibold rounded-lg hover:bg-slate-300 transition-colors"
@@ -69,7 +102,7 @@ const Step4Quote: React.FC<Props> = ({ formData, setQuote, nextStep, prevStep })
           onClick={nextStep}
           className="w-full px-4 py-3 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition-colors"
         >
-          Continuar
+          Aceptar y Continuar al Pago
         </button>
       </div>
     </div>
