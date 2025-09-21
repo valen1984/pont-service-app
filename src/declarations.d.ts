@@ -11,6 +11,8 @@ interface ImportMetaEnv {
   readonly VITE_EMAILJS_PUBLIC_KEY: string;
   readonly MERCADOPAGO_ACCESS_TOKEN: string;
   readonly BACKEND_URL: string;
+  readonly VITE_MERCADOPAGO_PUBLIC_KEY: string;
+  readonly VITE_API_URL: string;
 }
 
 interface ImportMeta {

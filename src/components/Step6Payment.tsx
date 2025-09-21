@@ -13,27 +13,37 @@ const Step6Payment: React.FC<Props> = ({ quote, onPaymentSuccess, onPaymentFailu
   const [preferenceId, setPreferenceId] = useState<string | null>(null);
 
   useEffect(() => {
-    // ⚡ Usá tu Public Key de Mercado Pago (modo test primero)
-    initMercadoPago("APP_USR-d233f7cd-49c9-45cc-995c-8ac9890765a4");
+    // ⚡ Inicializar con la PUBLIC KEY desde env
+    const publicKey = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
+    if (publicKey) {
+      initMercadoPago(publicKey);
+    } else {
+      console.error("❌ Falta VITE_MERCADOPAGO_PUBLIC_KEY en .env");
+    }
   }, []);
 
   const createPreference = async () => {
     if (!quote) return;
 
     try {
-      const response = await fetch("http://localhost:4000/create_preference", {
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:4000";
+
+      const response = await fetch(`${apiUrl}/create_preference`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: "Servicio técnico Pont",
           quantity: 1,
           unit_price: quote.total,
+          formData: {}, // ⚡ si querés pasar datos del cliente
+          quote,        // ⚡ pasa el presupuesto también
         }),
       });
+
       const data = await response.json();
       setPreferenceId(data.id);
     } catch (error) {
-      console.error("Error creando preferencia:", error);
+      console.error("❌ Error creando preferencia:", error);
       onPaymentFailure();
     }
   };
