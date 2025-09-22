@@ -6,7 +6,9 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "src"), // 👈 alias para que Vite entienda "@/..."
+      "@": path.resolve(__dirname, "src"),
+      "react-native": "react-native-web", // 👈 fuerza a usar RN web
     },
   },
 });
+
