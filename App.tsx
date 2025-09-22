@@ -1,198 +1,100 @@
-import React, { useState, useEffect } from "react";
-import { FormData, Quote } from "./types";
-import { STEPS } from "./constants.ts";
-import LogoHeader from "@/components/LogoHeader";
-import ProgressBar from "@/components/ProgressBar";
-import Card from "@/components/Card";
-import SplashScreen from "@/components/SplashScreen"
-import Step1UserInfo from "@/components/Step1UserInfo";
-import Step2ServiceType from "@/components/Step2ServiceType";
-import Step3EquipmentDetails from "@/components/Step3EquipmentDetails";
-import Step4Quote from "@/components/Step4Quote";
-import Step5Scheduler from "@/components/Step5Scheduler";
-import Step6Payment from "@/components/Step6Payment";
-import Step7Confirmation from "@/components/Step7Confirmation";
-import StepPaymentError from "@/components/StepPaymentError";
+import React, { useEffect, useState } from "react";
 
-
-const initialFormData: FormData = {
-  fullName: "",
-  phone: "",
-  email: "",
-  address: "",
-  location: "",
-  serviceType: "",
-  brand: "",
-  model: "",
-  photos: [],
-  appointmentSlot: null,
-};
-
-function App() {
-  const [showSplash, setShowSplash] = useState(true);
-  const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState<FormData>(initialFormData);
-  const [quote, setQuote] = useState<Quote | null>(null);
-    if (showSplash) {
-        return <SplashScreen onFinish={() => setShowSplash(false)} />;
-      }
-  const nextStep = () => setCurrentStep((prev) => prev + 1);
-  const prevStep = () => setCurrentStep((prev) => prev - 1);
-
-  const restart = () => {
-    setCurrentStep(1);
-    setFormData(initialFormData);
-    setQuote(null);
-    localStorage.removeItem("formData");
-    localStorage.removeItem("quote");
-  };
-
-  // ✅ Guardar cambios en formData en localStorage
-  const updateFormData = (data: Partial<FormData>) => {
-    const newForm = { ...formData, ...data };
-    setFormData(newForm);
-    localStorage.setItem("formData", JSON.stringify(newForm));
-  };
-
-  // ✅ Guardar cambios en quote en localStorage
-  useEffect(() => {
-    if (quote) {
-      localStorage.setItem("quote", JSON.stringify(quote));
-    }
-  }, [quote]);
-
-  // ✅ Restaurar desde localStorage al cargar la app
-  useEffect(() => {
-    const cachedForm = localStorage.getItem("formData");
-    const cachedQuote = localStorage.getItem("quote");
-
-    if (cachedForm) setFormData(JSON.parse(cachedForm));
-    if (cachedQuote) setQuote(JSON.parse(cachedQuote));
-  }, []);
-
-  const handlePaymentSuccess = () => setCurrentStep(7);
-  const handlePaymentFailure = () => setCurrentStep(8);
-
-  // ✅ Detectar resultado de Mercado Pago al volver desde la pasarela
-  useEffect(() => {
-    const url = new URL(window.location.href);
-
-    const paymentStatus = url.searchParams.get("collection_status"); // lo que devuelve MP
-    const paymentId = url.searchParams.get("payment_id");
-
-    if (paymentStatus === "approved" && paymentId) {
-      setCurrentStep(7); // Confirmación
-    } else if (paymentStatus === "rejected" && paymentId) {
-      setCurrentStep(8); // Error de pago
-    }
-  }, []);
-
-  const renderStep = () => {
-    switch (currentStep) {
-      case 1:
-        return (
-          <Step1UserInfo
-            formData={formData}
-            updateFormData={updateFormData}
-            nextStep={nextStep}
-          />
-        );
-      case 2:
-        return (
-          <Step2ServiceType
-            formData={formData}
-            updateFormData={updateFormData}
-            nextStep={nextStep}
-            prevStep={prevStep}
-          />
-        );
-      case 3:
-        return (
-          <Step3EquipmentDetails
-            formData={formData}
-            updateFormData={updateFormData}
-            nextStep={nextStep}
-            prevStep={prevStep}
-          />
-        );
-      case 4:
-        return (
-          <Step4Quote
-            formData={formData}
-            setQuote={setQuote}
-            nextStep={nextStep}
-            prevStep={prevStep}
-          />
-        );
-      case 5:
-        return (
-          <Step5Scheduler
-            formData={formData}
-            updateFormData={updateFormData}
-            nextStep={nextStep}
-            prevStep={prevStep}
-          />
-        );
-      case 6:
-        return (
-          <Step6Payment
-            quote={quote}
-            formData={formData}
-            onPaymentSuccess={handlePaymentSuccess}
-            onPaymentFailure={handlePaymentFailure}
-            prevStep={prevStep}
-          />
-        );
-      case 7:
-        return (
-          <Step7Confirmation
-            formData={formData}
-            quote={quote}
-            restart={restart}
-          />
-        );
-      case 8:
-        return (
-          <StepPaymentError
-            formData={formData}
-            quote={quote}
-            restart={restart}
-          />
-        );
-      default:
-        return (
-          <Step1UserInfo
-            formData={formData}
-            updateFormData={updateFormData}
-            nextStep={nextStep}
-          />
-        );
-    }
-  };
-
-  const isFinalStep = currentStep === 7 || currentStep === 8;
-
-  return (
-    <div className="bg-slate-100 min-h-screen font-sans flex items-center justify-center p-4">
-      <main className="max-w-xl w-full">
-        <Card>
-          {!isFinalStep && (
-            <>
-              <LogoHeader />
-              <h1 className="text-2xl font-bold text-center text-slate-800 mb-2">
-                {STEPS[currentStep - 1]}
-              </h1>
-              <ProgressBar
-                currentStep={currentStep}
-                totalSteps={STEPS.length}
-              />
-            </>
-          )}
-          {renderStep()}
-        </Card>
-      </main>
-    </div>
-  );
+interface SplashScreenProps {
+  onFinish: () => void;
 }
 
-export default App;
+const messages = [
+  "❄️ Activando modo invierno...",
+  "☀️ Preparando modo split...",
+  "🚀 Cargando servicios...",
+];
+
+const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
+  const [currentMessage, setCurrentMessage] = useState(0);
+  const [fade, setFade] = useState(true);
+
+  // Cambiar mensaje cada 2 segundos con fade
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setFade(false); // fade out
+      setTimeout(() => {
+        setCurrentMessage((prev) => (prev + 1) % messages.length);
+        setFade(true); // fade in
+      }, 500);
+    }, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Finalizar splash después de mostrar los 3 mensajes (6 segundos)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onFinish();
+    }, messages.length * 2000); // 3 × 2000ms = 6000ms
+    return () => clearTimeout(timer);
+  }, [onFinish]);
+
+  return (
+    <div className="flex flex-col items-center justify-center h-screen bg-sky-50 relative overflow-hidden">
+      {/* Emoji central */}
+      <div className="text-7xl mb-6">🌨️</div>
+
+      {/* Barra de progreso */}
+      <div className="w-64 h-2 bg-slate-200 rounded-full overflow-hidden mb-6">
+        <div className="h-full bg-sky-600 animate-[progress_6s_linear]"></div>
+      </div>
+
+      {/* Mensajes con fade */}
+      <p
+        className={`text-center text-slate-700 text-lg h-6 transition-opacity duration-500 ${
+          fade ? "opacity-100" : "opacity-0"
+        }`}
+      >
+        {messages[currentMessage]}
+      </p>
+
+      {/* Footer */}
+      <div className="absolute bottom-6 text-xs text-slate-500 text-center">
+        <p>Powered by ALVAREZ LLC</p>
+        <p>© 2025</p>
+      </div>
+
+      {/* Copitos de nieve cayendo */}
+      <div className="absolute inset-0 pointer-events-none">
+        {[...Array(25)].map((_, i) => (
+          <div
+            key={i}
+            className="absolute text-lg animate-fall"
+            style={{
+              left: `${Math.random() * 100}%`,
+              animationDuration: `${3 + Math.random() * 3}s`,
+              animationDelay: `${Math.random() * 5}s`,
+            }}
+          >
+            ❄️
+          </div>
+        ))}
+      </div>
+
+      <style>
+        {`
+          @keyframes fall {
+            0% { transform: translateY(-10%); opacity: 1; }
+            100% { transform: translateY(110vh); opacity: 0; }
+          }
+          .animate-fall {
+            animation-name: fall;
+            animation-timing-function: linear;
+            animation-iteration-count: infinite;
+          }
+          @keyframes progress {
+            from { width: 0%; }
+            to { width: 100%; }
+          }
+        `}
+      </style>
+    </div>
+  );
+};
+
+export default SplashScreen;
