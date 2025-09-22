@@ -57,7 +57,7 @@ const SplashScreen: React.FC = () => {
         <p>© {new Date().getFullYear()} Todos los derechos reservados</p>
       </div>
 
-      {/* ❄️ Copos de nieve cayendo con giro */}
+      {/* ❄️ Copos de nieve cayendo con giro + viento */}
       {Array.from({ length: 25 }).map((_, i) => {
         const startX = Math.random() * window.innerWidth;
         const rotateStart = Math.random() * 360;
@@ -68,20 +68,25 @@ const SplashScreen: React.FC = () => {
             key={i}
             initial={{
               x: startX,
-              y: -50 - Math.random() * 100, // 👈 arranca fuera del viewport
+              y: -50 - Math.random() * 100,
               opacity: 0,
               rotate: rotateStart,
             }}
             animate={{
               y: window.innerHeight + 50,
+              x: [
+                startX,
+                startX + (Math.random() * 40 - 20), // se mueve a izquierda/derecha
+                startX,
+              ],
               opacity: [0, 1, 1, 0],
               rotate: rotateEnd,
             }}
             transition={{
-              duration: 4 + Math.random() * 4,
+              duration: 6 + Math.random() * 4,
               repeat: Infinity,
               delay: Math.random() * 6,
-              ease: "linear",
+              ease: "easeInOut",
             }}
             className="absolute text-white text-lg select-none"
           >
