@@ -55,10 +55,12 @@ const Step4Quote: React.FC<Props> = ({ formData, setQuote, nextStep, prevStep })
           <span className="text-slate-600">Localidad de instalación:</span>
           <span className="font-medium">{localQuote?.location}</span>
         </div>
+
         <div className="flex justify-between">
           <span className="text-slate-600">Costo base:</span>
           <span className="font-medium">{formatCurrency(localQuote?.baseCost || 0)}</span>
         </div>
+
         <div className="flex justify-between">
           <span className="text-slate-600">Costo por traslado:</span>
           <span
@@ -71,15 +73,19 @@ const Step4Quote: React.FC<Props> = ({ formData, setQuote, nextStep, prevStep })
               : formatCurrency(localQuote?.travelCost || 0)}
           </span>
         </div>
+
         <hr className="my-2" />
+
         <div className="flex justify-between">
           <span className="text-slate-600">Subtotal:</span>
           <span className="font-medium">{formatCurrency(localQuote?.subtotal || 0)}</span>
         </div>
+
         <div className="flex justify-between">
           <span className="text-slate-600">IVA (21%):</span>
           <span className="font-medium">{formatCurrency(localQuote?.iva || 0)}</span>
         </div>
+
         <div className="flex justify-between text-lg font-bold">
           <span>Total:</span>
           <span>{formatCurrency(localQuote?.total || 0)}</span>
@@ -88,7 +94,9 @@ const Step4Quote: React.FC<Props> = ({ formData, setQuote, nextStep, prevStep })
 
       <p className="text-xs text-center text-slate-500">
         ℹ️ Atención: el presupuesto se encuentra sujeto a cambios.  
-        El monto requerido tiene como fin garantizar la disponibilidad de los materiales.
+        El monto requerido tiene como fin garantizar la disponibilidad de los materiales.  
+        <br />
+        🚗 Los primeros 5 km desde General Villegas están <b>bonificados</b>.
       </p>
 
       <div className="flex gap-4 pt-2">
