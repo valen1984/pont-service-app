@@ -1,5 +1,5 @@
-import React, { useEffect } from "react";
-import { motion } from "framer-motion";
+import React, { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import LogoHeader from "@/components/LogoHeader";
 
 type SplashProps = {
@@ -7,10 +7,27 @@ type SplashProps = {
 };
 
 export default function SplashScreen({ onFinish }: SplashProps) {
+  const mensajes = [
+    "🚀 Preparando tu experiencia...",
+    "🔧 Configurando servicios...",
+    "✨ Cargando recursos...",
+  ];
+
+  const [step, setStep] = useState(0);
+
+  // Cambiar mensaje cada 2s
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setStep((prev) => (prev + 1) % mensajes.length);
+    }, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Ocultar splash a los 6s
   useEffect(() => {
     const timer = setTimeout(() => {
       onFinish();
-    }, 4000); // dura 4s y luego va a Step1
+    }, 6000);
     return () => clearTimeout(timer);
   }, [onFinish]);
 
@@ -23,11 +40,25 @@ export default function SplashScreen({ onFinish }: SplashProps) {
       transition={{ duration: 0.6 }}
     >
       <div className="mb-6">
-        <LogoHeader /> {/* 👈 tu logo en el círculo */}
+        {/* Logo centrado */}
+        <LogoHeader />
       </div>
-      <p className="text-lg sm:text-xl text-slate-700 font-medium mb-8">
-        🚀 Preparando tu experiencia...
-      </p>
+
+      {/* Mensajes dinámicos */}
+      <AnimatePresence mode="wait">
+        <motion.p
+          key={step}
+          className="text-lg sm:text-xl text-slate-700 font-medium mb-4"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.5 }}
+        >
+          {mensajes[step]}
+        </motion.p>
+      </AnimatePresence>
+
+      {/* Footer */}
       <p className="text-xs text-slate-400">Powered by ALVAREZ LLC</p>
     </motion.div>
   );
