@@ -225,34 +225,55 @@ async function generateSchedule() {
     const events = eventsRes.data.items || [];
     const busySlotsFromCalendar = [];
 
-    // ✅ Bloqueo de todos los slots dentro de los rangos de los eventos
+    // ✅ Procesar eventos
     for (const ev of events) {
-      const start = ev.start?.dateTime ? new Date(ev.start.dateTime) : new Date(ev.start?.date);
-      const end = ev.end?.dateTime ? new Date(ev.end.dateTime) : new Date(ev.end?.date);
+      // Caso evento con horas definidas
+      if (ev.start?.dateTime && ev.end?.dateTime) {
+        const start = new Date(ev.start.dateTime);
+        const end = new Date(ev.end.dateTime);
 
-      if (!start || !end) continue;
+        const yyyy = start.getFullYear();
+        const mm = String(start.getMonth() + 1).padStart(2, "0");
+        const dd = String(start.getDate()).padStart(2, "0");
+        const formattedDate = `${yyyy}-${mm}-${dd}`;
 
-      const yyyy = start.getFullYear();
-      const mm = String(start.getMonth() + 1).padStart(2, "0");
-      const dd = String(start.getDate()).padStart(2, "0");
-      const formattedDate = `${yyyy}-${mm}-${dd}`;
+        for (let hour = 9; hour < 17; hour += 2) {
+          const slotDateTime = new Date(
+            `${formattedDate}T${hour.toString().padStart(2, "0")}:00`
+          );
+          if (slotDateTime >= start && slotDateTime < end) {
+            busySlotsFromCalendar.push({
+              date: formattedDate,
+              time: slotDateTime.toTimeString().slice(0, 5),
+            });
+          }
+        }
+      }
 
-      for (let hour = 9; hour < 17; hour += 2) {
-        const slotDateTime = new Date(`${formattedDate}T${hour.toString().padStart(2, "0")}:00`);
-        if (slotDateTime >= start && slotDateTime < end) {
+      // Caso evento de todo el día (all-day)
+      if (ev.start?.date && ev.end?.date && !ev.start.dateTime) {
+        const start = new Date(ev.start.date);
+        const yyyy = start.getFullYear();
+        const mm = String(start.getMonth() + 1).padStart(2, "0");
+        const dd = String(start.getDate()).padStart(2, "0");
+        const formattedDate = `${yyyy}-${mm}-${dd}`;
+
+        for (let hour = 9; hour < 17; hour += 2) {
           busySlotsFromCalendar.push({
             date: formattedDate,
-            time: slotDateTime.toTimeString().slice(0, 5),
+            time: `${hour.toString().padStart(2, "0")}:00`,
           });
         }
       }
     }
 
+    // ✅ Configuración de horarios
     const WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // lunes a sábado
     const START_HOUR = 9;
     const END_HOUR = 17;
     const INTERVAL = 2;
 
+    // ✅ Generar slots de los próximos 14 días
     for (let i = 1; i <= 14; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
@@ -307,6 +328,7 @@ async function generateSchedule() {
 
   return result;
 }
+
 
 app.get("/api/schedule", async (req, res) => {
   try {
