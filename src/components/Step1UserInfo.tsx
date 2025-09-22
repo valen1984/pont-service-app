@@ -156,6 +156,7 @@ const Step1UserInfo: React.FC<Props> = ({
       formData.fullName.length > 0 &&
       formData.fullName.length <= 20 &&
       formData.phone.length === 10 &&
+      formData.email.length > 0 &&
       formData.email.length <= 25 &&
       formData.address.length > 0 &&
       formData.address.length <= 20 &&
