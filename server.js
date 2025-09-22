@@ -26,10 +26,18 @@ const client = new MercadoPagoConfig({
 });
 
 // ⚡ Google Calendar Config
+let rawCreds = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
+
+// 👉 FIX: transformar los "\n" en saltos reales
+if (rawCreds.private_key) {
+  rawCreds.private_key = rawCreds.private_key.replace(/\\n/g, "\n");
+}
+
 const auth = new google.auth.GoogleAuth({
-  credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON), // 👉 Railway: guardá aquí el JSON del Service Account
+  credentials: rawCreds,
   scopes: ["https://www.googleapis.com/auth/calendar.readonly"],
 });
+
 const calendar = google.calendar({ version: "v3", auth });
 const CALENDAR_ID = process.env.CALENDAR_ID; // 👉 ID del calendario compartido
 
@@ -201,29 +209,37 @@ async function generateSchedule() {
   const result = [];
 
   try {
-    // ⏳ Pedimos los eventos al Calendar
     const eventsRes = await calendar.events.list({
-      calendarId: process.env.CALENDAR_ID,
+      calendarId: CALENDAR_ID,
       timeMin: today.toISOString(),
       maxResults: 50,
       singleEvents: true,
       orderBy: "startTime",
     });
 
-    console.log("📅 Respuesta cruda de Google Calendar:", JSON.stringify(eventsRes.data, null, 2));
+    console.log(
+      "📅 Respuesta cruda de Google Calendar:",
+      JSON.stringify(eventsRes.data, null, 2)
+    );
 
     const events = eventsRes.data.items || [];
-    const busySlotsFromCalendar = events.map(ev => {
-      const start = ev.start?.dateTime || ev.start?.date;
-      if (!start) return null;
-      const date = new Date(start);
-      return {
-        date: date.toISOString().split("T")[0],
-        time: date.toTimeString().slice(0, 5),
-      };
-    }).filter(Boolean);
+    const busySlotsFromCalendar = events
+      .map((ev) => {
+        const start = ev.start?.dateTime || ev.start?.date;
+        if (!start) return null;
+        const date = new Date(start);
+        return {
+          date: date.toISOString().split("T")[0],
+          time: date.toTimeString().slice(0, 5),
+        };
+      })
+      .filter(Boolean);
 
-    // Ahora seguimos igual pero usando busySlotsFromCalendar como ocupados
+    const WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // lunes a sábado
+    const START_HOUR = 9;
+    const END_HOUR = 17;
+    const INTERVAL = 2;
+
     for (let i = 1; i <= 14; i++) {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
@@ -245,9 +261,9 @@ async function generateSchedule() {
         const diffMs = slotDateTime.getTime() - now.getTime();
 
         const within48h = diffMs >= 0 && diffMs < 48 * 60 * 60 * 1000;
-        const isBusy =
-          busySlots.some(s => s.date === formattedDate && s.time === slotTime) ||
-          busySlotsFromCalendar.some(s => s.date === formattedDate && s.time === slotTime);
+        const isBusy = busySlotsFromCalendar.some(
+          (s) => s.date === formattedDate && s.time === slotTime
+        );
 
         slots.push({
           time: slotTime,
@@ -273,12 +289,11 @@ async function generateSchedule() {
     }
   } catch (err) {
     console.error("❌ Error al generar agenda desde Google Calendar:", err);
-    throw err; // <- para que veas el error real en Railway logs
+    throw err;
   }
 
   return result;
 }
-
 
 app.get("/api/schedule", async (req, res) => {
   try {
