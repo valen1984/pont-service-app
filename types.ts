@@ -1,4 +1,3 @@
-
 export enum ServiceType {
   NEW_INSTALLATION = 'Instalación hogar',
   HIGH_ALTITUDE_INSTALLATION = 'Instalación en altura',
@@ -19,7 +18,7 @@ export interface FormData {
   brand: string;
   model: string;
   photos: string[];
-  appointmentSlot: { day: string; time: string } | null;
+  appointmentSlot: { day: string; date?: string; time: string } | null;
 }
 
 export interface Quote {
@@ -34,6 +33,7 @@ export interface Quote {
 export interface TimeSlot {
   time: string;
   isAvailable: boolean;
+  reason?: 'within48h' | 'busy'; // 👈 nuevo campo opcional
 }
 
 export interface ScheduleDay {

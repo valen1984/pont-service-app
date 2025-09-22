@@ -44,11 +44,19 @@ const Step5Scheduler: React.FC<Props> = ({
   };
 
   if (loading) {
-    return <p className="text-center text-slate-500">Cargando disponibilidad...</p>;
+    return (
+      <p className="text-center text-slate-500">
+        Cargando disponibilidad...
+      </p>
+    );
   }
 
   if (schedule.length === 0) {
-    return <p className="text-center text-slate-500">No hay turnos disponibles en este momento.</p>;
+    return (
+      <p className="text-center text-slate-500">
+        No hay turnos disponibles en este momento.
+      </p>
+    );
   }
 
   return (
@@ -63,7 +71,7 @@ const Step5Scheduler: React.FC<Props> = ({
         </div>
         <div className="flex items-center gap-1">
           <span className="w-4 h-4 rounded bg-slate-300 inline-block"></span>
-          <span>Dentro de 48hs</span>
+          <span>Bloqueado (48h)</span>
         </div>
         <div className="flex items-center gap-1">
           <span className="w-4 h-4 rounded bg-slate-500 inline-block"></span>
@@ -73,7 +81,10 @@ const Step5Scheduler: React.FC<Props> = ({
 
       <div className="grid gap-4">
         {schedule.map((day) => (
-          <div key={day.date} className="p-4 border rounded-lg bg-slate-50">
+          <div
+            key={day.date}
+            className="p-4 border rounded-lg bg-slate-50"
+          >
             <h3 className="font-semibold">
               {new Date(day.date).toLocaleDateString("es-AR", {
                 weekday: "short",

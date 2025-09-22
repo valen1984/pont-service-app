@@ -12,6 +12,9 @@ import { TECHNICIAN_EMAIL } from "./constants.js";
 import path from "path";
 import { fileURLToPath } from "url";
 
+// 👉 Google Calendar
+import { google } from "googleapis";
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -21,6 +24,14 @@ app.use(bodyParser.urlencoded({ extended: true }));
 const client = new MercadoPagoConfig({
   accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN,
 });
+
+// ⚡ Google Calendar Config
+const auth = new google.auth.GoogleAuth({
+  credentials: JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON), // 👉 Railway: guardá aquí el JSON del Service Account
+  scopes: ["https://www.googleapis.com/auth/calendar.readonly"],
+});
+const calendar = google.calendar({ version: "v3", auth });
+const CALENDAR_ID = process.env.CALENDAR_ID; // 👉 ID del calendario compartido
 
 // ======================
 // 📌 Crear preferencia
@@ -183,24 +194,32 @@ app.get("/api/payment-status/:paymentId", async (req, res) => {
 });
 
 // ======================
-// 📌 Agenda
+// 📌 Agenda con Google Calendar
 // ======================
-const WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // lunes a sábado
-const START_HOUR = 9;
-const END_HOUR = 17;
-const INTERVAL = 2;
-let busySlots = [];
-
-function generateSchedule() {
+async function generateSchedule() {
   const today = new Date();
   const result = [];
+
+  const timeMin = new Date(today);
+  const timeMax = new Date(today);
+  timeMax.setDate(today.getDate() + 14);
+
+  const eventsRes = await calendar.events.list({
+    calendarId: CALENDAR_ID,
+    timeMin: timeMin.toISOString(),
+    timeMax: timeMax.toISOString(),
+    singleEvents: true,
+    orderBy: "startTime",
+  });
+
+  const events = eventsRes.data.items || [];
 
   for (let i = 1; i <= 14; i++) {
     const date = new Date(today);
     date.setDate(today.getDate() + i);
 
-    const dayOfWeek = date.getDay(); // 0 = domingo
-    if (!WORKING_DAYS.includes(dayOfWeek)) continue;
+    const dayOfWeek = date.getDay();
+    if (![1, 2, 3, 4, 5, 6].includes(dayOfWeek)) continue; // lunes a sábado
 
     const yyyy = date.getFullYear();
     const mm = String(date.getMonth() + 1).padStart(2, "0");
@@ -208,35 +227,28 @@ function generateSchedule() {
     const formattedDate = `${yyyy}-${mm}-${dd}`;
 
     const slots = [];
-    for (let hour = START_HOUR; hour < END_HOUR; hour += INTERVAL) {
+    for (let hour = 9; hour < 17; hour += 2) {
       const slotTime = `${hour.toString().padStart(2, "0")}:00`;
-
       const slotDateTime = new Date(`${formattedDate}T${slotTime}:00`);
-      const now = new Date();
-      const diffMs = slotDateTime.getTime() - now.getTime();
 
+      const diffMs = slotDateTime.getTime() - today.getTime();
       const within48h = diffMs >= 0 && diffMs < 48 * 60 * 60 * 1000;
-      const isBusy = busySlots.some(
-        (s) => s.date === formattedDate && s.time === slotTime
-      );
+
+      const isBusy = events.some((event) => {
+        const start = new Date(event.start.dateTime || event.start.date);
+        const end = new Date(event.end.dateTime || event.end.date);
+        return slotDateTime >= start && slotDateTime < end;
+      });
 
       slots.push({
         time: slotTime,
         isAvailable: !within48h && !isBusy,
+        reason: within48h ? "within48h" : isBusy ? "busy" : undefined,
       });
     }
 
-    const dayFormatted = date.toLocaleDateString("es-AR", {
-      weekday: "short",
-    });
-    const dateFormatted = date.toLocaleDateString("es-AR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
-
     result.push({
-      day: `${dayFormatted} ${dateFormatted}`,
+      day: date.toLocaleDateString("es-AR", { weekday: "short" }),
       date: formattedDate,
       slots,
     });
@@ -245,30 +257,14 @@ function generateSchedule() {
   return result;
 }
 
-app.get("/api/schedule", (req, res) => {
-  res.json(generateSchedule());
-});
-
-app.get("/api/busy-slots", (req, res) => {
-  res.json(busySlots);
-});
-
-app.post("/api/book-slot", (req, res) => {
-  const { date, time } = req.body;
-  if (!date || !time) {
-    return res.status(400).json({ error: "Faltan parámetros (date, time)" });
+app.get("/api/schedule", async (req, res) => {
+  try {
+    const schedule = await generateSchedule();
+    res.json(schedule);
+  } catch (err) {
+    console.error("❌ Error al generar agenda:", err);
+    res.status(500).json({ error: "Error al generar agenda" });
   }
-
-  const alreadyBusy = busySlots.some(
-    (slot) => slot.date === date && slot.time === time
-  );
-  if (alreadyBusy) {
-    return res.status(400).json({ error: "Turno ya ocupado" });
-  }
-
-  busySlots.push({ date, time });
-  console.log("📌 Nuevo turno reservado:", date, time);
-  res.json({ success: true });
 });
 
 // ======================
