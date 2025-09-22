@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import type { FormData } from "../../types";
 
 interface Props {
@@ -7,131 +7,289 @@ interface Props {
   nextStep: () => void;
 }
 
-const Step1UserInfo: React.FC<Props> = ({ formData, updateFormData, nextStep }) => {
-  const [errors, setErrors] = useState<{ phone?: string; email?: string }>({});
-  const [emailSuggestions, setEmailSuggestions] = useState<string[]>([]);
-  const [isValid, setIsValid] = useState(false);
+const LocationIcon: React.FC<{ className?: string }> = ({ className }) => (
+  <svg
+    className={className}
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 20 20"
+    fill="currentColor"
+  >
+    <path
+      fillRule="evenodd"
+      d="M9.69 18.933l.003.001C9.89 19.02 10 19 10 19s.11.02.308-.066l.002-.001.006-.003.018-.008a5.741 5.741 0 00.281-.14c.186-.1.42-.25.69-.441C12.49 17.346 14.22 15.39 15.5 13c1.28-2.39 1.5-4.999 1.5-6.5C17 2.925 13.866 0 10 0S3 2.925 3 6.5c0 1.501.22 4.11 1.5 6.5 1.28 2.39 3.01 4.346 4.192 5.352.27.19.504.34.69.44a5.741 5.741 0 00.28.14l.018.008.006.003zM10 8.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"
+      clipRule="evenodd"
+    />
+  </svg>
+);
 
-  // 🔹 Validar teléfono
-  const validatePhone = (phone: string) => /^[0-9]+$/.test(phone);
+const localidades = [
+  "General Villegas",
+  "Piedritas, Provincia de Buenos Aires",
+  "Cañada Seca, Provincia de Buenos Aires",
+  "Emilio V. Bunge, Provincia de Buenos Aires",
+  "Coronel Charlone, Provincia de Buenos Aires",
+  "Santa Regina, Provincia de Buenos Aires",
+  "Villa Sauze, Provincia de Buenos Aires",
+  "Elordi, Provincia de Buenos Aires",
+  "Ameghino, Provincia de Buenos Aires",
+  "Carlos Tejedor, Provincia de Buenos Aires",
+  "Trenque Lauquen, Provincia de Buenos Aires",
+  "America (Rivadavia), Provincia de Buenos Aires",
+  "Eduardo Castex, Provincia de La Pampa",
+  "General Pico, Provincia de La Pampa" ,
+  "Intendente Alvear, Provincia de La Pampa",
+  "Villa Huidobro, Provincia de Córdoba",
+  "Rufino. Provincia de Santa Fe",
+];
 
-  // 🔹 Validar email
-  const validateEmail = (email: string) =>
-    /^[^\s@]+@[^\s@]+\.(com|com\.ar)$/i.test(email);
+const Step1UserInfo: React.FC<Props> = ({
+  formData,
+  updateFormData,
+  nextStep,
+}) => {
+  const [gettingLocation, setGettingLocation] = useState(false);
 
-  // 🔹 Revalidar cada vez que cambian los datos
-  useEffect(() => {
-    const validPhone = formData.phone && validatePhone(formData.phone);
-    const validEmail = formData.email && validateEmail(formData.email);
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
 
-    setIsValid(!!(formData.fullName && validPhone && validEmail));
-  }, [formData]);
-
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value.replace(/\D/g, ""); // solo números
-    updateFormData({ phone: value });
+    if (name === "address") {
+      // Si escribe dirección manual → limpiamos coords
+      updateFormData({
+        [name]: value,
+        coords: undefined,
+      });
+    } else if (name === "location") {
+      // Si cambia localidad → limpiamos coords
+      updateFormData({
+        location: value,
+        coords: undefined,
+      });
+    } else {
+      updateFormData({ [name]: value });
+    }
   };
 
-  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    updateFormData({ email: value });
+  const getAddressFromCoords = async (lat: number, lon: number) => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`
+      );
+      const data = await response.json();
 
-    if (value.includes("@")) {
-      const [local, domainPart] = value.split("@");
-      const domains = ["gmail.com", "hotmail.com", "apple.com"];
-      setEmailSuggestions(
-        domains
-          .filter((d) => d.startsWith(domainPart))
-          .map((d) => `${local}@${d}`)
+      const street = data.address.road || "";
+      const number = data.address.house_number || "";
+      const address = [street, number].filter(Boolean).join(" ");
+
+      const city =
+        data.address.city ||
+        data.address.town ||
+        data.address.village ||
+        data.address.hamlet ||
+        data.address.suburb ||
+        data.address.neighbourhood ||
+        data.address.municipality ||
+        data.address.county ||
+        data.address.state_district ||
+        "";
+
+      return {
+        address:
+          address ||
+          data.display_name ||
+          `Coordenadas: ${lat.toFixed(4)}, ${lon.toFixed(4)}`,
+        city,
+      };
+    } catch (error) {
+      console.error("Error obteniendo dirección:", error);
+      return {
+        address: `Coordenadas: ${lat.toFixed(4)}, ${lon.toFixed(4)}`,
+        city: "",
+      };
+    }
+  };
+
+  const handleGetLocation = () => {
+    if (navigator.geolocation) {
+      setGettingLocation(true);
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          const { latitude, longitude } = position.coords;
+          const { address, city } = await getAddressFromCoords(
+            latitude,
+            longitude
+          );
+
+          updateFormData({
+            address,
+            location: city || "Ubicación GPS",
+            coords: { lat: latitude, lon: longitude },
+          });
+
+          setGettingLocation(false);
+        },
+        () => {
+          alert("No se pudo obtener la ubicación.");
+          setGettingLocation(false);
+        }
       );
     } else {
-      setEmailSuggestions([]);
+      alert("La geolocalización no es soportada por este navegador.");
     }
   };
 
-  const validateAndNext = () => {
-    const newErrors: { phone?: string; email?: string } = {};
+  const resetLocation = () => {
+    updateFormData({
+      address: "",
+      location: "",
+      coords: undefined,
+    });
+  };
 
-    if (!formData.phone || !validatePhone(formData.phone)) {
-      newErrors.phone = "El teléfono debe contener solo números";
-    }
-
-    if (!formData.email || !validateEmail(formData.email)) {
-      newErrors.email = "Ingresa un correo válido (ej: nombre@gmail.com)";
-    }
-
-    setErrors(newErrors);
-
-    if (Object.keys(newErrors).length === 0) {
-      nextStep();
-    }
+  const isFormValid = () => {
+    return (
+      formData.fullName &&
+      formData.phone &&
+      formData.email &&
+      formData.address &&
+      formData.location
+    );
   };
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold text-center">Información de contacto</h2>
-
       {/* Nombre */}
-      <div>
-        <label className="block font-medium">Nombre completo</label>
+      <div className="space-y-2">
+        <label
+          htmlFor="fullName"
+          className="text-sm font-medium text-slate-600"
+        >
+          Nombre y Apellido
+        </label>
         <input
           type="text"
+          name="fullName"
+          id="fullName"
           value={formData.fullName}
-          onChange={(e) => updateFormData({ fullName: e.target.value })}
-          className="w-full border rounded-lg px-3 py-2"
+          onChange={handleChange}
+          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-sky-500 focus:border-sky-500"
+          required
         />
       </div>
 
       {/* Teléfono */}
-      <div>
-        <label className="block font-medium">Teléfono</label>
+      <div className="space-y-2">
+        <label htmlFor="phone" className="text-sm font-medium text-slate-600">
+          Teléfono
+        </label>
         <input
-          type="text"
+          type="tel"
+          name="phone"
+          id="phone"
           value={formData.phone}
-          onChange={handlePhoneChange}
-          className="w-full border rounded-lg px-3 py-2"
+          onChange={handleChange}
+          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-sky-500 focus:border-sky-500"
+          required
         />
-        {errors.phone && <p className="text-red-500 text-sm">{errors.phone}</p>}
       </div>
 
       {/* Email */}
-      <div className="relative">
-        <label className="block font-medium">Email</label>
+      <div className="space-y-2">
+        <label htmlFor="email" className="text-sm font-medium text-slate-600">
+          Email
+        </label>
         <input
-          type="text"
+          type="email"
+          name="email"
+          id="email"
           value={formData.email}
-          onChange={handleEmailChange}
-          className="w-full border rounded-lg px-3 py-2"
+          onChange={handleChange}
+          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-sky-500 focus:border-sky-500"
+          required
         />
-        {errors.email && <p className="text-red-500 text-sm">{errors.email}</p>}
-
-        {emailSuggestions.length > 0 && (
-          <ul className="absolute bg-white border rounded-md mt-1 w-full shadow">
-            {emailSuggestions.map((suggestion) => (
-              <li
-                key={suggestion}
-                onClick={() => {
-                  updateFormData({ email: suggestion });
-                  setEmailSuggestions([]);
-                }}
-                className="px-3 py-2 cursor-pointer hover:bg-slate-100"
-              >
-                {suggestion}
-              </li>
-            ))}
-          </ul>
-        )}
       </div>
 
-      {/* Botón siguiente */}
+      {/* Dirección */}
+      <div className="space-y-2">
+        <label
+          htmlFor="address"
+          className="text-sm font-medium text-slate-600"
+        >
+          Dirección
+        </label>
+        <input
+          type="text"
+          name="address"
+          id="address"
+          value={formData.address}
+          onChange={handleChange}
+          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-sky-500 focus:border-sky-500"
+          placeholder="Calle y número o Ruta y Km"
+          required
+        />
+      </div>
+
+      {/* Localidad */}
+      <div className="space-y-2">
+        <label
+          htmlFor="location"
+          className="text-sm font-medium text-slate-600"
+        >
+          Localidad
+        </label>
+        <select
+          name="location"
+          id="location"
+          value={formData.location}
+          onChange={handleChange}
+          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-sky-500 focus:border-sky-500"
+          required
+        >
+          <option value="">Seleccioná una localidad</option>
+          {localidades.map((loc) => (
+            <option key={loc} value={loc}>
+              {loc}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Botón GPS */}
       <button
-        onClick={validateAndNext}
-        disabled={!isValid}
-        className={`w-full px-4 py-3 font-semibold rounded-lg transition-colors ${
-          isValid
-            ? "bg-sky-600 text-white hover:bg-sky-700"
-            : "bg-slate-300 text-slate-600 cursor-not-allowed"
-        }`}
+        onClick={handleGetLocation}
+        disabled={gettingLocation || !!formData.location || !!formData.address}
+        className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+      >
+        <LocationIcon className="w-5 h-5 text-sky-600" />
+        {gettingLocation
+          ? "Obteniendo..."
+          : "Obtener Ubicación [Solo establecimientos rurales]"}
+      </button>
+
+      {/* Coordenadas */}
+      {formData.coords && (
+        <p className="text-sm text-center text-slate-600">
+          Coordenadas: {formData.coords.lat.toFixed(4)},{" "}
+          {formData.coords.lon.toFixed(4)}
+        </p>
+      )}
+
+      {/* Botón reset ubicación */}
+      {(formData.coords || formData.location) && (
+        <button
+          onClick={resetLocation}
+          className="w-full mt-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+        >
+          🔄 Resetear ubicación
+        </button>
+      )}
+
+      {/* Siguiente */}
+      <button
+        onClick={nextStep}
+        disabled={!isFormValid()}
+        className="w-full px-4 py-3 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 disabled:bg-slate-300 transition-colors"
       >
         Siguiente
       </button>
