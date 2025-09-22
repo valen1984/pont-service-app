@@ -7,7 +7,7 @@ interface Props {
   formData: FormData;
   onPaymentSuccess: () => void;
   onPaymentFailure: () => void;
-  onPayOnSite: () => void; // 👈 nuevo callback
+  onPayOnSite: () => void; // 👈 callback para avanzar a Step7
   prevStep: () => void;
 }
 
@@ -20,6 +20,7 @@ const Step6Payment: React.FC<Props> = ({
   prevStep,
 }) => {
   const [preferenceId, setPreferenceId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     initMercadoPago(import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY || "");
@@ -46,6 +47,32 @@ const Step6Payment: React.FC<Props> = ({
     } catch (error) {
       console.error("Error creando preferencia:", error);
       onPaymentFailure();
+    }
+  };
+
+  const handlePayOnSite = async () => {
+    if (!quote) return;
+    setLoading(true);
+
+    try {
+      const response = await fetch("/reservation/onsite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ formData, quote }),
+      });
+
+      const data = await response.json();
+      if (data.ok) {
+        console.log("📧 Correo pago presencial enviado");
+        onPayOnSite(); // 👈 avanzamos a Step7
+      } else {
+        alert("Error enviando correo: " + data.error);
+      }
+    } catch (err: any) {
+      console.error("❌ Error en pago presencial:", err);
+      alert("No se pudo registrar el pago presencial");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -76,10 +103,11 @@ const Step6Payment: React.FC<Props> = ({
 
       {/* Nuevo botón: Abonar en domicilio/taller */}
       <button
-        onClick={onPayOnSite}
-        className="w-full px-4 py-3 bg-amber-500 text-white font-semibold rounded-lg hover:bg-amber-600 transition-colors shadow-md"
+        onClick={handlePayOnSite}
+        disabled={loading}
+        className="w-full px-4 py-3 bg-amber-500 text-white font-semibold rounded-lg hover:bg-amber-600 transition-colors shadow-md disabled:opacity-50"
       >
-        Abonar en el domicilio / taller
+        {loading ? "Procesando..." : "Abonar en el domicilio / taller"}
       </button>
 
       <p className="text-xs text-slate-500">Serás redirigido a Mercado Pago</p>

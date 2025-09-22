@@ -20,7 +20,7 @@ const Step5Scheduler: React.FC<Props> = ({
   useEffect(() => {
     const fetchSchedule = async () => {
       try {
-        const res = await fetch("/api/schedule"); // ✅ Backend devuelve disponibilidad
+        const res = await fetch("/api/schedule");
         const data = await res.json();
         setSchedule(data);
       } catch (err) {
@@ -54,35 +54,66 @@ const Step5Scheduler: React.FC<Props> = ({
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-bold text-center">Seleccionar Turno</h2>
+
+      {/* 📌 Leyenda */}
+      <div className="flex justify-center gap-4 text-sm mb-4">
+        <div className="flex items-center gap-1">
+          <span className="w-4 h-4 rounded bg-green-500 inline-block"></span>
+          <span>Disponible</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="w-4 h-4 rounded bg-slate-300 inline-block"></span>
+          <span>Dentro de 48hs</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="w-4 h-4 rounded bg-slate-500 inline-block"></span>
+          <span>Ocupado</span>
+        </div>
+      </div>
+
       <div className="grid gap-4">
         {schedule.map((day) => (
           <div key={day.date} className="p-4 border rounded-lg bg-slate-50">
             <h3 className="font-semibold">
               {new Date(day.date).toLocaleDateString("es-AR", {
-                weekday: "short", // lun, mar, mié...
+                weekday: "short",
                 day: "2-digit",
                 month: "2-digit",
                 year: "numeric",
               })}
             </h3>
             <div className="flex flex-wrap gap-2 mt-2">
-              {day.slots.map((slot) => (
-                <button
-                  key={slot.time}
-                  onClick={() => handleSelectSlot(day, slot.time)}
-                  disabled={!slot.isAvailable}
-                  className={`px-3 py-2 rounded-lg text-sm font-medium ${
-                    !slot.isAvailable
-                      ? "bg-slate-200 text-slate-500 cursor-not-allowed"
-                      : formData.appointmentSlot?.date === day.date &&
-                        formData.appointmentSlot?.time === slot.time
-                      ? "bg-sky-600 text-white"
-                      : "bg-white border border-slate-300 hover:bg-sky-50"
-                  }`}
-                >
-                  {slot.time}
-                </button>
-              ))}
+              {day.slots.map((slot) => {
+                const isSelected =
+                  formData.appointmentSlot?.date === day.date &&
+                  formData.appointmentSlot?.time === slot.time;
+
+                // 🎨 Colores según estado
+                let slotClasses = "";
+                if (!slot.isAvailable && slot.reason === "within48h") {
+                  slotClasses =
+                    "bg-slate-300 text-slate-600 cursor-not-allowed";
+                } else if (!slot.isAvailable && slot.reason === "busy") {
+                  slotClasses =
+                    "bg-slate-500 text-white cursor-not-allowed";
+                } else if (isSelected) {
+                  slotClasses = "bg-green-600 text-white";
+                } else {
+                  slotClasses =
+                    "bg-green-500 text-white hover:bg-green-600";
+                }
+
+                return (
+                  <button
+                    key={slot.time}
+                    onClick={() => handleSelectSlot(day, slot.time)}
+                    disabled={!slot.isAvailable}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${slotClasses}`}
+                  >
+                    {slot.time}
+                  </button>
+                );
+              })}
             </div>
           </div>
         ))}

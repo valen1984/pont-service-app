@@ -2,7 +2,11 @@ import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
 import { MercadoPagoConfig, Preference, Payment } from "mercadopago";
-import { sendConfirmationEmail, sendPaymentRejectedEmail } from "./email.js";
+import {
+  sendConfirmationEmail,
+  sendPaymentRejectedEmail,
+  sendOnSiteReservationEmail,
+} from "./email.js";
 import { TECHNICIAN_EMAIL } from "./constants.js";
 
 import path from "path";
@@ -77,6 +81,7 @@ app.post("/webhook", async (req, res) => {
           coords: formData.coords,
           quote,
           photos: formData.photos,
+          paymentStatus: "confirmed",
         });
 
         // 👉 Email al técnico
@@ -90,6 +95,7 @@ app.post("/webhook", async (req, res) => {
           coords: formData.coords,
           quote,
           photos: formData.photos,
+          paymentStatus: "confirmed",
         });
       }
 
@@ -108,6 +114,50 @@ app.post("/webhook", async (req, res) => {
   } catch (err) {
     console.error("❌ Error en webhook:", err);
     res.sendStatus(500);
+  }
+});
+
+// ======================
+// 📌 Pago presencial (sin Mercado Pago)
+// ======================
+app.post("/reservation/onsite", async (req, res) => {
+  try {
+    const { formData, quote } = req.body;
+
+    const appointment = formData.appointmentSlot
+      ? `${formData.appointmentSlot.date}, ${formData.appointmentSlot.time} hs`
+      : "-";
+
+    // Email al cliente
+    await sendOnSiteReservationEmail({
+      recipient: formData.email,
+      fullName: formData.fullName,
+      phone: formData.phone,
+      appointment,
+      address: formData.address,
+      location: formData.location,
+      coords: formData.coords,
+      photos: formData.photos,
+      quote,
+    });
+
+    // Email al técnico
+    await sendOnSiteReservationEmail({
+      recipient: TECHNICIAN_EMAIL,
+      fullName: formData.fullName,
+      phone: formData.phone,
+      appointment,
+      address: formData.address,
+      location: formData.location,
+      coords: formData.coords,
+      photos: formData.photos,
+      quote,
+    });
+
+    res.json({ ok: true, message: "📧 Correo de pago presencial enviado" });
+  } catch (err) {
+    console.error("❌ Error en /reservation/onsite:", err);
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
@@ -145,12 +195,12 @@ function generateSchedule() {
   const today = new Date();
   const result = [];
 
-  for (let i = 1; i <= 14; i++) { // 👈 arrancamos en 1 (mañana) en vez de 0
+  for (let i = 1; i <= 14; i++) {
     const date = new Date(today);
     date.setDate(today.getDate() + i);
 
     const dayOfWeek = date.getDay(); // 0 = domingo
-    if (!WORKING_DAYS.includes(dayOfWeek)) continue; // salteamos domingos
+    if (!WORKING_DAYS.includes(dayOfWeek)) continue;
 
     const yyyy = date.getFullYear();
     const mm = String(date.getMonth() + 1).padStart(2, "0");
@@ -165,9 +215,7 @@ function generateSchedule() {
       const now = new Date();
       const diffMs = slotDateTime.getTime() - now.getTime();
 
-      // ⏳ bloquear turnos dentro de las próximas 48h
       const within48h = diffMs >= 0 && diffMs < 48 * 60 * 60 * 1000;
-
       const isBusy = busySlots.some(
         (s) => s.date === formattedDate && s.time === slotTime
       );
@@ -178,7 +226,6 @@ function generateSchedule() {
       });
     }
 
-    // formato visual: "Lun 23/09/2025"
     const dayFormatted = date.toLocaleDateString("es-AR", {
       weekday: "short",
     });

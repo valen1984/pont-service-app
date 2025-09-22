@@ -1,16 +1,8 @@
-import nodemailer from "nodemailer";
+import sgMail from "@sendgrid/mail";
 
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.GMAIL_USER,           // 👉 tu Gmail
-    pass: process.env.GMAIL_APP_PASSWORD,   // 👉 tu App Password generado
-  },
-});
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
-/**
- * Helpers
- */
+// ===== Helpers =====
 const currencyAR = (n) =>
   new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(n ?? 0);
 
@@ -42,12 +34,7 @@ const statusMeta = (paymentStatus) => {
   }
 };
 
-/**
- * ===============================
- * 📩 Correo de confirmación (confirmado / onSite)
- * ===============================
- * paymentStatus: "confirmed" | "onSite"
- */
+// ===== Confirmación (confirmed / onSite) =====
 export const sendConfirmationEmail = async ({
   recipient,
   fullName,
@@ -56,9 +43,10 @@ export const sendConfirmationEmail = async ({
   address,
   location,
   coords,        // { lat, lon } | undefined
-  quote,         // { baseCost, travelCost, subtotal, iva, total, paymentStatus? }
+  quote,         // { baseCost, travelCost, subtotal, iva, total }
   photos = [],
-  paymentStatus, // 👈 NUEVO: "confirmed" | "onSite"
+  paymentStatus, // "confirmed" | "onSite"
+  bcc = process.env.TECH_EMAIL, // opcional
 }) => {
   const { label, color, subject, paragraph } = statusMeta(paymentStatus);
 
@@ -109,7 +97,9 @@ export const sendConfirmationEmail = async ({
       <h3 style="color:#0f172a; margin:16px 0 8px;">💰 Detalle del Presupuesto</h3>
       <table style="width:100%; border-collapse:collapse; margin-bottom: 16px; font-size:14px;">
         <tr><td style="padding:6px 0;">Costo base</td><td style="padding:6px 0;">${currencyAR(quote?.baseCost)}</td></tr>
-        <tr><td style="padding:6px 0;">Traslado</td><td style="padding:6px 0;">${typeof quote?.travelCost === "number" ? currencyAR(quote?.travelCost) : (quote?.travelCost ?? "")}</td></tr>
+        <tr><td style="padding:6px 0;">Traslado</td><td style="padding:6px 0;">${
+          typeof quote?.travelCost === "number" ? currencyAR(quote?.travelCost) : (quote?.travelCost ?? "")
+        }</td></tr>
         <tr><td style="padding:6px 0;">Subtotal</td><td style="padding:6px 0;">${currencyAR(quote?.subtotal)}</td></tr>
         <tr><td style="padding:6px 0;">IVA (21%)</td><td style="padding:6px 0;">${currencyAR(quote?.iva)}</td></tr>
         <tr style="background-color:#f3f4f6;"><td style="padding:6px 0;"><b>TOTAL</b></td><td style="padding:6px 0;"><b style="color:#0d9488;">${currencyAR(quote?.total)}</b></td></tr>
@@ -134,26 +124,35 @@ export const sendConfirmationEmail = async ({
     </div>
   </div>`;
 
-  await transporter.sendMail({
-    from: `"PONT Servicios" <${process.env.GMAIL_USER}>`,
-    to: recipient,
-    subject,
-    html,
-  });
+  try {
+    const [resp] = await sgMail.send({
+      to: recipient,
+      from: process.env.EMAIL_FROM,
+      bcc, // opcional
+      subject,
+      html,
+    });
 
-  console.log("📧 Correo de confirmación enviado a:", recipient, "| Estado:", paymentStatus);
+    console.log("📧 Confirmación enviada →", {
+      to: recipient,
+      bcc,
+      status: resp?.statusCode,
+    });
+
+    return { ok: true };
+  } catch (err) {
+    console.error("❌ Error al enviar confirmación:", err.response?.body || err.message || err);
+    return { ok: false, error: err.message || String(err) };
+  }
 };
 
-/**
- * ===============================
- * 📩 Correo de rechazo de pago
- * ===============================
- */
+// ===== Rechazo de pago =====
 export const sendPaymentRejectedEmail = async ({
   recipient,
   fullName,
   phone,
   quote,
+  bcc = process.env.TECH_EMAIL,
 }) => {
   const html = `
   <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; background:#f8fafc; padding:20px;">
@@ -195,12 +194,32 @@ export const sendPaymentRejectedEmail = async ({
     </div>
   </div>`;
 
-  await transporter.sendMail({
-    from: `"PONT Servicios" <${process.env.GMAIL_USER}>`,
-    to: recipient,
-    subject: "⚠️ Tu pago no fue procesado - PONT",
-    html,
-  });
+  try {
+    const [resp] = await sgMail.send({
+      to: recipient,
+      from: process.env.EMAIL_FROM,
+      bcc,
+      subject: "⚠️ Tu pago no fue procesado - PONT",
+      html,
+    });
 
-  console.log("📧 Correo de rechazo enviado a:", recipient);
+    console.log("📧 Rechazo enviado →", {
+      to: recipient,
+      bcc,
+      status: resp?.statusCode,
+    });
+
+    return { ok: true };
+  } catch (err) {
+    console.error("❌ Error al enviar rechazo:", err.response?.body || err.message || err);
+    return { ok: false, error: err.message || String(err) };
+  }
+};
+
+// ===== Atajo para “Abona presencialmente” =====
+export const sendOnSiteReservationEmail = async (payload) => {
+  return sendConfirmationEmail({
+    ...payload,
+    paymentStatus: "onSite",
+  });
 };
