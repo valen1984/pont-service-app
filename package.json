@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "dev": "npm run dev:all",
     "dev:frontend": "vite",
     "dev:backend": "node server.js",
     "dev:ngrok": "ngrok http 4000",
