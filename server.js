@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
 import { MercadoPagoConfig, Preference, Payment } from "mercadopago";
-import { sendConfirmationEmail } from "./email.js";
+import { sendConfirmationEmail, sendPaymentRejectedEmail } from "./email.js";
 import { TECHNICIAN_EMAIL } from "./constants.js";
 
 import path from "path";
@@ -13,7 +13,7 @@ app.use(cors());
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// ⚡ Credenciales de MP
+// ⚡ Credenciales de Mercado Pago
 const client = new MercadoPagoConfig({
   accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN,
 });
@@ -35,10 +35,7 @@ app.post("/create_preference", async (req, res) => {
           pending: `${process.env.FRONTEND_URL}/?status=pending`,
         },
         auto_return: "approved",
-        metadata: {
-          formData: JSON.stringify(formData), // 👈 guardamos como string
-          quote: JSON.stringify(quote),       // 👈 guardamos como string
-        },
+        metadata: { formData, quote },
       },
     });
 
@@ -51,7 +48,7 @@ app.post("/create_preference", async (req, res) => {
 });
 
 // ======================
-// 📌 Webhook (para emails)
+// 📌 Webhook de Mercado Pago
 // ======================
 app.post("/webhook", async (req, res) => {
   try {
@@ -62,24 +59,14 @@ app.post("/webhook", async (req, res) => {
       const payment = await paymentClient.get({ id: paymentId });
 
       const status = payment.status;
-
-      let formData = {};
-      let quote = {};
-
-      try {
-        if (payment.metadata.formData) {
-          formData = JSON.parse(payment.metadata.formData);
-        }
-        if (payment.metadata.quote) {
-          quote = JSON.parse(payment.metadata.quote);
-        }
-      } catch (err) {
-        console.error("❌ Error parseando metadata:", err);
-      }
+      const metadata = payment.metadata || {};
+      const formData = metadata.formData || {};
+      const quote = metadata.quote || {};
 
       if (status === "approved") {
         console.log("✅ Pago aprobado:", paymentId);
 
+        // 👉 Email a cliente
         await sendConfirmationEmail({
           recipient: formData.email,
           fullName: formData.fullName,
@@ -92,6 +79,7 @@ app.post("/webhook", async (req, res) => {
           photos: formData.photos,
         });
 
+        // 👉 Email al técnico
         await sendConfirmationEmail({
           recipient: TECHNICIAN_EMAIL,
           fullName: formData.fullName,
@@ -104,6 +92,17 @@ app.post("/webhook", async (req, res) => {
           photos: formData.photos,
         });
       }
+
+      if (status === "rejected") {
+        console.log("❌ Pago rechazado:", paymentId);
+
+        await sendPaymentRejectedEmail({
+          recipient: formData.email,
+          fullName: formData.fullName,
+          phone: formData.phone,
+          quote,
+        });
+      }
     }
     res.sendStatus(200);
   } catch (err) {
@@ -113,7 +112,7 @@ app.post("/webhook", async (req, res) => {
 });
 
 // ======================
-// 📌 Consultar estado de un pago (Step7)
+// 📌 Consultar estado de un pago (para Step7)
 // ======================
 app.get("/api/payment-status/:paymentId", async (req, res) => {
   try {
@@ -122,20 +121,9 @@ app.get("/api/payment-status/:paymentId", async (req, res) => {
     const payment = await paymentClient.get({ id: paymentId });
 
     const status = payment.status;
-
-    let formData = {};
-    let quote = {};
-
-    try {
-      if (payment.metadata.formData) {
-        formData = JSON.parse(payment.metadata.formData);
-      }
-      if (payment.metadata.quote) {
-        quote = JSON.parse(payment.metadata.quote);
-      }
-    } catch (err) {
-      console.error("❌ Error parseando metadata:", err);
-    }
+    const metadata = payment.metadata || {};
+    const formData = metadata.formData || {};
+    const quote = metadata.quote || {};
 
     res.json({ status, formData, quote });
   } catch (err) {
@@ -145,9 +133,9 @@ app.get("/api/payment-status/:paymentId", async (req, res) => {
 });
 
 // ======================
-// 📌 API Agenda (tu lógica original intacta)
+// 📌 Agenda
 // ======================
-const WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // Lunes a Sábado
+const WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // lunes a sábado
 const START_HOUR = 9;
 const END_HOUR = 17;
 const INTERVAL = 2;
@@ -188,9 +176,7 @@ function generateSchedule() {
       });
     }
 
-    const dayFormatted = date.toLocaleDateString("es-AR", {
-      weekday: "short",
-    });
+    const dayFormatted = date.toLocaleDateString("es-AR", { weekday: "short" });
     const dateFormatted = date.toLocaleDateString("es-AR", {
       day: "2-digit",
       month: "2-digit",
