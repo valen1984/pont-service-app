@@ -14,40 +14,39 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
   const [currentMessage, setCurrentMessage] = useState(0);
   const [fade, setFade] = useState(true);
 
-  // Cambiar mensaje cada 2 segundos con fade
+  // Cambiar mensaje cada 2s
   useEffect(() => {
     const interval = setInterval(() => {
-      setFade(false); // fade out
+      setFade(false);
       setTimeout(() => {
         setCurrentMessage((prev) => (prev + 1) % messages.length);
-        setFade(true); // fade in
+        setFade(true);
       }, 500);
     }, 2000);
     return () => clearInterval(interval);
   }, []);
 
-  // Finalizar splash después de 6s (3 mensajes)
+  // Finalizar splash después de 6s
   useEffect(() => {
-  const timer = setTimeout(() => {
-    console.log("➡️ Ejecutando onFinish");
-    onFinish();
-  }, messages.length * 2000); // 6000 ms
-  return () => clearTimeout(timer);
+    const timer = setTimeout(() => {
+      onFinish();
+    }, messages.length * 2000);
+    return () => clearTimeout(timer);
   }, [onFinish]);
 
   return (
-    <div className="flex flex-col items-center justify-center h-screen bg-sky-50 relative overflow-hidden">
+    <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-b from-sky-600 to-sky-800 relative overflow-hidden text-white">
       {/* Emoji central */}
-      <div className="text-7xl mb-6">🌨️</div>
+      <div className="text-7xl mb-6 drop-shadow-lg">🌨️</div>
 
       {/* Barra de progreso */}
-      <div className="w-64 h-2 bg-slate-200 rounded-full overflow-hidden mb-6">
-        <div className="h-full bg-sky-600 animate-[progress_6s_linear]"></div>
+      <div className="w-64 h-2 bg-sky-300 rounded-full overflow-hidden mb-6">
+        <div className="h-full bg-white animate-[progress_6s_linear]"></div>
       </div>
 
-      {/* Mensajes con fade */}
+      {/* Mensajes */}
       <p
-        className={`text-center text-slate-700 text-lg h-6 transition-opacity duration-500 ${
+        className={`text-center text-lg h-6 transition-opacity duration-500 ${
           fade ? "opacity-100" : "opacity-0"
         }`}
       >
@@ -55,40 +54,62 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
       </p>
 
       {/* Footer */}
-      <div className="absolute bottom-6 text-xs text-slate-500 text-center">
+      <div className="absolute bottom-6 text-xs text-sky-200 text-center">
         <p>Powered by ALVAREZ LLC</p>
         <p>© {new Date().getFullYear()}</p>
       </div>
 
-      {/* Copitos de nieve cayendo */}
+      {/* Copos de nieve */}
       <div className="absolute inset-0 pointer-events-none">
-        {[...Array(25)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute text-lg animate-fall"
-            style={{
-              left: `${Math.random() * 100}%`,
-              top: `${-Math.random() * 100}px`, // 👈 empieza en distintas alturas, no fijos arriba
-              animationDuration: `${3 + Math.random() * 3}s`,
-              animationDelay: `${Math.random() * 5}s`,
-            }}
-          >
-            ❄️
-          </div>
-        ))}
+        {[...Array(40)].map((_, i) => {
+          const size = 12 + Math.random() * 16;
+          const duration = 4 + Math.random() * 6;
+          const delay = Math.random() * 8;
+          const left = Math.random() * 100;
+          const startY = -50 - Math.random() * 200;
+          const driftClass = Math.random() > 0.5 ? "drift-left" : "drift-right";
+
+          return (
+            <div
+              key={i}
+              className={`absolute animate-fall ${driftClass}`}
+              style={{
+                left: `${left}%`,
+                top: `${startY}px`,
+                fontSize: `${size}px`,
+                opacity: Math.random() * 0.8 + 0.2,
+                animationDuration: `${duration}s`,
+                animationDelay: `${delay}s`,
+              }}
+            >
+              ❄️
+            </div>
+          );
+        })}
       </div>
 
       <style>
         {`
           @keyframes fall {
-            0% { transform: translateY(0); opacity: 1; }
+            0%   { transform: translateY(0); opacity: 1; }
             100% { transform: translateY(110vh); opacity: 0; }
           }
           .animate-fall {
             animation-name: fall;
-            animation-timing-function: linear;
+            animation-timing-function: ease-in-out;
             animation-iteration-count: infinite;
           }
+
+          /* Variaciones de deriva */
+          .drift-left {
+            animation-direction: normal;
+            animation-timing-function: cubic-bezier(0.45, 0.05, 0.55, 0.95);
+          }
+          .drift-right {
+            animation-direction: alternate;
+            animation-timing-function: cubic-bezier(0.55, 0.05, 0.45, 0.95);
+          }
+
           @keyframes progress {
             from { width: 0%; }
             to { width: 100%; }
