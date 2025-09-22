@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { FormData, Quote } from "./types";
 import { STEPS } from "./constants.ts";
-
 import LogoHeader from "@/components/LogoHeader";
 import ProgressBar from "@/components/ProgressBar";
 import Card from "@/components/Card";
+import SplashScreen from "@/components/SplashScreen";
 import Step1UserInfo from "@/components/Step1UserInfo";
 import Step2ServiceType from "@/components/Step2ServiceType";
 import Step3EquipmentDetails from "@/components/Step3EquipmentDetails";
@@ -13,6 +13,7 @@ import Step5Scheduler from "@/components/Step5Scheduler";
 import Step6Payment from "@/components/Step6Payment";
 import Step7Confirmation from "@/components/Step7Confirmation";
 import StepPaymentError from "@/components/StepPaymentError";
+
 
 const initialFormData: FormData = {
   fullName: "",
@@ -28,6 +29,12 @@ const initialFormData: FormData = {
 };
 
 function App() {
+    const [showSplash, setShowSplash] = useState(true);
+
+  if (showSplash) {
+    return <SplashScreen onFinish={() => setShowSplash(false)} />;
+  }
+
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [quote, setQuote] = useState<Quote | null>(null);

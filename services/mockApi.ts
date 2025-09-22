@@ -108,7 +108,7 @@ export const getAvailableSlots = async (): Promise<ScheduleDay[]> => {
     setTimeout(() => {
       const schedule: ScheduleDay[] = [];
       const today = new Date();
-      const days = ["DOM", "LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB"];
+      const days = ["LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB"];
       const times = ["09:00", "10:00", "11:00", "12:00", "14:00", "15:00", "16:00"];
 
       for (let i = 0; i < 7; i++) {
