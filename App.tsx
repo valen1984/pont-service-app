@@ -33,13 +33,34 @@ function App() {
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [quote, setQuote] = useState<Quote | null>(null);
 
-  // 👉 Mostrar splash screen solo al inicio
-if (showSplash) {
-  return <SplashScreen onFinish={() => { 
-    console.log("⏹️ setShowSplash(false)");
-    setShowSplash(false); 
-  }} />;
-}
+  // ⚠️ IMPORTANTE: todos los hooks siempre se ejecutan, sin retornos tempranos antes
+
+  // Restaurar desde localStorage al cargar la app
+  useEffect(() => {
+    const cachedForm = localStorage.getItem("formData");
+    const cachedQuote = localStorage.getItem("quote");
+    if (cachedForm) setFormData(JSON.parse(cachedForm));
+    if (cachedQuote) setQuote(JSON.parse(cachedQuote));
+  }, []);
+
+  // Guardar cambios en quote en localStorage
+  useEffect(() => {
+    if (quote) {
+      localStorage.setItem("quote", JSON.stringify(quote));
+    }
+  }, [quote]);
+
+  // Detectar resultado de Mercado Pago al volver desde la pasarela
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const paymentStatus = url.searchParams.get("collection_status");
+    const paymentId = url.searchParams.get("payment_id");
+    if (paymentStatus === "approved" && paymentId) {
+      setCurrentStep(7); // Confirmación
+    } else if (paymentStatus === "rejected" && paymentId) {
+      setCurrentStep(8); // Error de pago
+    }
+  }, []);
 
   const nextStep = () => setCurrentStep((prev) => prev + 1);
   const prevStep = () => setCurrentStep((prev) => prev - 1);
@@ -52,44 +73,15 @@ if (showSplash) {
     localStorage.removeItem("quote");
   };
 
-  // ✅ Guardar cambios en formData en localStorage
+  // Guardar cambios en formData en localStorage
   const updateFormData = (data: Partial<FormData>) => {
     const newForm = { ...formData, ...data };
     setFormData(newForm);
     localStorage.setItem("formData", JSON.stringify(newForm));
   };
 
-  // ✅ Guardar cambios en quote en localStorage
-  useEffect(() => {
-    if (quote) {
-      localStorage.setItem("quote", JSON.stringify(quote));
-    }
-  }, [quote]);
-
-  // ✅ Restaurar desde localStorage al cargar la app
-  useEffect(() => {
-    const cachedForm = localStorage.getItem("formData");
-    const cachedQuote = localStorage.getItem("quote");
-
-    if (cachedForm) setFormData(JSON.parse(cachedForm));
-    if (cachedQuote) setQuote(JSON.parse(cachedQuote));
-  }, []);
-
   const handlePaymentSuccess = () => setCurrentStep(7);
   const handlePaymentFailure = () => setCurrentStep(8);
-
-  // ✅ Detectar resultado de Mercado Pago al volver desde la pasarela
-  useEffect(() => {
-    const url = new URL(window.location.href);
-    const paymentStatus = url.searchParams.get("collection_status");
-    const paymentId = url.searchParams.get("payment_id");
-
-    if (paymentStatus === "approved" && paymentId) {
-      setCurrentStep(7); // Confirmación
-    } else if (paymentStatus === "rejected" && paymentId) {
-      setCurrentStep(8); // Error de pago
-    }
-  }, []);
 
   const renderStep = () => {
     switch (currentStep) {
@@ -148,21 +140,9 @@ if (showSplash) {
           />
         );
       case 7:
-        return (
-          <Step7Confirmation
-            formData={formData}
-            quote={quote}
-            restart={restart}
-          />
-        );
+        return <Step7Confirmation formData={formData} quote={quote} restart={restart} />;
       case 8:
-        return (
-          <StepPaymentError
-            formData={formData}
-            quote={quote}
-            restart={restart}
-          />
-        );
+        return <StepPaymentError formData={formData} quote={quote} restart={restart} />;
       default:
         return (
           <Step1UserInfo
@@ -176,23 +156,27 @@ if (showSplash) {
 
   const isFinalStep = currentStep === 7 || currentStep === 8;
 
+  // En vez de "return temprano", gateamos el contenido dentro del JSX
   return (
     <div className="bg-slate-100 min-h-screen font-sans flex items-center justify-center p-4">
       <main className="max-w-xl w-full">
         <Card>
-          {!isFinalStep && (
+          {showSplash ? (
+            <SplashScreen onFinish={() => setShowSplash(false)} />
+          ) : (
             <>
-              <LogoHeader />
-              <h1 className="text-2xl font-bold text-center text-slate-800 mb-2">
-                {STEPS[currentStep - 1]}
-              </h1>
-              <ProgressBar
-                currentStep={currentStep}
-                totalSteps={STEPS.length}
-              />
+              {!isFinalStep && (
+                <>
+                  <LogoHeader />
+                  <h1 className="text-2xl font-bold text-center text-slate-800 mb-2">
+                    {STEPS[currentStep - 1]}
+                  </h1>
+                  <ProgressBar currentStep={currentStep} totalSteps={STEPS.length} />
+                </>
+              )}
+              {renderStep()}
             </>
           )}
-          {renderStep()}
         </Card>
       </main>
     </div>
