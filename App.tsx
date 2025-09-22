@@ -29,16 +29,13 @@ const initialFormData: FormData = {
 };
 
 function App() {
-    const [showSplash, setShowSplash] = useState(true);
-
-  if (showSplash) {
-    return <SplashScreen onFinish={() => setShowSplash(false)} />;
-  }
-
+  const [showSplash, setShowSplash] = useState(true);
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [quote, setQuote] = useState<Quote | null>(null);
-
+    if (showSplash) {
+        return <SplashScreen onFinish={() => setShowSplash(false)} />;
+      }
   const nextStep = () => setCurrentStep((prev) => prev + 1);
   const prevStep = () => setCurrentStep((prev) => prev - 1);
 
