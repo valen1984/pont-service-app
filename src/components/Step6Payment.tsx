@@ -4,9 +4,10 @@ import { initMercadoPago, Wallet } from "@mercadopago/sdk-react";
 
 interface Props {
   quote: Quote | null;
-  formData: FormData; // 👈 añadimos formData
+  formData: FormData;
   onPaymentSuccess: () => void;
   onPaymentFailure: () => void;
+  onPayOnSite: () => void; // 👈 nuevo callback
   prevStep: () => void;
 }
 
@@ -15,6 +16,7 @@ const Step6Payment: React.FC<Props> = ({
   formData,
   onPaymentSuccess,
   onPaymentFailure,
+  onPayOnSite,
   prevStep,
 }) => {
   const [preferenceId, setPreferenceId] = useState<string | null>(null);
@@ -34,8 +36,8 @@ const Step6Payment: React.FC<Props> = ({
           title: "Servicio técnico Pont",
           quantity: 1,
           unit_price: quote.total,
-          formData, // 👈 mandamos los datos del cliente
-          quote,    // 👈 mandamos la cotización
+          formData,
+          quote,
         }),
       });
 
@@ -58,6 +60,7 @@ const Step6Payment: React.FC<Props> = ({
         }).format(quote?.total || 0)}
       </p>
 
+      {/* Botón Mercado Pago */}
       {!preferenceId ? (
         <button
           onClick={createPreference}
@@ -70,6 +73,14 @@ const Step6Payment: React.FC<Props> = ({
           <Wallet initialization={{ preferenceId }} />
         </div>
       )}
+
+      {/* Nuevo botón: Abonar en domicilio/taller */}
+      <button
+        onClick={onPayOnSite}
+        className="w-full px-4 py-3 bg-amber-500 text-white font-semibold rounded-lg hover:bg-amber-600 transition-colors shadow-md"
+      >
+        Abonar en el domicilio / taller
+      </button>
 
       <p className="text-xs text-slate-500">Serás redirigido a Mercado Pago</p>
 

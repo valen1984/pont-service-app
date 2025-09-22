@@ -21,6 +21,32 @@ const SuccessIcon: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 const Step7Confirmation: React.FC<Props> = ({ formData, quote, restart }) => {
+  // Estado del pago según lo que guardamos en App.tsx
+  const paymentStatus = quote?.paymentStatus;
+
+  const renderStatusText = () => {
+    if (paymentStatus === "onSite") {
+      return (
+        <>
+          Tu reserva fue confirmada y abonás <strong>presencialmente</strong> en el
+          domicilio o en el taller. Recibirás un correo con todos los detalles.
+        </>
+      );
+    }
+    return (
+      <>
+        Tu pago fue <strong>aprobado</strong> y el servicio quedó agendado.
+        Recibirás un correo con todos los detalles.
+      </>
+    );
+  };
+
+  const renderStatusLabel = () => {
+    if (paymentStatus === "onSite") return "Abona presencialmente";
+    if (paymentStatus === "confirmed") return "Confirmado";
+    return "-";
+  };
+
   return (
     <div className="space-y-6 text-center">
       <div className="flex justify-center">
@@ -29,8 +55,8 @@ const Step7Confirmation: React.FC<Props> = ({ formData, quote, restart }) => {
 
       <h2 className="text-2xl font-bold">¡Servicio Confirmado!</h2>
       <p className="text-slate-600">
-        Gracias, <strong>{formData.fullName || "usuario"}</strong>. Tu pago fue aprobado y el servicio quedó agendado. 
-        Recibirás un correo con todos los detalles.
+        Gracias, <strong>{formData.fullName || "usuario"}</strong>.{" "}
+        {renderStatusText()}
       </p>
 
       <div className="p-4 border rounded-lg bg-slate-50 text-left space-y-2">
@@ -49,11 +75,15 @@ const Step7Confirmation: React.FC<Props> = ({ formData, quote, restart }) => {
           {formData.address || "-"}
         </p>
         <p>
-          <strong>Total Pagado:</strong>{" "}
+          <strong>Total:</strong>{" "}
           {new Intl.NumberFormat("es-AR", {
             style: "currency",
             currency: "ARS",
           }).format(quote?.total || 0)}
+        </p>
+        <p>
+          <strong>Estado:</strong>{" "}
+          {renderStatusLabel()}
         </p>
       </div>
 

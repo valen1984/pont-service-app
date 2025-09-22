@@ -13,6 +13,7 @@ import Step5Scheduler from "@/components/Step5Scheduler";
 import Step6Payment from "@/components/Step6Payment";
 import Step7Confirmation from "@/components/Step7Confirmation";
 import StepPaymentError from "@/components/StepPaymentError";
+import Snowfall from "react-snowfall"; // 👈 agregado
 
 const initialFormData: FormData = {
   fullName: "",
@@ -32,8 +33,6 @@ function App() {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [quote, setQuote] = useState<Quote | null>(null);
-
-  // ⚠️ IMPORTANTE: todos los hooks siempre se ejecutan, sin retornos tempranos antes
 
   // Restaurar desde localStorage al cargar la app
   useEffect(() => {
@@ -73,15 +72,26 @@ function App() {
     localStorage.removeItem("quote");
   };
 
-  // Guardar cambios en formData en localStorage
   const updateFormData = (data: Partial<FormData>) => {
     const newForm = { ...formData, ...data };
     setFormData(newForm);
     localStorage.setItem("formData", JSON.stringify(newForm));
   };
 
-  const handlePaymentSuccess = () => setCurrentStep(7);
-  const handlePaymentFailure = () => setCurrentStep(8);
+  const handlePaymentSuccess = () => {
+    setQuote((prev) => ({ ...prev!, paymentStatus: "confirmed" }));
+    setCurrentStep(7);
+  };
+
+  const handlePaymentFailure = () => {
+    setQuote((prev) => ({ ...prev!, paymentStatus: "rejected" }));
+    setCurrentStep(8);
+  };
+
+  const handlePayOnSite = () => {
+    setQuote((prev) => ({ ...prev!, paymentStatus: "onSite" }));
+    setCurrentStep(7);
+  };
 
   const renderStep = () => {
     switch (currentStep) {
@@ -136,13 +146,26 @@ function App() {
             formData={formData}
             onPaymentSuccess={handlePaymentSuccess}
             onPaymentFailure={handlePaymentFailure}
+            onPayOnSite={handlePayOnSite} // 👈 nuevo
             prevStep={prevStep}
           />
         );
       case 7:
-        return <Step7Confirmation formData={formData} quote={quote} restart={restart} />;
+        return (
+          <Step7Confirmation
+            formData={formData}
+            quote={quote}
+            restart={restart}
+          />
+        );
       case 8:
-        return <StepPaymentError formData={formData} quote={quote} restart={restart} />;
+        return (
+          <StepPaymentError
+            formData={formData}
+            quote={quote}
+            restart={restart}
+          />
+        );
       default:
         return (
           <Step1UserInfo
@@ -156,10 +179,14 @@ function App() {
 
   const isFinalStep = currentStep === 7 || currentStep === 8;
 
-  // En vez de "return temprano", gateamos el contenido dentro del JSX
   return (
-    <div className="bg-slate-100 min-h-screen font-sans flex items-center justify-center p-4">
-      <main className="max-w-xl w-full">
+    <div className="bg-slate-100 min-h-screen font-sans flex items-center justify-center p-4 relative">
+      {/* 🌨️ Nieve global hasta paso 6 */}
+      {!isFinalStep && currentStep <= 6 && (
+        <Snowfall style={{ position: "absolute", width: "100%", height: "100%" }} />
+      )}
+
+      <main className="max-w-xl w-full relative z-10">
         <Card>
           {showSplash ? (
             <SplashScreen onFinish={() => setShowSplash(false)} />
@@ -171,10 +198,20 @@ function App() {
                   <h1 className="text-2xl font-bold text-center text-slate-800 mb-2">
                     {STEPS[currentStep - 1]}
                   </h1>
-                  <ProgressBar currentStep={currentStep} totalSteps={STEPS.length} />
+                  <ProgressBar
+                    currentStep={currentStep}
+                    totalSteps={STEPS.length}
+                  />
                 </>
               )}
               {renderStep()}
+
+              {/* Footer "Powered by" hasta paso 6 */}
+              {!isFinalStep && currentStep <= 6 && (
+                <p className="mt-6 text-center text-xs text-slate-400">
+                  Powered by ALVAREZ LLC
+                </p>
+              )}
             </>
           )}
         </Card>
