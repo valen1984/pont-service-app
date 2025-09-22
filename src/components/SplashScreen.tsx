@@ -28,10 +28,11 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
 
   // Finalizar splash después de 6s (3 mensajes)
   useEffect(() => {
-    const timer = setTimeout(() => {
-      onFinish();
-    }, messages.length * 2000); // 6000 ms
-    return () => clearTimeout(timer);
+  const timer = setTimeout(() => {
+    console.log("➡️ Ejecutando onFinish");
+    onFinish();
+  }, messages.length * 2000); // 6000 ms
+  return () => clearTimeout(timer);
   }, [onFinish]);
 
   return (

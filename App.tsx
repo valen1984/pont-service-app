@@ -34,9 +34,12 @@ function App() {
   const [quote, setQuote] = useState<Quote | null>(null);
 
   // 👉 Mostrar splash screen solo al inicio
-  if (showSplash) {
-    return <SplashScreen onFinish={() => setShowSplash(false)} />;
-  }
+if (showSplash) {
+  return <SplashScreen onFinish={() => { 
+    console.log("⏹️ setShowSplash(false)");
+    setShowSplash(false); 
+  }} />;
+}
 
   const nextStep = () => setCurrentStep((prev) => prev + 1);
   const prevStep = () => setCurrentStep((prev) => prev - 1);
