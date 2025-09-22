@@ -145,12 +145,12 @@ function generateSchedule() {
   const today = new Date();
   const result = [];
 
-  for (let i = 0; i < 14; i++) {
+  for (let i = 1; i <= 14; i++) { // 👈 arrancamos en 1 (mañana) en vez de 0
     const date = new Date(today);
     date.setDate(today.getDate() + i);
 
-    const dayOfWeek = date.getDay();
-    if (!WORKING_DAYS.includes(dayOfWeek)) continue;
+    const dayOfWeek = date.getDay(); // 0 = domingo
+    if (!WORKING_DAYS.includes(dayOfWeek)) continue; // salteamos domingos
 
     const yyyy = date.getFullYear();
     const mm = String(date.getMonth() + 1).padStart(2, "0");
@@ -164,6 +164,8 @@ function generateSchedule() {
       const slotDateTime = new Date(`${formattedDate}T${slotTime}:00`);
       const now = new Date();
       const diffMs = slotDateTime.getTime() - now.getTime();
+
+      // ⏳ bloquear turnos dentro de las próximas 48h
       const within48h = diffMs >= 0 && diffMs < 48 * 60 * 60 * 1000;
 
       const isBusy = busySlots.some(
@@ -176,7 +178,10 @@ function generateSchedule() {
       });
     }
 
-    const dayFormatted = date.toLocaleDateString("es-AR", { weekday: "short" });
+    // formato visual: "Lun 23/09/2025"
+    const dayFormatted = date.toLocaleDateString("es-AR", {
+      weekday: "short",
+    });
     const dateFormatted = date.toLocaleDateString("es-AR", {
       day: "2-digit",
       month: "2-digit",
