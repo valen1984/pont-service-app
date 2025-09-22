@@ -200,62 +200,85 @@ async function generateSchedule() {
   const today = new Date();
   const result = [];
 
-  const timeMin = new Date(today);
-  const timeMax = new Date(today);
-  timeMax.setDate(today.getDate() + 14);
+  try {
+    // ⏳ Pedimos los eventos al Calendar
+    const eventsRes = await calendar.events.list({
+      calendarId: process.env.CALENDAR_ID,
+      timeMin: today.toISOString(),
+      maxResults: 50,
+      singleEvents: true,
+      orderBy: "startTime",
+    });
 
-  const eventsRes = await calendar.events.list({
-    calendarId: CALENDAR_ID,
-    timeMin: timeMin.toISOString(),
-    timeMax: timeMax.toISOString(),
-    singleEvents: true,
-    orderBy: "startTime",
-  });
+    console.log("📅 Respuesta cruda de Google Calendar:", JSON.stringify(eventsRes.data, null, 2));
 
-  const events = eventsRes.data.items || [];
+    const events = eventsRes.data.items || [];
+    const busySlotsFromCalendar = events.map(ev => {
+      const start = ev.start?.dateTime || ev.start?.date;
+      if (!start) return null;
+      const date = new Date(start);
+      return {
+        date: date.toISOString().split("T")[0],
+        time: date.toTimeString().slice(0, 5),
+      };
+    }).filter(Boolean);
 
-  for (let i = 1; i <= 14; i++) {
-    const date = new Date(today);
-    date.setDate(today.getDate() + i);
+    // Ahora seguimos igual pero usando busySlotsFromCalendar como ocupados
+    for (let i = 1; i <= 14; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
 
-    const dayOfWeek = date.getDay();
-    if (![1, 2, 3, 4, 5, 6].includes(dayOfWeek)) continue; // lunes a sábado
+      const dayOfWeek = date.getDay();
+      if (!WORKING_DAYS.includes(dayOfWeek)) continue;
 
-    const yyyy = date.getFullYear();
-    const mm = String(date.getMonth() + 1).padStart(2, "0");
-    const dd = String(date.getDate()).padStart(2, "0");
-    const formattedDate = `${yyyy}-${mm}-${dd}`;
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, "0");
+      const dd = String(date.getDate()).padStart(2, "0");
+      const formattedDate = `${yyyy}-${mm}-${dd}`;
 
-    const slots = [];
-    for (let hour = 9; hour < 17; hour += 2) {
-      const slotTime = `${hour.toString().padStart(2, "0")}:00`;
-      const slotDateTime = new Date(`${formattedDate}T${slotTime}:00`);
+      const slots = [];
+      for (let hour = START_HOUR; hour < END_HOUR; hour += INTERVAL) {
+        const slotTime = `${hour.toString().padStart(2, "0")}:00`;
 
-      const diffMs = slotDateTime.getTime() - today.getTime();
-      const within48h = diffMs >= 0 && diffMs < 48 * 60 * 60 * 1000;
+        const slotDateTime = new Date(`${formattedDate}T${slotTime}:00`);
+        const now = new Date();
+        const diffMs = slotDateTime.getTime() - now.getTime();
 
-      const isBusy = events.some((event) => {
-        const start = new Date(event.start.dateTime || event.start.date);
-        const end = new Date(event.end.dateTime || event.end.date);
-        return slotDateTime >= start && slotDateTime < end;
+        const within48h = diffMs >= 0 && diffMs < 48 * 60 * 60 * 1000;
+        const isBusy =
+          busySlots.some(s => s.date === formattedDate && s.time === slotTime) ||
+          busySlotsFromCalendar.some(s => s.date === formattedDate && s.time === slotTime);
+
+        slots.push({
+          time: slotTime,
+          isAvailable: !within48h && !isBusy,
+          reason: within48h ? "within48h" : isBusy ? "busy" : "free",
+        });
+      }
+
+      const dayFormatted = date.toLocaleDateString("es-AR", {
+        weekday: "short",
+      });
+      const dateFormatted = date.toLocaleDateString("es-AR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
       });
 
-      slots.push({
-        time: slotTime,
-        isAvailable: !within48h && !isBusy,
-        reason: within48h ? "within48h" : isBusy ? "busy" : undefined,
+      result.push({
+        day: `${dayFormatted} ${dateFormatted}`,
+        date: formattedDate,
+        slots,
       });
     }
-
-    result.push({
-      day: date.toLocaleDateString("es-AR", { weekday: "short" }),
-      date: formattedDate,
-      slots,
-    });
+  } catch (err) {
+    console.error("❌ Error al generar agenda desde Google Calendar:", err);
+    throw err; // <- para que veas el error real en Railway logs
   }
 
   return result;
 }
+
 
 app.get("/api/schedule", async (req, res) => {
   try {
