@@ -1,99 +1,99 @@
 import React, { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 
-const funnyMessages = [
-  "⛄ Activando modo invierno...",
-  "❄️ Preparando el split...",
-  "☀️ ¿Listo para el verano?",
-  "⚡ Cargando sistema PONT...",
-  "🔧 Verificando materiales...",
+interface SplashScreenProps {
+  onFinish: () => void;
+}
+
+const messages = [
+  "❄️ Activando modo invierno...",
+  "☀️ Preparando modo split...",
+  "🚀 Cargando servicios...",
 ];
 
-const SplashScreen: React.FC = () => {
-  const [messageIndex, setMessageIndex] = useState(0);
+const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
+  const [currentMessage, setCurrentMessage] = useState(0);
+  const [fade, setFade] = useState(true);
 
-  // ⏱ cambiar mensaje cada 1.2s
+  // Cambiar mensaje cada 2 segundos con fade
   useEffect(() => {
     const interval = setInterval(() => {
-      setMessageIndex((prev) => (prev + 1) % funnyMessages.length);
-    }, 1200);
+      setFade(false); // fade out
+      setTimeout(() => {
+        setCurrentMessage((prev) => (prev + 1) % messages.length);
+        setFade(true); // fade in
+      }, 500);
+    }, 2000);
     return () => clearInterval(interval);
   }, []);
 
+  // Finalizar splash después de 6s (3 mensajes)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onFinish();
+    }, messages.length * 2000); // 6000 ms
+    return () => clearTimeout(timer);
+  }, [onFinish]);
+
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-b from-sky-200 to-sky-400 relative overflow-hidden">
-      {/* Emoji central estático */}
-      <div className="text-6xl mb-6">⛄</div>
+    <div className="flex flex-col items-center justify-center h-screen bg-sky-50 relative overflow-hidden">
+      {/* Emoji central */}
+      <div className="text-7xl mb-6">🌨️</div>
 
-      {/* Mensajes animados estilo carrusel */}
-      <div className="h-8 flex items-center justify-center mb-8 overflow-hidden">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={messageIndex}
-            initial={{ y: 30, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -30, opacity: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-lg font-medium text-slate-700 text-center px-4"
-          >
-            {funnyMessages[messageIndex]}
-          </motion.div>
-        </AnimatePresence>
+      {/* Barra de progreso */}
+      <div className="w-64 h-2 bg-slate-200 rounded-full overflow-hidden mb-6">
+        <div className="h-full bg-sky-600 animate-[progress_6s_linear]"></div>
       </div>
 
-      {/* Barra de carga */}
-      <div className="w-64 bg-white/60 rounded-full h-3 overflow-hidden shadow">
-        <motion.div
-          initial={{ width: "0%" }}
-          animate={{ width: "100%" }}
-          transition={{ duration: 6, ease: "easeInOut" }}
-          className="h-full bg-sky-600 rounded-full"
-        />
-      </div>
+      {/* Mensajes con fade */}
+      <p
+        className={`text-center text-slate-700 text-lg h-6 transition-opacity duration-500 ${
+          fade ? "opacity-100" : "opacity-0"
+        }`}
+      >
+        {messages[currentMessage]}
+      </p>
 
       {/* Footer */}
-      <div className="absolute bottom-6 text-center text-sm text-slate-700">
-        <p className="font-semibold">Powered by ALVAREZ LLC</p>
-        <p>© {new Date().getFullYear()} Todos los derechos reservados</p>
+      <div className="absolute bottom-6 text-xs text-slate-500 text-center">
+        <p>Powered by ALVAREZ LLC</p>
+        <p>© {new Date().getFullYear()}</p>
       </div>
 
-      {/* ❄️ Copos de nieve cayendo con giro + viento */}
-      {Array.from({ length: 25 }).map((_, i) => {
-        const startX = Math.random() * window.innerWidth;
-        const rotateStart = Math.random() * 360;
-        const rotateEnd = rotateStart + (Math.random() > 0.5 ? 360 : -360);
-
-        return (
-          <motion.div
+      {/* Copitos de nieve cayendo */}
+      <div className="absolute inset-0 pointer-events-none">
+        {[...Array(25)].map((_, i) => (
+          <div
             key={i}
-            initial={{
-              x: startX,
-              y: -50 - Math.random() * 100,
-              opacity: 0,
-              rotate: rotateStart,
+            className="absolute text-lg animate-fall"
+            style={{
+              left: `${Math.random() * 100}%`,
+              top: `${-Math.random() * 100}px`, // 👈 empieza en distintas alturas, no fijos arriba
+              animationDuration: `${3 + Math.random() * 3}s`,
+              animationDelay: `${Math.random() * 5}s`,
             }}
-            animate={{
-              y: window.innerHeight + 50,
-              x: [
-                startX,
-                startX + (Math.random() * 40 - 20), // se mueve a izquierda/derecha
-                startX,
-              ],
-              opacity: [0, 1, 1, 0],
-              rotate: rotateEnd,
-            }}
-            transition={{
-              duration: 6 + Math.random() * 4,
-              repeat: Infinity,
-              delay: Math.random() * 6,
-              ease: "easeInOut",
-            }}
-            className="absolute text-white text-lg select-none"
           >
             ❄️
-          </motion.div>
-        );
-      })}
+          </div>
+        ))}
+      </div>
+
+      <style>
+        {`
+          @keyframes fall {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(110vh); opacity: 0; }
+          }
+          .animate-fall {
+            animation-name: fall;
+            animation-timing-function: linear;
+            animation-iteration-count: infinite;
+          }
+          @keyframes progress {
+            from { width: 0%; }
+            to { width: 100%; }
+          }
+        `}
+      </style>
     </div>
   );
 };

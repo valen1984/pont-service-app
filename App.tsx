@@ -4,7 +4,7 @@ import { STEPS } from "./constants.ts";
 import LogoHeader from "@/components/LogoHeader";
 import ProgressBar from "@/components/ProgressBar";
 import Card from "@/components/Card";
-import SplashScreen from "@/components/SplashScreen"
+import SplashScreen from "@/components/SplashScreen";
 import Step1UserInfo from "@/components/Step1UserInfo";
 import Step2ServiceType from "@/components/Step2ServiceType";
 import Step3EquipmentDetails from "@/components/Step3EquipmentDetails";
@@ -13,7 +13,6 @@ import Step5Scheduler from "@/components/Step5Scheduler";
 import Step6Payment from "@/components/Step6Payment";
 import Step7Confirmation from "@/components/Step7Confirmation";
 import StepPaymentError from "@/components/StepPaymentError";
-
 
 const initialFormData: FormData = {
   fullName: "",
@@ -33,9 +32,12 @@ function App() {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [quote, setQuote] = useState<Quote | null>(null);
-    if (showSplash) {
-        return <SplashScreen onFinish={() => setShowSplash(false)} />;
-      }
+
+  // 👉 Mostrar splash screen solo al inicio
+  if (showSplash) {
+    return <SplashScreen onFinish={() => setShowSplash(false)} />;
+  }
+
   const nextStep = () => setCurrentStep((prev) => prev + 1);
   const prevStep = () => setCurrentStep((prev) => prev - 1);
 
@@ -76,8 +78,7 @@ function App() {
   // ✅ Detectar resultado de Mercado Pago al volver desde la pasarela
   useEffect(() => {
     const url = new URL(window.location.href);
-
-    const paymentStatus = url.searchParams.get("collection_status"); // lo que devuelve MP
+    const paymentStatus = url.searchParams.get("collection_status");
     const paymentId = url.searchParams.get("payment_id");
 
     if (paymentStatus === "approved" && paymentId) {
