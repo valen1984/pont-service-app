@@ -36,7 +36,7 @@ const localidades = [
   "Trenque Lauquen",
   "America (Rivadavia)",
   "Eduardo Castex",
-  "General Pico" ,
+  "General Pico",
   "Intendente Alvear",
   "Villa Huidobro",
   "Rufino",
@@ -54,97 +54,31 @@ const Step1UserInfo: React.FC<Props> = ({
   ) => {
     const { name, value } = e.target;
 
+    if (name === "fullName") {
+      if (value.length <= 50) {
+        updateFormData({ fullName: value });
+      }
+      return;
+    }
+
+    if (name === "phone") {
+      const onlyNumbers = value.replace(/\D/g, ""); // solo dígitos
+      updateFormData({ phone: onlyNumbers });
+      return;
+    }
+
+    if (name === "email") {
+      updateFormData({ email: value });
+      return;
+    }
+
     if (name === "address") {
-      // Si escribe dirección manual → limpiamos coords
-      updateFormData({
-        [name]: value,
-        coords: undefined,
-      });
+      updateFormData({ [name]: value, coords: undefined });
     } else if (name === "location") {
-      // Si cambia localidad → limpiamos coords
-      updateFormData({
-        location: value,
-        coords: undefined,
-      });
+      updateFormData({ location: value, coords: undefined });
     } else {
       updateFormData({ [name]: value });
     }
-  };
-
-  const getAddressFromCoords = async (lat: number, lon: number) => {
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}`
-      );
-      const data = await response.json();
-
-      const street = data.address.road || "";
-      const number = data.address.house_number || "";
-      const address = [street, number].filter(Boolean).join(" ");
-
-      const city =
-        data.address.city ||
-        data.address.town ||
-        data.address.village ||
-        data.address.hamlet ||
-        data.address.suburb ||
-        data.address.neighbourhood ||
-        data.address.municipality ||
-        data.address.county ||
-        data.address.state_district ||
-        "";
-
-      return {
-        address:
-          address ||
-          data.display_name ||
-          `Coordenadas: ${lat.toFixed(4)}, ${lon.toFixed(4)}`,
-        city,
-      };
-    } catch (error) {
-      console.error("Error obteniendo dirección:", error);
-      return {
-        address: `Coordenadas: ${lat.toFixed(4)}, ${lon.toFixed(4)}`,
-        city: "",
-      };
-    }
-  };
-
-  const handleGetLocation = () => {
-    if (navigator.geolocation) {
-      setGettingLocation(true);
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
-          const { latitude, longitude } = position.coords;
-          const { address, city } = await getAddressFromCoords(
-            latitude,
-            longitude
-          );
-
-          updateFormData({
-            address,
-            location: city || "Ubicación GPS",
-            coords: { lat: latitude, lon: longitude },
-          });
-
-          setGettingLocation(false);
-        },
-        () => {
-          alert("No se pudo obtener la ubicación.");
-          setGettingLocation(false);
-        }
-      );
-    } else {
-      alert("La geolocalización no es soportada por este navegador.");
-    }
-  };
-
-  const resetLocation = () => {
-    updateFormData({
-      address: "",
-      location: "",
-      coords: undefined,
-    });
   };
 
   const isFormValid = () => {
@@ -157,6 +91,12 @@ const Step1UserInfo: React.FC<Props> = ({
     );
   };
 
+  const emailDomains = ["gmail.com", "hotmail.com", "cloud.com"];
+  const emailSuggestions =
+    formData.email && formData.email.includes("@") === false
+      ? emailDomains.map((domain) => `${formData.email}@${domain}`)
+      : [];
+
   return (
     <div className="space-y-6">
       {/* Nombre */}
@@ -165,7 +105,7 @@ const Step1UserInfo: React.FC<Props> = ({
           htmlFor="fullName"
           className="text-sm font-medium text-slate-600"
         >
-          Nombre y Apellido
+          Nombre y Apellido (máx. 50 caracteres)
         </label>
         <input
           type="text"
@@ -176,12 +116,15 @@ const Step1UserInfo: React.FC<Props> = ({
           className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-sky-500 focus:border-sky-500"
           required
         />
+        <p className="text-xs text-slate-500 text-right">
+          {formData.fullName.length}/50
+        </p>
       </div>
 
       {/* Teléfono */}
       <div className="space-y-2">
         <label htmlFor="phone" className="text-sm font-medium text-slate-600">
-          Teléfono
+          Teléfono (solo números)
         </label>
         <input
           type="tel"
@@ -208,6 +151,19 @@ const Step1UserInfo: React.FC<Props> = ({
           className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-sky-500 focus:border-sky-500"
           required
         />
+        {emailSuggestions.length > 0 && (
+          <ul className="mt-1 text-sm text-sky-100 bg-sky-700 rounded-lg overflow-hidden">
+            {emailSuggestions.map((suggestion) => (
+              <li
+                key={suggestion}
+                className="px-2 py-1 cursor-pointer hover:bg-sky-600"
+                onClick={() => updateFormData({ email: suggestion })}
+              >
+                {suggestion}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {/* Dirección */}
@@ -254,36 +210,6 @@ const Step1UserInfo: React.FC<Props> = ({
           ))}
         </select>
       </div>
-
-      {/* Botón GPS */}
-      <button
-        onClick={handleGetLocation}
-        disabled={gettingLocation || !!formData.location || !!formData.address}
-        className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors"
-      >
-        <LocationIcon className="w-5 h-5 text-sky-600" />
-        {gettingLocation
-          ? "Obteniendo..."
-          : "Obtener Ubicación [Solo establecimientos rurales]"}
-      </button>
-
-      {/* Coordenadas */}
-      {formData.coords && (
-        <p className="text-sm text-center text-slate-600">
-          Coordenadas: {formData.coords.lat.toFixed(4)},{" "}
-          {formData.coords.lon.toFixed(4)}
-        </p>
-      )}
-
-      {/* Botón reset ubicación */}
-      {(formData.coords || formData.location) && (
-        <button
-          onClick={resetLocation}
-          className="w-full mt-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
-        >
-          🔄 Resetear ubicación
-        </button>
-      )}
 
       {/* Siguiente */}
       <button
