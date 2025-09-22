@@ -55,14 +55,13 @@ const Step1UserInfo: React.FC<Props> = ({
     const { name, value } = e.target;
 
     if (name === "phone") {
-      // Solo números, máximo 10 dígitos
       const digits = value.replace(/\D/g, "").slice(0, 10);
       updateFormData({ phone: digits });
     } else if (name === "fullName") {
       updateFormData({ fullName: value.slice(0, 20) });
     } else if (name === "address") {
       updateFormData({
-        address: value.slice(0, 20), // limitar dirección
+        address: value.slice(0, 20),
         coords: undefined,
       });
     } else if (name === "location") {
@@ -151,13 +150,18 @@ const Step1UserInfo: React.FC<Props> = ({
     });
   };
 
+  const isValidEmail = (email: string) => {
+    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return regex.test(email);
+  };
+
   const isFormValid = () => {
     return (
       formData.fullName.length > 0 &&
       formData.fullName.length <= 20 &&
       formData.phone.length === 10 &&
-      formData.email.length > 0 &&
-      formData.email.length <= 25 &&
+      isValidEmail(formData.email) &&
+      formData.email.length <= 50 &&
       formData.address.length > 0 &&
       formData.address.length <= 20 &&
       formData.location
@@ -211,9 +215,17 @@ const Step1UserInfo: React.FC<Props> = ({
           id="email"
           value={formData.email}
           onChange={handleChange}
-          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-sky-500 focus:border-sky-500"
+          maxLength={50}
+          className={`w-full px-4 py-2 border rounded-lg focus:ring-sky-500 focus:border-sky-500 ${
+            formData.email.length > 0 && !isValidEmail(formData.email)
+              ? "border-red-500"
+              : "border-slate-300"
+          }`}
           required
         />
+        {formData.email.length > 0 && !isValidEmail(formData.email) && (
+          <p className="text-sm text-red-500">El correo electrónico no es válido</p>
+        )}
       </div>
 
       {/* Dirección */}
@@ -236,10 +248,7 @@ const Step1UserInfo: React.FC<Props> = ({
 
       {/* Localidad */}
       <div className="space-y-2">
-        <label
-          htmlFor="location"
-          className="text-sm font-medium text-slate-600"
-        >
+        <label htmlFor="location" className="text-sm font-medium text-slate-600">
           Localidad
         </label>
         <select
