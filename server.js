@@ -223,17 +223,30 @@ async function generateSchedule() {
     );
 
     const events = eventsRes.data.items || [];
-    const busySlotsFromCalendar = events
-      .map((ev) => {
-        const start = ev.start?.dateTime || ev.start?.date;
-        if (!start) return null;
-        const date = new Date(start);
-        return {
-          date: date.toISOString().split("T")[0],
-          time: date.toTimeString().slice(0, 5),
-        };
-      })
-      .filter(Boolean);
+    const busySlotsFromCalendar = [];
+
+    // ✅ Bloqueo de todos los slots dentro de los rangos de los eventos
+    for (const ev of events) {
+      const start = ev.start?.dateTime ? new Date(ev.start.dateTime) : new Date(ev.start?.date);
+      const end = ev.end?.dateTime ? new Date(ev.end.dateTime) : new Date(ev.end?.date);
+
+      if (!start || !end) continue;
+
+      const yyyy = start.getFullYear();
+      const mm = String(start.getMonth() + 1).padStart(2, "0");
+      const dd = String(start.getDate()).padStart(2, "0");
+      const formattedDate = `${yyyy}-${mm}-${dd}`;
+
+      for (let hour = 9; hour < 17; hour += 2) {
+        const slotDateTime = new Date(`${formattedDate}T${hour.toString().padStart(2, "0")}:00`);
+        if (slotDateTime >= start && slotDateTime < end) {
+          busySlotsFromCalendar.push({
+            date: formattedDate,
+            time: slotDateTime.toTimeString().slice(0, 5),
+          });
+        }
+      }
+    }
 
     const WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // lunes a sábado
     const START_HOUR = 9;
