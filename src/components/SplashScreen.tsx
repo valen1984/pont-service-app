@@ -6,26 +6,31 @@ interface SplashScreenProps {
 
 const messages = [
   "❄️ Activando modo invierno...",
-  "☀️ Activando modo split, ¿listo para el verano?",
+  "☀️ Preparando modo split...",
   "🚀 Cargando servicios...",
 ];
 
 const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
   const [currentMessage, setCurrentMessage] = useState(0);
+  const [fade, setFade] = useState(true);
 
-  // Rotar mensajes cada 1.5s
+  // Cambiar mensaje cada 2 segundos con fade
   useEffect(() => {
     const interval = setInterval(() => {
-      setCurrentMessage((prev) => (prev + 1) % messages.length);
-    }, 1500);
+      setFade(false); // fade out
+      setTimeout(() => {
+        setCurrentMessage((prev) => (prev + 1) % messages.length);
+        setFade(true); // fade in
+      }, 500);
+    }, 2000);
     return () => clearInterval(interval);
   }, []);
 
-  // Finalizar después de 5s
+  // Finalizar splash después de mostrar los 3 mensajes (6 segundos)
   useEffect(() => {
     const timer = setTimeout(() => {
       onFinish();
-    }, 5000);
+    }, messages.length * 2000); // 3 × 2000ms = 6000ms
     return () => clearTimeout(timer);
   }, [onFinish]);
 
@@ -34,26 +39,19 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
       {/* Emoji central */}
       <div className="text-7xl mb-6">🌨️</div>
 
-      {/* Progress bar */}
+      {/* Barra de progreso */}
       <div className="w-64 h-2 bg-slate-200 rounded-full overflow-hidden mb-6">
-        <div className="h-full bg-sky-600 animate-[progress_5s_linear]"></div>
+        <div className="h-full bg-sky-600 animate-[progress_6s_linear]"></div>
       </div>
 
-      {/* Mensajes animados */}
-      <div className="h-8 overflow-hidden relative w-72 text-center">
-        {messages.map((msg, i) => (
-          <p
-            key={i}
-            className={`absolute inset-0 transition-all duration-700 ${
-              i === currentMessage
-                ? "opacity-100 translate-y-0"
-                : "opacity-0 translate-y-5"
-            }`}
-          >
-            {msg}
-          </p>
-        ))}
-      </div>
+      {/* Mensajes con fade */}
+      <p
+        className={`text-center text-slate-700 text-lg h-6 transition-opacity duration-500 ${
+          fade ? "opacity-100" : "opacity-0"
+        }`}
+      >
+        {messages[currentMessage]}
+      </p>
 
       {/* Footer */}
       <div className="absolute bottom-6 text-xs text-slate-500 text-center">
@@ -61,9 +59,9 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
         <p>© 2025</p>
       </div>
 
-      {/* 🌨️ Pequeños copos animados */}
+      {/* Copitos de nieve cayendo */}
       <div className="absolute inset-0 pointer-events-none">
-        {[...Array(20)].map((_, i) => (
+        {[...Array(25)].map((_, i) => (
           <div
             key={i}
             className="absolute text-lg animate-fall"
@@ -78,7 +76,6 @@ const SplashScreen: React.FC<SplashScreenProps> = ({ onFinish }) => {
         ))}
       </div>
 
-      {/* Animaciones con Tailwind */}
       <style>
         {`
           @keyframes fall {
