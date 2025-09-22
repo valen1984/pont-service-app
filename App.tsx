@@ -4,7 +4,7 @@ import { STEPS } from "./constants.ts";
 import LogoHeader from "@/components/LogoHeader";
 import ProgressBar from "@/components/ProgressBar";
 import Card from "@/components/Card";
-import SplashScreen from "@/components/SplashScreen";
+import SplashScreen from "@/components/SplashScreen.tsx"
 import Step1UserInfo from "@/components/Step1UserInfo";
 import Step2ServiceType from "@/components/Step2ServiceType";
 import Step3EquipmentDetails from "@/components/Step3EquipmentDetails";
