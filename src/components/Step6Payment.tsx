@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { Quote, FormData } from "../../types";
 import { initMercadoPago, Wallet } from "@mercadopago/sdk-react";
+import { usePaymentStatus } from "../../hooks/usePaymentStatus";
 
 interface Props {
   quote: Quote | null;
   formData: FormData;
   onPaymentSuccess: () => void;
   onPaymentFailure: () => void;
-  onPayOnSite: () => void; // 👈 callback para avanzar a Step7
+  onPayOnSite: () => void;
   prevStep: () => void;
 }
 
@@ -20,11 +21,34 @@ const Step6Payment: React.FC<Props> = ({
   prevStep,
 }) => {
   const [preferenceId, setPreferenceId] = useState<string | null>(null);
+  const [paymentId, setPaymentId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const { data: paymentData, loading: statusLoading } = usePaymentStatus(paymentId);
+
   useEffect(() => {
-    initMercadoPago(import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY || "");
+    const publicKey = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
+    if (!publicKey) {
+      console.error("⚠️ Mercado Pago PUBLIC KEY no definida en .env");
+      return;
+    }
+    // 👇 Forzamos idioma español
+    initMercadoPago(publicKey, { locale: "es-AR" });
   }, []);
+
+  // Manejo de estados de pago
+  useEffect(() => {
+    if (!paymentData) return;
+
+    if (paymentData.paymentStatus === "confirmed") {
+      onPaymentSuccess();
+    } else if (paymentData.paymentStatus === "rejected") {
+      onPaymentFailure();
+      // Permite reintentar
+      setPreferenceId(null);
+      setPaymentId(null);
+    }
+  }, [paymentData, onPaymentSuccess, onPaymentFailure]);
 
   const createPreference = async () => {
     if (!quote) return;
@@ -43,9 +67,12 @@ const Step6Payment: React.FC<Props> = ({
       });
 
       const data = await response.json();
+      if (!data.id) throw new Error("No se recibió un preferenceId válido");
+
       setPreferenceId(data.id);
+      if (data.paymentId) setPaymentId(data.paymentId);
     } catch (error) {
-      console.error("Error creando preferencia:", error);
+      console.error("❌ Error creando preferencia:", error);
       onPaymentFailure();
     }
   };
@@ -64,7 +91,7 @@ const Step6Payment: React.FC<Props> = ({
       const data = await response.json();
       if (data.ok) {
         console.log("📧 Correo pago presencial enviado");
-        onPayOnSite(); // 👈 avanzamos a Step7
+        onPayOnSite();
       } else {
         alert("Error enviando correo: " + data.error);
       }
@@ -96,14 +123,16 @@ const Step6Payment: React.FC<Props> = ({
           Pagar con Mercado Pago
         </button>
       ) : (
-        <div className="flex justify-center">
+        <div key={preferenceId} className="flex justify-center">
           <Wallet initialization={{ preferenceId }} />
         </div>
       )}
 
+      {statusLoading && <p className="text-xs text-slate-500">Verificando estado de pago...</p>}
+
       <p className="text-xs text-slate-500">Serás redirigido a Mercado Pago</p>
 
-      {/* Nuevo botón: Abonar en domicilio/taller */}
+      {/* Pago presencial */}
       <button
         onClick={handlePayOnSite}
         disabled={loading}
