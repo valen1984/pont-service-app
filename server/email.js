@@ -59,7 +59,7 @@ export const sendConfirmationEmail = async ({
 
   try {
     await sgMail.send(msg);
-    console.log(`📩 Email enviado a ${recipient} ${cc ? `+ CC ${cc}` : ""}`);
+    console.log(`📩 Email enviado a ${recipient} ${bcc ? `+ BCC ${bcc}` : ""}`);
     return { success: true };
   } catch (err) {
     console.error("❌ Error enviando email:", err.response?.body || err.message);

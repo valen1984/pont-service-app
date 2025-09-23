@@ -9,7 +9,7 @@ sgMail.setApiKey(SENDGRID_KEY);
 
 export const sendConfirmationEmail = async ({
   recipient,
-  cc,
+  bcc,
   fullName,
   phone,
   appointment,
@@ -21,7 +21,7 @@ export const sendConfirmationEmail = async ({
   estado,
 }: {
   recipient: string;
-  cc?: string; // 👈 copia opcional (para tu amigo/técnico)
+  bcc?: string; // 👈 copia opcional (para tu amigo/técnico)
   fullName?: string;
   phone?: string;
   appointment?: string;
@@ -54,7 +54,7 @@ export const sendConfirmationEmail = async ({
   // 🚀 Enviar con SendGrid
   const msg = {
     to: recipient,
-    cc: cc ? [{ email: cc, name: "Pont Refrigeración" }] : undefined,
+    cc: bcc ? [{ email: bcc, name: "Pont Refrigeración" }] : undefined,
     from: {
       email: "pontserviciosderefrigeracion@gmail.com", // ✅ remitente verificado en SendGrid
       name: "Pont Refrigeración",                      // opcional, nombre visible
@@ -88,14 +88,14 @@ export const sendConfirmationEmail = async ({
       <p style="font-size:12px;color:#555;">
         Este correo es automático.<br/>
         Cliente: ${recipient}<br/>
-        Copia: ${cc ?? "No enviada"}
+        Copia: ${bcc ?? "No enviada"}
       </p>
     `,
   };
 
   try {
     await sgMail.send(msg as any);
-    console.log(`📩 Email enviado a ${recipient} ${cc ? `+ CC ${cc}` : ""}`);
+    console.log(`📩 Email enviado a ${recipient} ${bcc ? `+ BCC ${bcc}` : ""}`);
     return { success: true };
   } catch (err: any) {
     console.error("❌ Error enviando email:", err.response?.body || err.message);
