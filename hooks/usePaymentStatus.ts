@@ -4,8 +4,8 @@ import { FormData, Quote } from "../types";
 interface PaymentStatusData {
   status: string; // estado crudo de MP: approved, rejected, pending
   paymentStatus: "confirmed" | "rejected" | "pending" | "-";
-  formData: FormData;
-  quote: Quote;
+  formData: FormData | null;
+  quote: Quote | null;
 }
 
 export function usePaymentStatus(paymentId: string | null) {
@@ -26,8 +26,8 @@ export function usePaymentStatus(paymentId: string | null) {
 
         const json = await res.json();
 
-        // 👇 Transformamos el status crudo de MP a tu enum interno
-        let mapped: PaymentStatusData = {
+        // 👇 Mapeamos status crudo de Mercado Pago a nuestro enum interno
+        const mapped: PaymentStatusData = {
           status: json.status,
           paymentStatus:
             json.status === "approved"
@@ -37,8 +37,8 @@ export function usePaymentStatus(paymentId: string | null) {
               : json.status === "rejected"
               ? "rejected"
               : "-",
-          formData: json.formData,
-          quote: json.quote,
+          formData: json.formData || null,
+          quote: json.quote || null,
         };
 
         setData(mapped);
@@ -51,6 +51,15 @@ export function usePaymentStatus(paymentId: string | null) {
     };
 
     fetchStatus();
+
+    // 👇 Reconsultar cada 5 segundos mientras no esté confirmado/rechazado
+    const interval = setInterval(() => {
+      if (!data || data.paymentStatus === "pending") {
+        fetchStatus();
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, [paymentId]);
 
   return { data, loading, error };

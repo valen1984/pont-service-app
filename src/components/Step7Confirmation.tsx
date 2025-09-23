@@ -1,15 +1,18 @@
 import React from "react";
 import { FormData, Quote } from "../../types";
+import { usePaymentStatus } from "../../hooks/usePaymentStatus";
 
 interface Props {
   formData: FormData;
   quote: Quote | null;
+  paymentId: string | null; // 👈 ahora lo recibimos para consultar el estado
   restart: () => void;
-  loading?: boolean; // 👈 nuevo
 }
 
-const Step7Confirmation: React.FC<Props> = ({ formData, quote, restart, loading }) => {
-  const paymentStatus = quote?.paymentStatus;
+const Step7Confirmation: React.FC<Props> = ({ formData, quote, paymentId, restart }) => {
+  const { data, loading, error } = usePaymentStatus(paymentId);
+
+  const paymentStatus = data?.paymentStatus || quote?.paymentStatus || "-";
 
   if (loading) {
     return (
@@ -21,6 +24,23 @@ const Step7Confirmation: React.FC<Props> = ({ formData, quote, restart, loading 
         <p className="text-slate-600">
           Aguarda unos segundos mientras confirmamos la transacción con Mercado Pago.
         </p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6 text-center">
+        <h2 className="text-2xl font-bold text-red-600">❌ Error</h2>
+        <p className="text-slate-600">
+          No pudimos verificar el estado del pago. Intenta nuevamente.
+        </p>
+        <button
+          onClick={restart}
+          className="w-full px-4 py-3 bg-red-500 text-white font-semibold rounded-lg hover:bg-red-600 transition-colors"
+        >
+          Ir al inicio
+        </button>
       </div>
     );
   }
@@ -50,6 +70,13 @@ const Step7Confirmation: React.FC<Props> = ({ formData, quote, restart, loading 
             Te enviamos un correo con los pasos para reintentar.
           </>
         );
+      case "pending":
+        return (
+          <>
+            Tu pago está <strong>pendiente</strong>. Mercado Pago aún no lo
+            confirmó. Te avisaremos por correo apenas se apruebe.
+          </>
+        );
       default:
         return <>Recibirás un correo con el detalle de tu reserva.</>;
     }
@@ -58,6 +85,7 @@ const Step7Confirmation: React.FC<Props> = ({ formData, quote, restart, loading 
   const renderStatusLabel = () => {
     if (paymentStatus === "onSite") return "💵 Abona presencialmente";
     if (paymentStatus === "confirmed") return "✅ Confirmado";
+    if (paymentStatus === "pending") return "⏳ Pendiente";
     if (paymentStatus === "rejected") return "❌ Rechazado";
     return "-";
   };
