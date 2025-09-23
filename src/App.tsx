@@ -110,27 +110,27 @@ function App() {
     }
   }, [currentStep]);
 
-  // 🔁 Retorno desde Mercado Pago
-  useEffect(() => {
-    const url = new URL(window.location.href);
-    const paymentId = url.searchParams.get("payment_id");
-    const collectionStatus =
-      url.searchParams.get("collection_status") || url.searchParams.get("status");
+// 🔁 Retorno desde Mercado Pago
+useEffect(() => {
+  const url = new URL(window.location.href);
+  const paymentId = url.searchParams.get("payment_id");
+  const collectionStatus =
+    url.searchParams.get("collection_status") || url.searchParams.get("status");
 
-    if (paymentId && collectionStatus) {
-      console.log("🔎 Retorno de MP detectado:", { paymentId, collectionStatus });
+  if (paymentId && collectionStatus) {
+    console.log("🔎 Retorno de MP detectado:", { paymentId, collectionStatus });
 
-      fetch(`/api/payment-status/${paymentId}`)
-        .then((res) => res.json())
-        .then(async (data) => {
-          console.log("📩 Respuesta de /api/payment-status:", data);
+    fetch(`/api/payment-status/${paymentId}`)
+      .then((res) => res.json())
+      .then(async (data) => {
+        console.log("📩 Respuesta de /api/payment-status:", data);
 
-          if (data?.quote) {
-            setFormData(data.formData);
-            setQuote(data.quote);
+        if (data?.quote) {
+          setFormData(data.formData);
+          setQuote(data.quote);
 
-            if (data.status === "approved") {
-          try {
+          if (data.status === "approved") {
+            try {
               const confirmRes = await fetch("/api/confirm-payment", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -144,30 +144,38 @@ function App() {
               const confirmData = await confirmRes.json();
               console.log("📤 Respuesta /api/confirm-payment:", confirmData);
 
-              if (confirmData?.formData) setFormData(confirmData.formData);
-              if (confirmData?.quote) setQuote(confirmData.quote);
-          } catch (err) {
-            console.error("❌ Error confirmando pago:", err);
-          }
-
-          setCurrentStep(7);
-        }
-         else if (["pending", "rejected"].includes(data.status)) {
-              console.warn("⚠️ Pago no aprobado:", data.status);
-              setQuote((prev) => ({ ...prev!, paymentStatus: data.status }));
-              setCurrentStep(8);
+              // ✅ solo pisamos si viene con contenido
+              if (
+                confirmData?.formData &&
+                Object.keys(confirmData.formData).length > 0
+              ) {
+                setFormData(confirmData.formData);
+              }
+              if (
+                confirmData?.quote &&
+                Object.keys(confirmData.quote).length > 0
+              ) {
+                setQuote(confirmData.quote);
+              }
+            } catch (err) {
+              console.error("❌ Error confirmando pago:", err);
             }
-          } else {
-            console.warn("⚠️ /api/payment-status no devolvió quote");
-          }
-        })
-        .catch((err) => {
-          console.error("❌ Error consultando estado de pago:", err);
-        });
-    }
-  }, []);
 
-  // ⏳ Timer splash
+            setCurrentStep(7);
+          } else if (["pending", "rejected"].includes(data.status)) {
+            console.warn("⚠️ Pago no aprobado:", data.status);
+            setQuote((prev) => ({ ...prev!, paymentStatus: data.status }));
+            setCurrentStep(8);
+          }
+        } else {
+          console.warn("⚠️ /api/payment-status no devolvió quote");
+        }
+      })
+      .catch((err) => {
+        console.error("❌ Error consultando estado de pago:", err);
+      });
+  }
+}, []);
 // ⏳ Timer splash
 useEffect(() => {
   console.log("⏳ Iniciando splash screen...");
