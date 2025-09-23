@@ -202,13 +202,18 @@ async function generateSchedule() {
   const today = new Date();
   const result = [];
 
-  // 👉 Función auxiliar para obtener fecha en Buenos Aires
+  // 👉 Aux: convierte "today + offsetDays" a medianoche en Buenos Aires
   function getDateInBuenosAires(baseDate, offsetDays) {
     const tz = "America/Argentina/Buenos_Aires";
+    // convierte baseDate a string en la TZ de BA
     const localStr = new Date(baseDate).toLocaleString("en-US", { timeZone: tz });
+    // crea un objeto Date local en BA
     const local = new Date(localStr);
-    local.setDate(local.getDate() + offsetDays);
-    return local;
+    // fuerza medianoche
+    const localMidnight = new Date(local.getFullYear(), local.getMonth(), local.getDate());
+    // suma offset
+    localMidnight.setDate(localMidnight.getDate() + offsetDays);
+    return localMidnight;
   }
 
   try {
@@ -222,16 +227,16 @@ async function generateSchedule() {
 
     const events = eventsRes.data.items || [];
 
-    const WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // lunes (1) a sábado (6). Domingo = 0
+    const WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // lunes (1) a sábado (6)
     const START_HOUR = 9;
     const END_HOUR = 17;
     const INTERVAL = 2;
 
     for (let i = 1; i <= 14; i++) {
       const date = getDateInBuenosAires(today, i);
-      const dayOfWeek = date.getDay(); // ya corregido en TZ Argentina
+      const dayOfWeek = date.getDay(); // ya en BA
 
-      if (!WORKING_DAYS.includes(dayOfWeek)) continue; // salta domingos
+      if (!WORKING_DAYS.includes(dayOfWeek)) continue; // excluye domingos
 
       const yyyy = date.getFullYear();
       const mm = String(date.getMonth() + 1).padStart(2, "0");
@@ -240,6 +245,7 @@ async function generateSchedule() {
 
       const slots = [];
       for (let hour = START_HOUR; hour < END_HOUR; hour += INTERVAL) {
+        // construimos slots en BA explícitamente
         const slotStart = new Date(`${formattedDate}T${hour.toString().padStart(2, "0")}:00:00-03:00`);
         const slotEnd = new Date(slotStart.getTime() + INTERVAL * 60 * 60 * 1000);
 
@@ -247,7 +253,7 @@ async function generateSchedule() {
         const diffMs = slotStart.getTime() - now.getTime();
         const within48h = diffMs >= 0 && diffMs < 48 * 60 * 60 * 1000;
 
-        // Chequeo de solapamiento con eventos del Calendar
+        // Chequeo de solapamiento con eventos de Calendar
         const isBusy = events.some((ev) => {
           const evStart = ev.start?.dateTime
             ? new Date(ev.start.dateTime)
@@ -288,7 +294,6 @@ async function generateSchedule() {
 
   return result;
 }
-
 
 app.get("/api/schedule", async (req, res) => {
   try {
