@@ -14,6 +14,56 @@ const FREE_KM = 5;
 // Tarifa fija por km adicional
 const COST_PER_KM = 2000;
 
+// Coordenadas fijas de localidades
+const FIXED_COORDS: Record<string, { lat: number; lon: number }> = {
+  "General Villegas": { lat: -35.0311, lon: -63.0235 },
+  "Piedritas": { lat: -35.2400, lon: -62.9500 },
+  "Cañada Seca": { lat: -34.9833, lon: -63.2333 },
+  "Emilio V. Bunge": { lat: -34.9500, lon: -62.8167 },
+  "Coronel Charlone": { lat: -34.9167, lon: -62.7333 },
+  "Santa Regina": { lat: -34.8667, lon: -62.9667 },
+  "Villa Sauze": { lat: -34.7333, lon: -63.2833 },
+  "Elordi": { lat: -35.0500, lon: -63.4167 },
+  "Ameghino": { lat: -34.8000, lon: -62.9000 },
+  "Carlos Tejedor": { lat: -35.4000, lon: -62.4167 },
+  "Trenque Lauquen": { lat: -35.9667, lon: -62.7333 },
+  "America (Rivadavia)": { lat: -35.4833, lon: -62.9667 },
+  "Eduardo Castex": { lat: -35.9167, lon: -64.3000 },
+  "General Pico": { lat: -35.6667, lon: -63.7500 },
+  "Intendente Alvear": { lat: -35.2333, lon: -63.5833 },
+  "Villa Huidobro": { lat: -34.8333, lon: -64.5833 },
+  "Rufino": { lat: -34.2667, lon: -62.7167 },
+};
+
+// =========================
+// Cálculo de traslado
+// =========================
+async function computeTravelCost(formData: FormData): Promise<number | string> {
+  let coords = formData.coords ?? null;
+
+  // 👇 Si seleccionó una localidad conocida, usamos la coordenada fija
+  if (formData.location && FIXED_COORDS[formData.location]) {
+    coords = FIXED_COORDS[formData.location];
+  }
+
+  // 👇 Si sigue sin coords, probamos con geocode online
+  if (!coords) {
+    coords = await forwardGeocode(formData.address, formData.location);
+  }
+
+  // Si no hay coordenadas (ni fijas ni GPS ni geocode), devolvemos 0
+  if (!coords) return 0;
+
+  const km = haversineKm(HQ.lat, HQ.lon, coords.lat, coords.lon);
+
+  if (km <= FREE_KM) {
+    return "💵 Bonificado";
+  }
+
+  const extraKm = Math.max(0, km - FREE_KM);
+  return Math.round(extraKm * COST_PER_KM);
+}
+
 // =========================
 // UTILS
 // =========================
@@ -44,31 +94,6 @@ async function forwardGeocode(address?: string, location?: string) {
     console.error("Error en forwardGeocode:", err);
   }
   return null;
-}
-
-// =========================
-// Cálculo de traslado
-// =========================
-async function computeTravelCost(formData: FormData): Promise<number | string> {
-  let coords = formData.coords ?? null;
-
-  if (!coords) {
-    const resolved = await forwardGeocode(formData.address, formData.location);
-    if (resolved) coords = resolved;
-  }
-
-  if (!coords) return 0;
-
-  const km = haversineKm(HQ.lat, HQ.lon, coords.lat, coords.lon);
-
-  if (km <= FREE_KM) {
-    return "💵 Bonificado"; // 👈 aparece en verde en UI si lo pintás con CSS
-  }
-
-  const extraKm = Math.max(0, km - FREE_KM);
-  const travelCost = extraKm * COST_PER_KM;
-
-  return Math.round(travelCost);
 }
 
 // =========================
@@ -108,7 +133,9 @@ export const getAvailableSlots = async (): Promise<ScheduleDay[]> => {
     setTimeout(() => {
       const schedule: ScheduleDay[] = [];
       const today = new Date();
-      const days = ["LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB"];
+
+      // 👇 Incluimos DOM para que el índice de getDay() no desplace el resto
+      const days = ["DOM", "LUN", "MAR", "MIÉ", "JUE", "VIE", "SÁB"];
       const times = ["09:00", "10:00", "11:00", "12:00", "14:00", "15:00", "16:00"];
 
       for (let i = 0; i < 7; i++) {
@@ -118,7 +145,7 @@ export const getAvailableSlots = async (): Promise<ScheduleDay[]> => {
         const dayName = days[currentDate.getDay()];
         const dateString = currentDate.toISOString().split("T")[0]; // YYYY-MM-DD
 
-        if (dayName === "DOM") continue;
+        if (dayName === "DOM") continue; // seguimos saltando domingos
 
         schedule.push({
           day: dayName,

@@ -19,12 +19,21 @@ export interface FormData {
   model: string;
   photos: string[];
   appointmentSlot: { day: string; date?: string; time: string } | null;
+
+  // 👇 Nuevo: coordenadas para GPS o localidades fijas
+  coords?: {
+    lat: number;
+    lon: number;
+  };
 }
 
 export interface Quote {
   location: string;
   baseCost: number;
-  travelCost: number;
+
+  // 👇 Antes era solo number, ahora puede ser string ("Bonificado")
+  travelCost: number | string;
+
   subtotal: number;
   iva: number;
   total: number;
