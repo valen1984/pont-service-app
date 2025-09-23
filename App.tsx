@@ -208,8 +208,8 @@ function App() {
 
               {/* Footer "Powered by" hasta paso 6 */}
               {!isFinalStep && currentStep <= 6 && (
-                <p className="mt-6 text-center text-xs text-slate-400">
-                  Powered by ALVAREZ LLC
+                <p className="mt-6 text-center text-xs text-slate-500">
+                  Powered by ALVAREZ LLC 2025®
                 </p>
               )}
             </>
