@@ -1,5 +1,5 @@
 {
-  "compilerOptions": {
+"compilerOptions": {
     "target": "ES2022",
     "experimentalDecorators": true,
     "useDefineForClassFields": false,
@@ -15,8 +15,10 @@
     "paths": {
       "@/*": ["./*"]
     },
-    "baseUrl": "src",             // 👈 agregado
+    "baseUrl": "src",
     "allowImportingTsExtensions": true,
     "noEmit": true
+  },
+  "include": ["src", "server", "env.d.ts"]
   }
-}
+

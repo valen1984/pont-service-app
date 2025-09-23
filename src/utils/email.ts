@@ -9,24 +9,34 @@ sgMail.setApiKey(SENDGRID_KEY);
 
 export const sendConfirmationEmail = async ({
   recipient,
+  cc, // 👈 agregado
   fullName,
   phone,
   appointment,
   address,
   location,
   coords,
-  quote,   // { baseCost, travelCost, subtotal, iva, total }
-  photos,  // string[] con URLs Cloudinary (0..2)
+  quote,
+  photos,
+  estado, // 👈 opcional: para mostrar el estado en el mail
 }: {
   recipient: string;
+  cc?: string; // 👈 agregado
   fullName: string;
   phone: string;
   appointment: string;
   address?: string;
   location?: string;
   coords?: { lat: number; lon: number };
-  quote?: { baseCost: string; travelCost: string; subtotal: string; iva: string; total: string };
+  quote?: {
+    baseCost: string;
+    travelCost: string;
+    subtotal: string;
+    iva: string;
+    total: string;
+  };
   photos?: string[];
+  estado?: string; // 👈 opcional
 }) => {
   const coordsText = coords
     ? `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}`
@@ -50,10 +60,12 @@ export const sendConfirmationEmail = async ({
   // 🚀 Enviar con SendGrid
   const msg = {
     to: recipient,
+    cc, // 👈 opcional
     from: "pontrefrigeracion@gmail.com", // 📌 remitente validado en SendGrid
     subject: "✅ Confirmación de tu servicio",
     html: `
       <h2>Confirmación de turno</h2>
+      <p><strong>Estado:</strong> ${estado ?? "No informado"}</p>
       <p><strong>Cliente:</strong> ${fullName}</p>
       <p><strong>Teléfono:</strong> ${phone || "No especificado"}</p>
       <p><strong>Dirección:</strong> ${address || "No especificada"}</p>
@@ -77,7 +89,7 @@ export const sendConfirmationEmail = async ({
 
   try {
     await sgMail.send(msg);
-    console.log(`📩 Email enviado a ${recipient}`);
+    console.log(`📩 Email enviado a ${recipient} (cc: ${cc ?? "ninguno"})`);
     return { success: true };
   } catch (err: any) {
     console.error("❌ Error enviando email:", err.response?.body || err.message);

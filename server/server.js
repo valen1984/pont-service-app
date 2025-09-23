@@ -130,17 +130,13 @@ app.post("/create_preference", async (req, res) => {
 // ======================
 app.post("/webhook", async (req, res) => {
   try {
-    console.log("📩 Webhook recibido:", JSON.stringify(req.body, null, 2));
-
     const { type, data } = req.body;
     if (type === "payment") {
       const paymentId = data.id;
-      console.log("🔎 Procesando pago:", paymentId);
-
       const paymentClient = new Payment(client);
       const payment = await paymentClient.get({ id: paymentId });
 
-      const status = payment.status;
+      const status = payment.status; // approved | pending | rejected
       const metadata = payment.metadata || {};
 
       let formData = {};
@@ -149,75 +145,35 @@ app.post("/webhook", async (req, res) => {
         formData = metadata.formData
           ? JSON.parse(Buffer.from(metadata.formData, "base64").toString("utf8"))
           : {};
-      } catch (e) {
-        console.error("⚠️ No se pudo parsear formData:", metadata.formData);
-      }
-
+      } catch {}
       try {
         quote = metadata.quote
           ? JSON.parse(Buffer.from(metadata.quote, "base64").toString("utf8"))
           : {};
-      } catch (e) {
-        console.error("⚠️ No se pudo parsear quote:", metadata.quote);
-      }
+      } catch {}
 
-      console.log("📝 formData parseado:", formData);
-      console.log("📝 quote parseado:", quote);
-
+      // 📧 Mensaje según estado
+      let estadoMsg = "";
       if (status === "approved") {
-        console.log("✅ Pago aprobado:", paymentId);
-
-        await sendConfirmationEmail({
-          recipient: formData.email,
-          ...formData,
-          quote,
-          paymentStatus: "confirmed",
-        });
-        await sendConfirmationEmail({
-          recipient: TECHNICIAN_EMAIL,
-          ...formData,
-          quote,
-          paymentStatus: "confirmed",
-        });
-
-        if (formData.appointmentSlot) {
-          await createCalendarEvent(formData, quote);
-          console.log("🛠️ Enviando a Calendar:", JSON.stringify(formData.appointmentSlot, null, 2));
-        } else {
-          console.warn("⚠️ Pago aprobado pero sin appointmentSlot, no se crea evento");
-        }
+        estadoMsg = "✅ Pago aprobado - orden CONFIRMADA";
+      } else if (status === "pending") {
+        estadoMsg = "⏳ Pago pendiente - en espera de confirmación";
+      } else if (status === "rejected") {
+        estadoMsg = "❌ Pago rechazado - por favor intentá nuevamente";
       }
 
-      if (status === "pending") {
-        console.log("⏳ Pago pendiente:", paymentId);
+      // 📧 Enviar mail cliente + técnico
+      await sendConfirmationEmail({
+        recipient: formData.email,
+        cc: TECHNICIAN_EMAIL,
+        ...formData,
+        quote,
+        estado: estadoMsg,
+      });
 
-        await sendPaymentPendingEmail({
-          recipient: formData.email,
-          ...formData,
-          quote,
-        });
-        await sendPaymentPendingEmail({
-          recipient: TECHNICIAN_EMAIL,
-          ...formData,
-          quote,
-        });
-
-        if (formData.appointmentSlot) {
-          await createCalendarEvent(formData, quote);
-          console.log("🛠️ Enviando a Calendar:", JSON.stringify(formData.appointmentSlot, null, 2));
-        } else {
-          console.warn("⚠️ Pago pendiente pero sin appointmentSlot");
-        }
-      }
-
-      if (status === "rejected") {
-        console.log("❌ Pago rechazado:", paymentId);
-
-        await sendPaymentRejectedEmail({
-          recipient: formData.email,
-          ...formData,
-          quote,
-        });
+      // 📅 Calendar si corresponde
+      if ((status === "approved" || status === "pending") && formData.appointmentSlot) {
+        await createCalendarEvent(formData, quote);
       }
     }
 
@@ -408,79 +364,26 @@ app.post("/api/confirm-payment", async (req, res) => {
   try {
     let { formData, quote, paymentId } = req.body;
 
-    console.log("🔎 Confirmación manual recibida:", { paymentId, formData, quote });
-
-    // 🚨 Debug: mostrar si vienen campos clave vacíos
-    if (!formData?.fullName || !formData?.appointmentSlot || !formData?.address) {
-      console.warn("⚠️ formData incompleto recibido:", formData);
-    }
-
-    // ✅ Asegurarnos que no venga vacío
-    formData = {
-      fullName: formData?.fullName || "⚠️ Sin nombre",
-      phone: formData?.phone || "⚠️ Sin teléfono",
-      email: formData?.email || "⚠️ Sin email",
-      address: formData?.address || "⚠️ Sin dirección",
-      location: formData?.location || "",
-      serviceType: formData?.serviceType || "⚠️ Sin servicio",
-      brand: formData?.brand || "",
-      model: formData?.model || "",
-      photos: formData?.photos || [],
-      appointmentSlot: formData?.appointmentSlot || null,
-    };
-
     if (paymentId) {
       const paymentClient = new Payment(client);
       const payment = await paymentClient.get({ id: paymentId });
-
       if (payment.status !== "approved") {
         return res.status(400).json({ ok: false, error: "El pago no está aprobado" });
       }
     }
 
-if (quote?.paymentStatus === "confirmed") {
-      console.log("⚠️ Pago ya confirmado, verifico/creo evento en Calendar si falta…");
-
-      if (formData?.appointmentSlot) {
-        console.log("🛠️ Enviando a Calendar:", JSON.stringify(formData.appointmentSlot, null, 2));
-        try {
-          await createCalendarEvent(formData, quote);
-        } catch (err) {
-          console.error("❌ Error creando evento (confirmación repetida):", err);
-        }
-      } else {
-        console.warn("⚠️ Confirmado pero sin appointmentSlot, no se crea evento.");
-      }
-
-      // devolvemos igual para que el front muestre todo
-      return res.json({
-        ok: true,
-        message: "Pago ya confirmado previamente",
-        formData,
-        quote,
-      });
-    }
-
-    // 📧 Emails
+    // 📧 Enviar correos (cliente + técnico)
     await sendConfirmationEmail({
       recipient: formData.email,
+      cc: TECHNICIAN_EMAIL,
       ...formData,
       quote,
-      paymentStatus: "confirmed",
-    });
-    await sendConfirmationEmail({
-      recipient: TECHNICIAN_EMAIL,
-      ...formData,
-      quote,
-      paymentStatus: "confirmed",
+      estado: "✅ Pago aprobado - orden CONFIRMADA",
     });
 
     // 📅 Calendar
     if (formData.appointmentSlot) {
       await createCalendarEvent(formData, quote);
-      console.log("🛠️ Enviando a Calendar:", JSON.stringify(formData.appointmentSlot, null, 2));
-    } else {
-      console.warn("⚠️ No appointmentSlot → no se crea evento");
     }
 
     // ✅ Devolvemos todo
@@ -495,3 +398,4 @@ if (quote?.paymentStatus === "confirmed") {
     res.status(500).json({ ok: false, error: err.message });
   }
 });
+
