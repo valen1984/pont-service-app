@@ -84,56 +84,34 @@ function App() {
     }
   }, [quote]);
 
-  // 🔁 Retorno desde Mercado Pago
+    // ✅ Guardia: si el currentStep queda fuera de rango, forzarlo al último válido
+  useEffect(() => {
+    if (currentStep < 1) {
+      console.warn("⚠️ currentStep menor a 1, reseteando a 1");
+      setCurrentStep(1);
+    } else if (currentStep > STEPS.length) {
+      console.warn(
+        `⚠️ currentStep (${currentStep}) fuera de rango, reseteando a ${STEPS.length}`
+      );
+      setCurrentStep(STEPS.length);
+    }
+  }, [currentStep]);
+
+  // ✅ Debug: ver qué devuelve Mercado Pago en el redirect
   useEffect(() => {
     const url = new URL(window.location.href);
     const paymentId = url.searchParams.get("payment_id");
     const collectionStatus =
       url.searchParams.get("collection_status") || url.searchParams.get("status");
 
-    const handleFallbackByCollectionStatus = (status: string) => {
-      const s = status.toLowerCase();
-      if (s === "approved") {
-        setCurrentStep(7);
-        setQuote((prev) => (prev ? { ...prev, paymentStatus: "confirmed" } : prev));
-      } else if (s === "pending") {
-        setCurrentStep(8);
-        setQuote((prev) => (prev ? { ...prev, paymentStatus: "pending" } : prev));
-      } else if (s === "rejected") {
-        setCurrentStep(8);
-        setQuote((prev) => (prev ? { ...prev, paymentStatus: "rejected" } : prev));
-      }
-    };
-
-    const fetchStatus = async () => {
-      try {
-        if (paymentId) {
-          const res = await fetch(`/api/payment-status/${paymentId}`);
-          const data = await res.json();
-
-          if (data?.quote) {
-            setFormData(data.formData);
-            setQuote(data.quote);
-
-            if (data.status === "approved") {
-              setCurrentStep(7);
-            } else if (["rejected", "pending"].includes(data.status)) {
-              setCurrentStep(8);
-            }
-          } else if (collectionStatus) {
-            handleFallbackByCollectionStatus(collectionStatus);
-          }
-        } else if (collectionStatus) {
-          handleFallbackByCollectionStatus(collectionStatus);
-        }
-      } catch (err) {
-        console.error("❌ Error consultando estado de pago:", err);
-        if (collectionStatus) handleFallbackByCollectionStatus(collectionStatus);
-      }
-    };
-
-    if (paymentId || collectionStatus) fetchStatus();
+    console.log("🔎 Redirect desde MP →", {
+      paymentId,
+      collectionStatus,
+      currentStep,
+      quote,
+    });
   }, []);
+
 
   // ⏳ Timer de splash (6s)
   useEffect(() => {
