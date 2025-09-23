@@ -35,41 +35,6 @@ const snowflakeImages = [
   createEmojiImage("✧"),
 ];
 
-// 🌬️ Viento polar
-function ColdWind() {
-  const layers = 3;
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {Array.from({ length: layers }).map((_, i) => {
-        const top = 10 + i * 28;
-        const dur = 8 + i * 2;
-        const delay = i * 2.5;
-        const yDrift = i === 1 ? 8 : 5;
-
-        return (
-          <motion.div
-            key={i}
-            className="absolute left-0 w-full h-1/4
-                       bg-gradient-to-r from-cyan-200/20 to-transparent
-                       backdrop-blur-sm rounded-full"
-            style={{ top: `${top}%` }}
-            animate={{
-              x: ["-120%", "100%"],
-              y: [`-${yDrift}%`, `${yDrift}%`, `-${yDrift}%`],
-              opacity: [0.06, 0.22, 0.06],
-            }}
-            transition={{
-              duration: dur,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay,
-            }}
-          />
-        );
-      })}
-    </div>
-  );
-}
 
 const initialFormData: FormData = {
   fullName: "",
@@ -320,13 +285,10 @@ function App() {
           snowflakeCount={160}
           radius={[2, 8]}
           speed={[0.5, 2]}
-          wind={[wind - 0.5, wind + 0.5]}
+          //wind={[wind - 0.5, wind + 0.5]}
           images={snowflakeImages}
         />
       )}
-
-      {/* 🌬️ Ráfagas “polar” */}
-      {!isFinalStep && currentStep <= 6 && <ColdWind />}
 
       <main className="max-w-xl w-full relative z-10">
         <Card className={showSplash ? "bg-white/80 backdrop-blur" : ""}>
