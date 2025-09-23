@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom"; // 👈 nuevo
 import { FormData, Quote } from "./types";
 import { STEPS } from "./constants.ts";
 import LogoHeader from "@/components/LogoHeader";
@@ -35,8 +34,6 @@ function App() {
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [quote, setQuote] = useState<Quote | null>(null);
 
-  const [searchParams] = useSearchParams(); // 👈 para leer querystring
-
   // Restaurar desde localStorage al cargar la app
   useEffect(() => {
     const cachedForm = localStorage.getItem("formData");
@@ -54,7 +51,9 @@ function App() {
 
   // Detectar resultado de Mercado Pago al volver desde la pasarela
   useEffect(() => {
-    const paymentId = searchParams.get("payment_id");
+    const url = new URL(window.location.href);
+    const paymentId = url.searchParams.get("payment_id");
+
     if (!paymentId) return;
 
     const fetchStatus = async () => {
@@ -66,9 +65,9 @@ function App() {
           setFormData(data.formData);
           setQuote(data.quote);
 
-          if (data.paymentStatus === "confirmed") {
+          if (data.status === "approved") {
             setCurrentStep(7);
-          } else if (data.paymentStatus === "rejected" || data.paymentStatus === "pending") {
+          } else if (["rejected", "pending"].includes(data.status)) {
             setCurrentStep(8);
           }
         }
@@ -78,7 +77,7 @@ function App() {
     };
 
     fetchStatus();
-  }, [searchParams]);
+  }, []);
 
   const nextStep = () => setCurrentStep((prev) => prev + 1);
   const prevStep = () => setCurrentStep((prev) => prev - 1);
