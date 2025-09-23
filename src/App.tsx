@@ -125,57 +125,59 @@ useEffect(() => {
       .then(async (data) => {
         console.log("📩 Respuesta de /api/payment-status:", data);
 
-        if (data?.quote) {
-          // 🔹 merge con lo que ya había para NO perder datos
-          const mergedForm = {
-            ...formData,
-            ...(data.formData && Object.keys(data.formData).length > 0
-              ? data.formData
-              : {}),
-          };
-          const mergedQuote = {
-            ...quote,
-            ...(data.quote && Object.keys(data.quote).length > 0
-              ? data.quote
-              : {}),
-          };
+        // Dentro del then de /api/payment-status
+      if (data?.quote) {
+        // 🔹 Merge con lo que ya había
+        const mergedForm = {
+          ...formData,            // lo que ya tenías en memoria/localStorage
+          ...(data.formData || {}), // lo que vino del backend
+        };
 
-          setFormData(mergedForm);
-          setQuote(mergedQuote);
+        const mergedQuote = {
+          ...quote,
+          ...(data.quote || {}),
+        };
 
-          if (data.status === "approved") {
-            try {
-              const confirmRes = await fetch("/api/confirm-payment", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  paymentId,
-                  formData: mergedForm,
-                  quote: { ...mergedQuote, paymentStatus: "confirmed" },
-                }),
-              });
+        setFormData(mergedForm);
+        setQuote(mergedQuote);
 
-              const confirmData = await confirmRes.json();
-              console.log("📤 Respuesta /api/confirm-payment:", confirmData);
+        if (data.status === "approved") {
+          try {
+            const mergedForm = {
+              ...formData,          // lo que ya estaba en memoria
+              ...(data.formData||{}) // lo que vino del backend
+            };
+            const mergedQuote = {
+              ...quote,
+              ...(data.quote||{})
+            };
 
-              // ✅ merge también con confirmData si viene con contenido
-              if (
-                confirmData?.formData &&
-                Object.keys(confirmData.formData).length > 0
-              ) {
-                setFormData((prev) => ({ ...prev, ...confirmData.formData }));
-              }
-              if (
-                confirmData?.quote &&
-                Object.keys(confirmData.quote).length > 0
-              ) {
-                setQuote((prev) => ({ ...prev, ...confirmData.quote }));
-              }
-            } catch (err) {
-              console.error("❌ Error confirmando pago:", err);
+            // 👇 Igual que “onsite”: mandamos todo el form completo
+            const confirmRes = await fetch("/api/confirm-payment", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                paymentId,
+                formData: mergedForm, 
+                quote: { ...mergedQuote, paymentStatus: "confirmed" },
+              }),
+            });
+
+            const confirmData = await confirmRes.json();
+            console.log("📤 Respuesta /api/confirm-payment:", confirmData);
+
+            if (confirmData?.formData) {
+              setFormData((prev) => ({ ...prev, ...confirmData.formData }));
             }
-            setCurrentStep(7);
-          } else if (["pending", "rejected"].includes(data.status)) {
+            if (confirmData?.quote) {
+              setQuote((prev) => ({ ...prev, ...confirmData.quote }));
+            }
+          } catch (err) {
+            console.error("❌ Error confirmando pago:", err);
+          }
+
+          setCurrentStep(7);
+        } else if (["pending", "rejected"].includes(data.status)) {
             console.warn("⚠️ Pago no aprobado:", data.status);
             setQuote((prev) => ({ ...prev!, paymentStatus: data.status }));
             setCurrentStep(8);
