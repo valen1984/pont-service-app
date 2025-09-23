@@ -35,29 +35,38 @@ const snowflakeImages = [
   createEmojiImage("✧"),
 ];
 
-// 🌬️ Viento polar azulado con blur
+// 🌬️ Viento polar
 function ColdWind() {
+  const layers = 3;
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {[...Array(3)].map((_, i) => (
-        <motion.div
-          key={i}
-          className="absolute top-0 left-0 w-full h-1/3 
-                     bg-gradient-to-r from-cyan-200/20 to-transparent 
-                     backdrop-blur-sm rounded-full"
-          style={{ top: `${i * 30}%` }}
-          animate={{
-            x: ["-100%", "100%"],
-            opacity: [0.05, 0.25, 0.05],
-          }}
-          transition={{
-            duration: 8 + i * 2,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: i * 3,
-          }}
-        />
-      ))}
+      {Array.from({ length: layers }).map((_, i) => {
+        const top = 10 + i * 28;
+        const dur = 8 + i * 2;
+        const delay = i * 2.5;
+        const yDrift = i === 1 ? 8 : 5;
+
+        return (
+          <motion.div
+            key={i}
+            className="absolute left-0 w-full h-1/4
+                       bg-gradient-to-r from-cyan-200/20 to-transparent
+                       backdrop-blur-sm rounded-full"
+            style={{ top: `${top}%` }}
+            animate={{
+              x: ["-120%", "100%"],
+              y: [`-${yDrift}%`, `${yDrift}%`, `-${yDrift}%`],
+              opacity: [0.06, 0.22, 0.06],
+            }}
+            transition={{
+              duration: dur,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay,
+            }}
+          />
+        );
+      })}
     </div>
   );
 }
@@ -82,7 +91,7 @@ function App() {
   const [quote, setQuote] = useState<Quote | null>(null);
   const [wind, setWind] = useState(0);
 
-  // 🎐 Oscilación del viento de copos
+  // 🎐 Viento oscilante para los copos
   useEffect(() => {
     let direction = 1;
     const interval = setInterval(() => {
@@ -110,34 +119,74 @@ function App() {
     }
   }, [quote]);
 
-  // Detectar resultado de Mercado Pago
+  // 🔁 Retorno desde Mercado Pago
   useEffect(() => {
     const url = new URL(window.location.href);
     const paymentId = url.searchParams.get("payment_id");
+    const collectionStatus =
+      url.searchParams.get("collection_status") || url.searchParams.get("status");
 
-    if (!paymentId) return;
-
-    const fetchStatus = async () => {
-      try {
-        const res = await fetch(`/api/payment-status/${paymentId}`);
-        const data = await res.json();
-
-        if (data.quote) {
-          setFormData(data.formData);
-          setQuote(data.quote);
-
-          if (data.status === "approved") {
-            setCurrentStep(7);
-          } else if (["rejected", "pending"].includes(data.status)) {
-            setCurrentStep(8);
-          }
-        }
-      } catch (err) {
-        console.error("❌ Error consultando estado de pago:", err);
+    const handleFallbackByCollectionStatus = (status: string) => {
+      const s = status.toLowerCase();
+      if (s === "approved") {
+        setCurrentStep(7);
+        setQuote((prev) => (prev ? { ...prev, paymentStatus: "confirmed" } : prev));
+      } else if (s === "pending") {
+        setCurrentStep(8);
+        setQuote((prev) => (prev ? { ...prev, paymentStatus: "pending" } : prev));
+      } else if (s === "rejected") {
+        setCurrentStep(8);
+        setQuote((prev) => (prev ? { ...prev, paymentStatus: "rejected" } : prev));
       }
     };
 
-    fetchStatus();
+    const fetchStatus = async () => {
+      try {
+        if (paymentId) {
+          const res = await fetch(`/api/payment-status/${paymentId}`);
+          const data = await res.json();
+
+          if (data?.quote) {
+            setFormData(data.formData);
+            setQuote(data.quote);
+
+            if (data.status === "approved") {
+              setCurrentStep(7);
+            } else if (["rejected", "pending"].includes(data.status)) {
+              setCurrentStep(8);
+            }
+          } else if (collectionStatus) {
+            handleFallbackByCollectionStatus(collectionStatus);
+          }
+        } else if (collectionStatus) {
+          handleFallbackByCollectionStatus(collectionStatus);
+        }
+      } catch (err) {
+        console.error("❌ Error consultando estado de pago:", err);
+        if (collectionStatus) handleFallbackByCollectionStatus(collectionStatus);
+      }
+    };
+
+    if (paymentId || collectionStatus) fetchStatus();
+  }, []);
+
+  // ⏳ Timer de splash (6s)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowSplash(false);
+
+      // 🧹 limpiar querystring para evitar loop
+      if (window?.history?.replaceState) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+
+      // Garantizar arranque en Step 1
+      if (!quote && currentStep === 1) {
+        setCurrentStep(1);
+      }
+    }, 6000);
+
+    return () => clearTimeout(timer);
   }, []);
 
   const nextStep = () => setCurrentStep((prev) => prev + 1);
@@ -149,6 +198,10 @@ function App() {
     setQuote(null);
     localStorage.removeItem("formData");
     localStorage.removeItem("quote");
+
+    if (window?.history?.replaceState) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
   };
 
   const updateFormData = (data: Partial<FormData>) => {
@@ -272,7 +325,7 @@ function App() {
         />
       )}
 
-      {/* 🌬️ Viento polar */}
+      {/* 🌬️ Ráfagas “polar” */}
       {!isFinalStep && currentStep <= 6 && <ColdWind />}
 
       <main className="max-w-xl w-full relative z-10">
@@ -295,7 +348,6 @@ function App() {
               )}
               {renderStep()}
 
-              {/* Footer */}
               {!isFinalStep && currentStep <= 6 && (
                 <p className="mt-6 text-center text-xs text-slate-500">
                   <a
