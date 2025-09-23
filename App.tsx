@@ -209,19 +209,12 @@ function App() {
             {/* Footer "Powered by" hasta paso 6 */}
             {!isFinalStep && currentStep <= 6 && (
               <p className="mt-6 text-center text-xs text-slate-500">
-                <span className="inline-flex items-center gap-1">
-                  <span className="opacity-80">⚡</span>
-                  <span>
-                    Powered by <span className="font-semibold tracking-wide">ALVAREZ LLC</span> 2025®
-                  </span>
-                  <span className="mx-2 text-slate-400">•</span>
-                  <a
-                    href="mailto:valentin.alvarez@alvarezllc.net"
-                    className="text-sky-600 hover:text-sky-700 underline underline-offset-4 decoration-sky-400 hover:decoration-sky-600 transition-colors"
-                  >
-                    valentin.alvarez@alvarezllc.net
-                  </a>
-                </span>
+                <a
+                  href="mailto:valentin.alvarez@alvarezllc.net"
+                  className="inline-flex items-center gap-1 text-sky-600 hover:text-sky-700 transition-colors font-semibold tracking-wide underline underline-offset-4 decoration-sky-400 hover:decoration-sky-600"
+                >
+                  ⚡ Powered by ALVAREZ LLC 2025®
+                </a>
               </p>
             )}
           </>
