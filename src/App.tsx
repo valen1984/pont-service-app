@@ -15,26 +15,6 @@ import StepPaymentError from "@/components/StepPaymentError";
 import Snowfall from "react-snowfall";
 import { motion } from "framer-motion";
 
-// 👇 Crear imágenes a partir de emojis
-function createEmojiImage(emoji: string): HTMLImageElement {
-  const canvas = document.createElement("canvas");
-  canvas.width = 32;
-  canvas.height = 32;
-  const ctx = canvas.getContext("2d")!;
-  ctx.font = "28px serif";
-  ctx.fillText(emoji, 0, 24);
-  const img = new Image();
-  img.src = canvas.toDataURL();
-  return img;
-}
-
-// ❄️ Copos de nieve personalizados
-const snowflakeImages: HTMLImageElement[] = [
-  createEmojiImage("❄️"),
-  createEmojiImage("✦"),
-  createEmojiImage("✧"),
-];
-
 // 📋 Estado inicial del formulario
 const initialFormData: FormData = {
   fullName: "",
@@ -58,6 +38,7 @@ function App() {
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [quote, setQuote] = useState<Quote | null>(null);
   const [wind, setWind] = useState(0);
+  const [snowflakeImages, setSnowflakeImages] = useState<HTMLImageElement[]>([]);
 
   // 🎐 Viento oscilante
   useEffect(() => {
@@ -72,17 +53,48 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
+  // ❄️ Crear imágenes de copos solo en cliente
+  useEffect(() => {
+    function createEmojiImage(emoji: string): HTMLImageElement {
+      const canvas = document.createElement("canvas");
+      canvas.width = 32;
+      canvas.height = 32;
+      const ctx = canvas.getContext("2d")!;
+      ctx.font = "28px serif";
+      ctx.fillText(emoji, 0, 24);
+      const img = new Image();
+      img.src = canvas.toDataURL();
+      return img;
+    }
+
+    const imgs = [
+      createEmojiImage("❄️"),
+      createEmojiImage("✦"),
+      createEmojiImage("✧"),
+    ];
+
+    console.log("❄️ snowflakeImages en runtime:", imgs);
+    setSnowflakeImages(imgs);
+  }, []);
+
   // Restaurar desde localStorage
   useEffect(() => {
     const cachedForm = localStorage.getItem("formData");
     const cachedQuote = localStorage.getItem("quote");
-    if (cachedForm) setFormData(JSON.parse(cachedForm));
-    if (cachedQuote) setQuote(JSON.parse(cachedQuote));
+    if (cachedForm) {
+      console.log("📥 Restaurando formData desde localStorage");
+      setFormData(JSON.parse(cachedForm));
+    }
+    if (cachedQuote) {
+      console.log("📥 Restaurando quote desde localStorage");
+      setQuote(JSON.parse(cachedQuote));
+    }
   }, []);
 
   // Guardar cambios en quote
   useEffect(() => {
     if (quote) {
+      console.log("💾 Guardando quote en localStorage:", quote);
       localStorage.setItem("quote", JSON.stringify(quote));
     }
   }, [quote]);
@@ -90,8 +102,10 @@ function App() {
   // ✅ Guardia de rango
   useEffect(() => {
     if (currentStep < 1) {
+      console.warn("⚠️ currentStep < 1 → forzando a 1");
       setCurrentStep(1);
     } else if (Array.isArray(STEPS) && currentStep > STEPS.length) {
+      console.warn("⚠️ currentStep > STEPS.length → forzando al último");
       setCurrentStep(STEPS.length);
     }
   }, [currentStep]);
@@ -126,13 +140,17 @@ function App() {
                     quote: { ...data.quote, paymentStatus: "confirmed" },
                   }),
                 });
-                console.log("📤 Respuesta /api/confirm-payment:", await confirmRes.json());
+                console.log(
+                  "📤 Respuesta /api/confirm-payment:",
+                  await confirmRes.json()
+                );
               } catch (err) {
                 console.error("❌ Error confirmando pago:", err);
               }
 
               setCurrentStep(7);
             } else if (["pending", "rejected"].includes(data.status)) {
+              console.warn("⚠️ Pago no aprobado:", data.status);
               setQuote((prev) => ({ ...prev!, paymentStatus: data.status }));
               setCurrentStep(8);
             }
@@ -148,7 +166,9 @@ function App() {
 
   // ⏳ Timer splash
   useEffect(() => {
+    console.log("⏳ Iniciando splash screen...");
     const timer = setTimeout(() => {
+      console.log("✅ Terminó splash, ocultando");
       setShowSplash(false);
 
       if (window?.history?.replaceState) {
@@ -163,10 +183,17 @@ function App() {
     return () => clearTimeout(timer);
   }, []);
 
-  const nextStep = () => setCurrentStep((prev) => prev + 1);
-  const prevStep = () => setCurrentStep((prev) => prev - 1);
+  const nextStep = () => {
+    console.log("➡️ nextStep:", currentStep + 1);
+    setCurrentStep((prev) => prev + 1);
+  };
+  const prevStep = () => {
+    console.log("⬅️ prevStep:", currentStep - 1);
+    setCurrentStep((prev) => prev - 1);
+  };
 
   const restart = () => {
+    console.log("🔄 Restart app");
     setCurrentStep(1);
     setFormData(initialFormData);
     setQuote(null);
@@ -180,26 +207,31 @@ function App() {
 
   const updateFormData = (data: Partial<FormData>) => {
     const newForm = { ...formData, ...data };
+    console.log("📝 updateFormData:", newForm);
     setFormData(newForm);
     localStorage.setItem("formData", JSON.stringify(newForm));
   };
 
   const handlePaymentSuccess = () => {
+    console.log("💰 Pago confirmado (handlePaymentSuccess)");
     setQuote((prev) => ({ ...prev!, paymentStatus: "confirmed" }));
     setCurrentStep(7);
   };
 
   const handlePaymentFailure = () => {
+    console.warn("❌ Pago rechazado (handlePaymentFailure)");
     setQuote((prev) => ({ ...prev!, paymentStatus: "rejected" }));
     setCurrentStep(8);
   };
 
   const handlePayOnSite = () => {
+    console.log("💵 Pago en domicilio/taller (handlePayOnSite)");
     setQuote((prev) => ({ ...prev!, paymentStatus: "onSite" }));
     setCurrentStep(7);
   };
 
   const renderStep = () => {
+    console.log("🎬 Renderizando step:", currentStep);
     switch (currentStep) {
       case 1:
         return <Step1UserInfo formData={formData} updateFormData={updateFormData} nextStep={nextStep} />;
@@ -224,17 +256,22 @@ function App() {
 
   const isFinalStep = currentStep === 7 || currentStep === 8;
 
+  console.log("📊 Estado antes de render:", { currentStep, quote });
+
   return (
     <div className="bg-gradient-to-b from-slate-700 to-slate-500 min-h-screen font-sans flex items-center justify-center p-4 relative">
-      {!isFinalStep && Array.isArray(STEPS) && currentStep <= (STEPS?.length ?? 0) && (
-        <Snowfall
-          style={{ position: "absolute", width: "100%", height: "100%" }}
-          snowflakeCount={160}
-          radius={[2, 8]}
-          speed={[0.5, 2]}
-          images={snowflakeImages}
-        />
-      )}
+      {!isFinalStep &&
+        Array.isArray(STEPS) &&
+        currentStep <= (STEPS?.length ?? 0) &&
+        snowflakeImages.length > 0 && (
+          <Snowfall
+            style={{ position: "absolute", width: "100%", height: "100%" }}
+            snowflakeCount={160}
+            radius={[2, 8]}
+            speed={[0.5, 2]}
+            images={snowflakeImages}
+          />
+        )}
 
       <main className="max-w-xl w-full relative z-10">
         <Card className={showSplash ? "bg-white/80 backdrop-blur" : ""}>
@@ -249,16 +286,18 @@ function App() {
 
               {renderStep()}
 
-              {!isFinalStep && Array.isArray(STEPS) && currentStep <= (STEPS?.length ?? 0) && (
-                <p className="mt-6 text-center text-xs text-slate-500">
-                  <a
-                    href="mailto:valentin.alvarez@alvarezllc.net"
-                    className="inline-flex items-center gap-1 text-sky-600 hover:text-sky-700 transition-colors font-semibold tracking-wide underline underline-offset-4 decoration-sky-400 hover:decoration-sky-600"
-                  >
-                    ⚡ Powered by ALVAREZ LLC 2025®
-                  </a>
-                </p>
-              )}
+              {!isFinalStep &&
+                Array.isArray(STEPS) &&
+                currentStep <= (STEPS?.length ?? 0) && (
+                  <p className="mt-6 text-center text-xs text-slate-500">
+                    <a
+                      href="mailto:valentin.alvarez@alvarezllc.net"
+                      className="inline-flex items-center gap-1 text-sky-600 hover:text-sky-700 transition-colors font-semibold tracking-wide underline underline-offset-4 decoration-sky-400 hover:decoration-sky-600"
+                    >
+                      ⚡ Powered by ALVAREZ LLC 2025®
+                    </a>
+                  </p>
+                )}
             </>
           )}
         </Card>
