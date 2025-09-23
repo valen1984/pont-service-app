@@ -20,7 +20,7 @@ app.use(cors());
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// ⚡ Credenciales Mercado Pago
+// ⚡ Credenciales de Mercado Pago
 const client = new MercadoPagoConfig({
   accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN,
 });
@@ -32,35 +32,51 @@ if (rawCreds.private_key) {
 }
 const auth = new google.auth.GoogleAuth({
   credentials: rawCreds,
-  scopes: ["https://www.googleapis.com/auth/calendar"], // 👈 escritura habilitada
+  scopes: ["https://www.googleapis.com/auth/calendar"],
 });
 const calendar = google.calendar({ version: "v3", auth });
-const CALENDAR_ID = process.env.CALENDAR_ID;
+const CALENDAR_ID = process.env.CALENDAR_ID; // ID del calendario compartido
 
-// 👉 Helper para crear evento
-async function createCalendarEvent({ formData, quote }) {
-  if (!formData.appointmentSlot) return;
-
-  const { date, time } = formData.appointmentSlot;
-  const startDateTime = new Date(`${date}T${time}:00`);
-  const endDateTime = new Date(startDateTime.getTime() + 2 * 60 * 60 * 1000); // 2hs bloqueadas
-
-  const event = {
-    summary: `Servicio: ${formData.serviceType || "Turno"} - ${formData.fullName}`,
-    description: `Cliente: ${formData.fullName}\nTel: ${formData.phone}\nDirección: ${formData.address}\nServicio: ${formData.serviceType}\nTotal: $${quote?.total}`,
-    start: { dateTime: startDateTime.toISOString(), timeZone: "America/Argentina/Buenos_Aires" },
-    end: { dateTime: endDateTime.toISOString(), timeZone: "America/Argentina/Buenos_Aires" },
-    attendees: [{ email: TECHNICIAN_EMAIL }, { email: formData.email }],
-  };
-
+// ======================
+// 📌 Crear evento en Google Calendar
+// ======================
+async function createCalendarEvent(formData, quote) {
   try {
+    if (!formData.appointmentSlot) {
+      console.warn("⚠️ No hay appointmentSlot en formData, no se crea evento");
+      return;
+    }
+
+    const dateStr = formData.appointmentSlot.date; // ej: 2025-09-29
+    const timeStr = formData.appointmentSlot.time; // ej: 15:00
+
+    const startDateTime = new Date(`${dateStr}T${timeStr}:00-03:00`);
+    const endDateTime = new Date(startDateTime.getTime() + 2 * 60 * 60 * 1000);
+
+    const event = {
+      summary: `Servicio: ${formData.serviceType || "Turno"} - ${formData.fullName}`,
+      description: `Cliente: ${formData.fullName}\nTel: ${formData.phone}\nDirección: ${formData.address}\nServicio: ${formData.serviceType}\nTotal: $${quote?.total}`,
+      start: {
+        dateTime: startDateTime.toISOString(),
+        timeZone: "America/Argentina/Buenos_Aires",
+      },
+      end: {
+        dateTime: endDateTime.toISOString(),
+        timeZone: "America/Argentina/Buenos_Aires",
+      },
+      // ⚠️ No incluimos attendees para evitar error de delegación
+    };
+
     const response = await calendar.events.insert({
       calendarId: CALENDAR_ID,
-      resource: event,
+      requestBody: event,
     });
-    console.log("📌 Evento creado en Google Calendar:", response.data.id);
+
+    console.log("✅ Evento creado en Google Calendar:", response.data.htmlLink);
+    return response.data;
   } catch (err) {
     console.error("❌ Error creando evento en Calendar:", err);
+    throw err;
   }
 }
 
@@ -70,8 +86,8 @@ async function createCalendarEvent({ formData, quote }) {
 app.post("/create_preference", async (req, res) => {
   try {
     const { title, quantity, unit_price, formData, quote } = req.body;
-    const preference = new Preference(client);
 
+    const preference = new Preference(client);
     const result = await preference.create({
       body: {
         items: [{ title, quantity, unit_price }],
@@ -85,6 +101,7 @@ app.post("/create_preference", async (req, res) => {
       },
     });
 
+    console.log("✅ Preference creada:", result.id);
     res.json({ id: result.id });
   } catch (error) {
     console.error("❌ Error creando preferencia:", error);
@@ -93,7 +110,7 @@ app.post("/create_preference", async (req, res) => {
 });
 
 // ======================
-// 📌 Webhook Mercado Pago
+// 📌 Webhook de Mercado Pago
 // ======================
 app.post("/webhook", async (req, res) => {
   try {
@@ -111,15 +128,15 @@ app.post("/webhook", async (req, res) => {
       if (status === "approved") {
         console.log("✅ Pago aprobado:", paymentId);
 
-        // Emails
         await sendConfirmationEmail({ recipient: formData.email, ...formData, quote, paymentStatus: "confirmed" });
         await sendConfirmationEmail({ recipient: TECHNICIAN_EMAIL, ...formData, quote, paymentStatus: "confirmed" });
 
-        // Evento en Calendar
-        await createCalendarEvent({ formData, quote });
+        // 👉 Guardar evento en Google Calendar
+        await createCalendarEvent(formData, quote);
       }
 
       if (status === "rejected") {
+        console.log("❌ Pago rechazado:", paymentId);
         await sendPaymentRejectedEmail({ recipient: formData.email, ...formData, quote });
       }
     }
@@ -131,20 +148,19 @@ app.post("/webhook", async (req, res) => {
 });
 
 // ======================
-// 📌 Pago presencial
+// 📌 Pago presencial (sin Mercado Pago)
 // ======================
 app.post("/reservation/onsite", async (req, res) => {
   try {
     const { formData, quote } = req.body;
 
-    // Emails
     await sendOnSiteReservationEmail({ recipient: formData.email, ...formData, quote });
     await sendOnSiteReservationEmail({ recipient: TECHNICIAN_EMAIL, ...formData, quote });
 
-    // Evento en Calendar
-    await createCalendarEvent({ formData, quote });
+    // 👉 Guardar evento en Google Calendar
+    await createCalendarEvent(formData, quote);
 
-    res.json({ ok: true, message: "📧 Correo + evento creados" });
+    res.json({ ok: true, message: "📧 Correo de pago presencial enviado" });
   } catch (err) {
     console.error("❌ Error en /reservation/onsite:", err);
     res.status(500).json({ ok: false, error: err.message });
@@ -152,76 +168,107 @@ app.post("/reservation/onsite", async (req, res) => {
 });
 
 // ======================
-// 📌 Agenda con Google Calendar (igual que ahora)
+// 📌 Consultar estado de un pago (para Step7)
+// ======================
+app.get("/api/payment-status/:paymentId", async (req, res) => {
+  try {
+    const { paymentId } = req.params;
+    const paymentClient = new Payment(client);
+    const payment = await paymentClient.get({ id: paymentId });
+
+    const status = payment.status;
+    const metadata = payment.metadata || {};
+    const formData = metadata.formData || {};
+    const quote = metadata.quote || {};
+
+    res.json({ status, formData, quote });
+  } catch (err) {
+    console.error("❌ Error consultando pago:", err.message || err);
+    res.status(404).json({ status: "error", message: "Pago no encontrado" });
+  }
+});
+
+// ======================
+// 📌 Agenda con Google Calendar
 // ======================
 async function generateSchedule() {
   const today = new Date();
   const result = [];
 
-  const eventsRes = await calendar.events.list({
-    calendarId: CALENDAR_ID,
-    timeMin: today.toISOString(),
-    maxResults: 50,
-    singleEvents: true,
-    orderBy: "startTime",
-  });
+  try {
+    const eventsRes = await calendar.events.list({
+      calendarId: CALENDAR_ID,
+      timeMin: today.toISOString(),
+      maxResults: 50,
+      singleEvents: true,
+      orderBy: "startTime",
+    });
 
-  const events = eventsRes.data.items || [];
-  const busySlotsFromCalendar = [];
+    const events = eventsRes.data.items || [];
+    const busySlotsFromCalendar = [];
 
-  for (const ev of events) {
-    const start = ev.start?.dateTime ? new Date(ev.start.dateTime) : new Date(ev.start?.date);
-    const end = ev.end?.dateTime ? new Date(ev.end.dateTime) : new Date(ev.end?.date);
-    if (!start || !end) continue;
+    for (const ev of events) {
+      const start = ev.start?.dateTime ? new Date(ev.start.dateTime) : new Date(ev.start?.date);
+      const end = ev.end?.dateTime ? new Date(ev.end.dateTime) : new Date(ev.end?.date);
+      if (!start || !end) continue;
 
-    const yyyy = start.getFullYear();
-    const mm = String(start.getMonth() + 1).padStart(2, "0");
-    const dd = String(start.getDate()).padStart(2, "0");
-    const formattedDate = `${yyyy}-${mm}-${dd}`;
+      const yyyy = start.getFullYear();
+      const mm = String(start.getMonth() + 1).padStart(2, "0");
+      const dd = String(start.getDate()).padStart(2, "0");
+      const formattedDate = `${yyyy}-${mm}-${dd}`;
 
-    for (let hour = 9; hour < 17; hour += 2) {
-      const slotDateTime = new Date(`${formattedDate}T${hour.toString().padStart(2, "0")}:00`);
-      if (slotDateTime >= start && slotDateTime < end) {
-        busySlotsFromCalendar.push({ date: formattedDate, time: slotDateTime.toTimeString().slice(0, 5) });
+      for (let hour = 9; hour < 17; hour += 2) {
+        const slotDateTime = new Date(`${formattedDate}T${hour.toString().padStart(2, "0")}:00`);
+        if (slotDateTime >= start && slotDateTime < end) {
+          busySlotsFromCalendar.push({ date: formattedDate, time: slotDateTime.toTimeString().slice(0, 5) });
+        }
       }
     }
-  }
 
-  const WORKING_DAYS = [1, 2, 3, 4, 5, 6];
-  for (let i = 1; i <= 14; i++) {
-    const date = new Date(today);
-    date.setDate(today.getDate() + i);
+    const WORKING_DAYS = [1, 2, 3, 4, 5, 6];
+    const START_HOUR = 9;
+    const END_HOUR = 17;
+    const INTERVAL = 2;
 
-    const dayOfWeek = date.getDay();
-    if (!WORKING_DAYS.includes(dayOfWeek)) continue;
+    for (let i = 1; i <= 14; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
 
-    const yyyy = date.getFullYear();
-    const mm = String(date.getMonth() + 1).padStart(2, "0");
-    const dd = String(date.getDate()).padStart(2, "0");
-    const formattedDate = `${yyyy}-${mm}-${dd}`;
+      const dayOfWeek = date.getDay();
+      if (!WORKING_DAYS.includes(dayOfWeek)) continue;
 
-    const slots = [];
-    for (let hour = 9; hour < 17; hour += 2) {
-      const slotTime = `${hour.toString().padStart(2, "0")}:00`;
-      const slotDateTime = new Date(`${formattedDate}T${slotTime}:00`);
-      const now = new Date();
-      const diffMs = slotDateTime.getTime() - now.getTime();
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, "0");
+      const dd = String(date.getDate()).padStart(2, "0");
+      const formattedDate = `${yyyy}-${mm}-${dd}`;
 
-      const within48h = diffMs >= 0 && diffMs < 48 * 60 * 60 * 1000;
-      const isBusy = busySlotsFromCalendar.some((s) => s.date === formattedDate && s.time === slotTime);
+      const slots = [];
+      for (let hour = START_HOUR; hour < END_HOUR; hour += INTERVAL) {
+        const slotTime = `${hour.toString().padStart(2, "0")}:00`;
 
-      slots.push({
-        time: slotTime,
-        isAvailable: !within48h && !isBusy,
-        reason: within48h ? "within48h" : isBusy ? "busy" : "free",
+        const slotDateTime = new Date(`${formattedDate}T${slotTime}:00`);
+        const now = new Date();
+        const diffMs = slotDateTime.getTime() - now.getTime();
+
+        const within48h = diffMs >= 0 && diffMs < 48 * 60 * 60 * 1000;
+        const isBusy = busySlotsFromCalendar.some((s) => s.date === formattedDate && s.time === slotTime);
+
+        slots.push({
+          time: slotTime,
+          isAvailable: !within48h && !isBusy,
+          reason: within48h ? "within48h" : isBusy ? "busy" : "free",
+        });
+      }
+
+      result.push({
+        day: date.toLocaleDateString("es-AR", { weekday: "short" }) + " " + date.toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" }),
+        date: formattedDate,
+        slots,
       });
     }
-
-    result.push({
-      day: date.toLocaleDateString("es-AR", { weekday: "short" }),
-      date: formattedDate,
-      slots,
-    });
+  } catch (err) {
+    console.error("❌ Error al generar agenda desde Google Calendar:", err);
+    throw err;
   }
 
   return result;
