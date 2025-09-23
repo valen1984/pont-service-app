@@ -195,7 +195,7 @@ app.get("/api/payment-status/:paymentId", async (req, res) => {
 });
 
 // ======================
-// 📌 Agenda con Google Calendar (fix: evitar corrimientos de día y domingos)
+// 📌 Agenda con Google Calendar (fix local time, sin UTC)
 // ======================
 async function generateSchedule() {
   const today = new Date();
@@ -212,29 +212,25 @@ async function generateSchedule() {
 
     const events = eventsRes.data.items || [];
 
-    const WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // lunes a sábado (0 = domingo)
+    const WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // lunes (1) a sábado (6). Domingo = 0
     const START_HOUR = 9;
     const END_HOUR = 17;
     const INTERVAL = 2;
 
     for (let i = 1; i <= 14; i++) {
-      // usamos siempre UTC
-      const date = new Date(Date.UTC(
-        today.getUTCFullYear(),
-        today.getUTCMonth(),
-        today.getUTCDate() + i
-      ));
-      const dayOfWeek = date.getUTCDay();
-      if (!WORKING_DAYS.includes(dayOfWeek)) continue; // saltar domingos
+      const date = new Date();
+      date.setDate(today.getDate() + i);
 
-      const yyyy = date.getUTCFullYear();
-      const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
-      const dd = String(date.getUTCDate()).padStart(2, "0");
+      const dayOfWeek = date.getDay(); // 👉 Local, no UTC
+      if (!WORKING_DAYS.includes(dayOfWeek)) continue;
+
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, "0");
+      const dd = String(date.getDate()).padStart(2, "0");
       const formattedDate = `${yyyy}-${mm}-${dd}`;
 
       const slots = [];
       for (let hour = START_HOUR; hour < END_HOUR; hour += INTERVAL) {
-        // slot explícito con timezone Argentina
         const slotStart = new Date(`${formattedDate}T${hour.toString().padStart(2, "0")}:00:00-03:00`);
         const slotEnd = new Date(slotStart.getTime() + INTERVAL * 60 * 60 * 1000);
 
@@ -242,7 +238,7 @@ async function generateSchedule() {
         const diffMs = slotStart.getTime() - now.getTime();
         const within48h = diffMs >= 0 && diffMs < 48 * 60 * 60 * 1000;
 
-        // chequeo de solapamiento
+        // Chequeo de solapamiento con eventos del Calendar
         const isBusy = events.some((ev) => {
           const evStart = ev.start?.dateTime
             ? new Date(ev.start.dateTime)
