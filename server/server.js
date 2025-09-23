@@ -406,7 +406,7 @@ app.post("/api/confirm-payment", async (req, res) => {
   try {
     const { formData, quote, paymentId } = req.body;
 
-    console.log("🔎 Confirmación manual recibida:", { paymentId });
+    console.log("🔎 Confirmación manual recibida:", { paymentId, formData });
 
     if (paymentId) {
       const paymentClient = new Payment(client);
@@ -419,7 +419,12 @@ app.post("/api/confirm-payment", async (req, res) => {
 
     if (quote?.paymentStatus === "confirmed") {
       console.log("⚠️ Pago ya confirmado, no se duplica evento.");
-      return res.json({ ok: true, message: "Pago ya confirmado previamente", formData, quote });
+      return res.json({
+        ok: true,
+        message: "Pago ya confirmado previamente",
+        formData, // ✅ devolvemos igual
+        quote,
+      });
     }
 
     await sendConfirmationEmail({
@@ -437,8 +442,13 @@ app.post("/api/confirm-payment", async (req, res) => {
 
     await createCalendarEvent(formData, quote);
 
-    // ✅ Devolvemos formData + quote igual que onsite
-    res.json({ ok: true, message: "Confirmación procesada", formData, quote });
+    // ✅ devolvemos los datos completos para el frontend
+    res.json({
+      ok: true,
+      message: "Confirmación procesada",
+      formData,
+      quote: { ...quote, paymentStatus: "confirmed" },
+    });
   } catch (err) {
     console.error("❌ Error en confirm-payment:", err);
     res.status(500).json({ ok: false, error: err.message });

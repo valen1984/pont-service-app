@@ -126,47 +126,50 @@ useEffect(() => {
         console.log("📩 Respuesta de /api/payment-status:", data);
 
         if (data?.quote) {
-          setFormData(data.formData);
-          setQuote(data.quote);
+        // 🔹 merge con lo que ya había
+        const mergedForm = {
+          ...formData,
+          ...(data.formData || {}),
+        };
+        const mergedQuote = {
+          ...quote,
+          ...(data.quote || {}),
+        };
 
-          if (data.status === "approved") {
-            try {
-              const confirmRes = await fetch("/api/confirm-payment", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  paymentId,
-                  formData: data.formData,
-                  quote: { ...data.quote, paymentStatus: "confirmed" },
-                }),
-              });
+        setFormData(mergedForm);
+        setQuote(mergedQuote);
 
-              const confirmData = await confirmRes.json();
-              console.log("📤 Respuesta /api/confirm-payment:", confirmData);
+        if (data.status === "approved") {
+          try {
+            const confirmRes = await fetch("/api/confirm-payment", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                paymentId,
+                formData: mergedForm,
+                quote: { ...mergedQuote, paymentStatus: "confirmed" },
+              }),
+            });
 
-              // ✅ solo pisamos si viene con contenido
-              if (
-                confirmData?.formData &&
-                Object.keys(confirmData.formData).length > 0
-              ) {
-                setFormData(confirmData.formData);
-              }
-              if (
-                confirmData?.quote &&
-                Object.keys(confirmData.quote).length > 0
-              ) {
-                setQuote(confirmData.quote);
-              }
-            } catch (err) {
-              console.error("❌ Error confirmando pago:", err);
+            const confirmData = await confirmRes.json();
+            console.log("📤 Respuesta /api/confirm-payment:", confirmData);
+
+            // ✅ merge también con confirmData
+            if (confirmData?.formData) {
+              setFormData((prev) => ({ ...prev, ...confirmData.formData }));
             }
-
-            setCurrentStep(7);
-          } else if (["pending", "rejected"].includes(data.status)) {
-            console.warn("⚠️ Pago no aprobado:", data.status);
-            setQuote((prev) => ({ ...prev!, paymentStatus: data.status }));
-            setCurrentStep(8);
+            if (confirmData?.quote) {
+              setQuote((prev) => ({ ...prev, ...confirmData.quote }));
+            }
+          } catch (err) {
+            console.error("❌ Error confirmando pago:", err);
           }
+          setCurrentStep(7);
+            } else if (["pending", "rejected"].includes(data.status)) {
+              console.warn("⚠️ Pago no aprobado:", data.status);
+              setQuote((prev) => ({ ...prev!, paymentStatus: data.status }));
+              setCurrentStep(8);
+            }
         } else {
           console.warn("⚠️ /api/payment-status no devolvió quote");
         }
