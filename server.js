@@ -217,7 +217,7 @@ async function generateSchedule() {
 
     const events = eventsRes.data.items || [];
 
-    const WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // lunes a sábado
+    const WORKING_DAYS = [1, 2, 3, 4, 5, 6, 7]; // lunes a sábado
     const START_HOUR = 9;
     const END_HOUR = 17;
     const INTERVAL = 2;
