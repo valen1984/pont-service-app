@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import type { FormData, ScheduleDay } from "../../types";
-import Picker from "react-mobile-picker";
 
 interface Props {
   formData: FormData;
@@ -18,25 +17,12 @@ const Step5Scheduler: React.FC<Props> = ({
   const [schedule, setSchedule] = useState<ScheduleDay[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [pickerValue, setPickerValue] = useState<{ date: string; time: string }>({
-    date: "",
-    time: "",
-  });
-
   useEffect(() => {
     const fetchSchedule = async () => {
       try {
         const res = await fetch("/api/schedule");
-        const data: ScheduleDay[] = await res.json();
+        const data = await res.json();
         setSchedule(data);
-
-        if (data.length > 0) {
-          const firstDay = data[0];
-          const firstSlot = firstDay.slots.find((s) => s.isAvailable);
-          if (firstSlot) {
-            setPickerValue({ date: firstDay.date, time: firstSlot.time });
-          }
-        }
       } catch (err) {
         console.error("❌ Error cargando agenda:", err);
       } finally {
@@ -47,99 +33,101 @@ const Step5Scheduler: React.FC<Props> = ({
     fetchSchedule();
   }, []);
 
-  const handleConfirm = () => {
-    const selectedDay = schedule.find((d) => d.date === pickerValue.date);
-    if (!selectedDay) return;
-
+  const handleSelectSlot = (day: ScheduleDay, time: string) => {
     updateFormData({
       appointmentSlot: {
-        day: selectedDay.day,
-        date: selectedDay.date,
-        time: pickerValue.time,
+        day: day.day,
+        date: day.date,
+        time,
       },
     });
-    nextStep();
   };
 
-  if (loading)
-    return <p className="text-center text-slate-500">Cargando disponibilidad...</p>;
-  if (schedule.length === 0)
-    return <p className="text-center text-slate-500">No hay turnos disponibles.</p>;
+  if (loading) {
+    return (
+      <p className="text-center text-slate-500">
+        Cargando disponibilidad...
+      </p>
+    );
+  }
 
-  // Valores crudos
-  const optionGroups = {
-    date: schedule.map((d) => d.date),
-    time:
-      schedule
-        .find((d) => d.date === pickerValue.date)?.slots
-        .filter((s) => s.isAvailable)
-        .map((s) => s.time) || [],
-  };
-
-  // Labels formateados
-  const labels: Record<string, { dayShort: string; dateFull: string }> = {};
-  schedule.forEach((d) => {
-    const dateObj = new Date(`${d.date}T00:00:00`);
-    labels[d.date] = {
-      dayShort: new Intl.DateTimeFormat("es-AR", {
-        weekday: "short",
-        timeZone: "America/Argentina/Buenos_Aires",
-      }).format(dateObj),
-      dateFull: new Intl.DateTimeFormat("es-AR", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        timeZone: "America/Argentina/Buenos_Aires",
-      }).format(dateObj),
-    };
-  });
+  if (schedule.length === 0) {
+    return (
+      <p className="text-center text-slate-500">
+        No hay turnos disponibles en este momento.
+      </p>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-bold text-center">Seleccionar Turno</h2>
 
-      <div className="border rounded-lg p-4 bg-white shadow">
-        <Picker
-          value={pickerValue}
-          onChange={setPickerValue}
-          optionGroups={optionGroups}
-          renderOption={(option, groupKey) => {
-            if (groupKey === "date") {
-              const label = labels[option];
-              return (
-                <div className="flex flex-col items-center">
-                  <span className="text-lg font-bold text-sky-600">
-                    {label.dayShort.toUpperCase()}
-                  </span>
-                  <span className="text-xs text-slate-500">{label.dateFull}</span>
-                </div>
-              );
-            }
-            return <span className="text-base">{option}</span>;
-          }}
-          className="flex justify-between text-lg font-semibold text-slate-800"
-        />
+      {/* 📌 Leyenda */}
+      <div className="flex justify-center gap-4 text-sm mb-4">
+        <div className="flex items-center gap-1">
+          <span className="w-4 h-4 rounded bg-green-500 inline-block"></span>
+          <span>Disponible</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <span className="w-4 h-4 rounded bg-slate-500 inline-block"></span>
+          <span>Ocupado</span>
+        </div>
       </div>
 
-      <style>{`
-        .rmc-picker-item {
-          transition: transform 0.3s ease, opacity 0.3s ease;
-          transform-origin: center center;
-        }
-        .rmc-picker-item-selected {
-          transform: perspective(600px) rotateX(0deg) scale(1.1);
-          opacity: 1;
-          color: #0ea5e9;
-        }
-        .rmc-picker-item-before {
-          transform: perspective(600px) rotateX(30deg) scale(0.9);
-          opacity: 0.6;
-        }
-        .rmc-picker-item-after {
-          transform: perspective(600px) rotateX(-30deg) scale(0.9);
-          opacity: 0.6;
-        }
-      `}</style>
+      <div className="grid gap-4">
+        {schedule.map((day) => (
+          <div
+            key={day.date}
+            className="p-4 border rounded-lg bg-slate-50"
+          >
+            <h3 className="font-semibold mb-2">
+              {new Intl.DateTimeFormat("es-AR", {
+                weekday: "short",
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                timeZone: "America/Argentina/Buenos_Aires",
+              }).format(new Date(`${day.date}T00:00:00`))}
+            </h3>
+
+            {/* 🎯 Slots autoajustados */}
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(100px,1fr))] gap-2 w-full">
+              {day.slots.map((slot) => {
+                const isSelected =
+                  formData.appointmentSlot?.date === day.date &&
+                  formData.appointmentSlot?.time === slot.time;
+
+                // 🎨 Colores según estado
+                let slotClasses = "";
+                if (!slot.isAvailable && slot.reason === "within48h") {
+                  slotClasses =
+                    "bg-slate-300 text-slate-600 cursor-not-allowed";
+                } else if (!slot.isAvailable && slot.reason === "busy") {
+                  slotClasses =
+                    "bg-slate-500 text-white cursor-not-allowed";
+                } else if (isSelected) {
+                  slotClasses = "bg-green-600 text-white";
+                } else {
+                  slotClasses =
+                    "bg-green-500 text-white hover:bg-green-600";
+                }
+
+                return (
+                  <button
+                    key={slot.time}
+                    onClick={() => handleSelectSlot(day, slot.time)}
+                    disabled={!slot.isAvailable}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors w-full ${slotClasses}`}
+                  >
+                    {slot.time}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
 
       <div className="flex gap-4 pt-4">
         <button
@@ -149,8 +137,8 @@ const Step5Scheduler: React.FC<Props> = ({
           Anterior
         </button>
         <button
-          onClick={handleConfirm}
-          disabled={!pickerValue.date || !pickerValue.time}
+          onClick={nextStep}
+          disabled={!formData.appointmentSlot}
           className="w-full px-4 py-3 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition-colors disabled:bg-slate-300"
         >
           Confirmar Turno
