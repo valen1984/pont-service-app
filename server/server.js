@@ -41,8 +41,11 @@ const CALENDAR_ID = process.env.CALENDAR_ID; // ID del calendario compartido
 // ======================
 // 📌 Crear evento en Google Calendar
 // ======================
+console.log("📤 En confirm-payment → formData:", formData);
+console.log("📤 En confirm-payment → quote:", quote);
 async function createCalendarEvent(formData, quote) {
   try {
+    console.log("📅 Datos recibidos para Calendar:", formData);
     if (!formData.appointmentSlot) {
       console.warn("⚠️ No hay appointmentSlot en formData, no se crea evento");
       return;
@@ -50,6 +53,7 @@ async function createCalendarEvent(formData, quote) {
 
     const dateStr = formData.appointmentSlot.date;
     const timeStr = formData.appointmentSlot.time;
+    console.log("📅 Creando evento con:", { dateStr, timeStr });
 
     const [hStr, mStr = "00"] = timeStr.split(":");
     const h = parseInt(hStr, 10);
