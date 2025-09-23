@@ -406,74 +406,55 @@ app.post("/api/confirm-payment", async (req, res) => {
 
     console.log("🔎 Confirmación manual recibida:", { paymentId });
 
-    let finalFormData = formData || {};
-    let finalQuote = quote || {};
-
-    // 1. Validar en Mercado Pago si hay paymentId
+    // 1. Validar con Mercado Pago si hay paymentId
     if (paymentId) {
       const paymentClient = new Payment(client);
       const payment = await paymentClient.get({ id: paymentId });
 
       if (payment.status !== "approved") {
-        return res.status(400).json({ ok: false, error: "El pago no está aprobado" });
-      }
-
-      // 🔹 Decodificar metadata en caso de que exista
-      const metadata = payment.metadata || {};
-      try {
-        if (metadata.formData) {
-          finalFormData = JSON.parse(
-            Buffer.from(metadata.formData, "base64").toString("utf8")
-          );
-        }
-        if (metadata.quote) {
-          finalQuote = JSON.parse(
-            Buffer.from(metadata.quote, "base64").toString("utf8")
-          );
-        }
-      } catch (e) {
-        console.error("⚠️ No se pudo decodificar metadata:", e);
+        return res
+          .status(400)
+          .json({ ok: false, error: "El pago no está aprobado" });
       }
     }
 
     // 2. Evitar duplicados
-    if (finalQuote?.paymentStatus === "confirmed") {
+    if (quote?.paymentStatus === "confirmed") {
       console.log("⚠️ Pago ya confirmado, no se duplica evento.");
       return res.json({
         ok: true,
         message: "Pago ya confirmado previamente",
-        formData: finalFormData,
-        quote: finalQuote,
+        formData,
+        quote,
       });
     }
 
     // 3. Enviar mails
     await sendConfirmationEmail({
-      recipient: finalFormData.email,
-      ...finalFormData,
-      quote: finalQuote,
+      recipient: formData.email,
+      ...formData,
+      quote,
       paymentStatus: "confirmed",
     });
     await sendConfirmationEmail({
       recipient: TECHNICIAN_EMAIL,
-      ...finalFormData,
-      quote: finalQuote,
+      ...formData,
+      quote,
       paymentStatus: "confirmed",
     });
 
     // 4. Crear evento en Calendar
-    await createCalendarEvent(finalFormData, finalQuote);
+    await createCalendarEvent(formData, quote);
 
-    // 5. Responder con todo lo que Step7 necesita
+    // 5. Devolver también formData + quote completos
     res.json({
       ok: true,
       message: "Confirmación procesada",
-      formData: finalFormData,
-      quote: { ...finalQuote, paymentStatus: "confirmed" },
+      formData,
+      quote: { ...quote, paymentStatus: "confirmed" },
     });
   } catch (err) {
     console.error("❌ Error en confirm-payment:", err);
     res.status(500).json({ ok: false, error: err.message });
   }
 });
-
