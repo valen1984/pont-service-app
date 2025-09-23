@@ -406,44 +406,25 @@ app.post("/api/confirm-payment", async (req, res) => {
   try {
     const { formData, quote, paymentId } = req.body;
 
-    console.log("🔎 Confirmación manual recibida:", { paymentId });
-    console.log("📥 formData recibido:", JSON.stringify(formData, null, 2));
-    console.log("📥 quote recibido:", JSON.stringify(quote, null, 2));
+    console.log("🔎 Confirmación recibida:", { paymentId, formData });
 
     if (paymentId) {
       const paymentClient = new Payment(client);
       const payment = await paymentClient.get({ id: paymentId });
-
-      console.log("💳 Estado real de pago en MP:", payment.status);
-
       if (payment.status !== "approved") {
         return res.status(400).json({ ok: false, error: "El pago no está aprobado" });
       }
     }
 
-    // 🔎 Logs específicos
-    console.log("🛠️ Debug fields:");
-    console.log("   ➡️ Servicio:", formData?.serviceType);
-    console.log("   ➡️ Dirección:", formData?.address);
-    console.log("   ➡️ Fecha:", formData?.appointmentSlot?.date);
-    console.log("   ➡️ Hora:", formData?.appointmentSlot?.time);
+    // Enviar mails
+    await sendOnSiteReservationEmail({ recipient: formData.email, ...formData, quote });
+    await sendOnSiteReservationEmail({ recipient: TECHNICIAN_EMAIL, ...formData, quote });
 
-    // 🔹 Reutilizamos la misma lógica de onsite
-    await sendOnSiteReservationEmail({
-      recipient: formData.email,
-      ...formData,
-      quote,
-    });
-    await sendOnSiteReservationEmail({
-      recipient: TECHNICIAN_EMAIL,
-      ...formData,
-      quote,
-    });
-
+    // Crear evento si hay slot
     if (formData.appointmentSlot) {
       await createCalendarEvent(formData, quote);
     } else {
-      console.warn("⚠️ Confirmación recibida sin appointmentSlot");
+      console.warn("⚠️ Confirmación sin appointmentSlot, no se crea evento");
     }
 
     res.json({

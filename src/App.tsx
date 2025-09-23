@@ -141,43 +141,52 @@ useEffect(() => {
         setFormData(mergedForm);
         setQuote(mergedQuote);
 
-        if (data.status === "approved") {
-          try {
-            const mergedForm = {
-              ...formData,          // lo que ya estaba en memoria
-              ...(data.formData||{}) // lo que vino del backend
-            };
-            const mergedQuote = {
-              ...quote,
-              ...(data.quote||{})
-            };
+          if (data.status === "approved") {
+            try {
+              const mergedForm = {
+                ...formData,          // lo que ya estaba en memoria
+                ...(data.formData||{}) // lo que vino del backend
+              };
+              const mergedQuote = {
+                ...quote,
+                ...(data.quote||{})
+              };
 
-            // 👇 Igual que “onsite”: mandamos todo el form completo
-            const confirmRes = await fetch("/api/confirm-payment", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                paymentId,
-                formData: mergedForm, 
-                quote: { ...mergedQuote, paymentStatus: "confirmed" },
-              }),
-            });
+              // 👇 Igual que “onsite”: mandamos todo el form completo
+              const confirmRes = await fetch("/api/confirm-payment", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  paymentId,
+                  formData: mergedForm, 
+                  quote: { ...mergedQuote, paymentStatus: "confirmed" },
+                }),
+              });
 
-            const confirmData = await confirmRes.json();
-            console.log("📤 Respuesta /api/confirm-payment:", confirmData);
+              const confirmData = await confirmRes.json();
+              console.log("📤 Respuesta /api/confirm-payment:", confirmData);
 
-            if (confirmData?.formData) {
-              setFormData((prev) => ({ ...prev, ...confirmData.formData }));
+              if (confirmData?.formData) {
+                setFormData((prev) => ({ ...prev, ...confirmData.formData }));
+                localStorage.setItem("formData", JSON.stringify({
+                  ...formData,
+                  ...confirmData.formData,
+                }));
+              }
+              if (confirmData?.quote) {
+                setQuote((prev) => ({ ...prev, ...confirmData.quote }));
+                localStorage.setItem("quote", JSON.stringify({
+                  ...quote,
+                  ...confirmData.quote,
+                }));
+              }
+            } catch (err) {
+              console.error("❌ Error confirmando pago:", err);
             }
-            if (confirmData?.quote) {
-              setQuote((prev) => ({ ...prev, ...confirmData.quote }));
-            }
-          } catch (err) {
-            console.error("❌ Error confirmando pago:", err);
+
+            setCurrentStep(7);
           }
-
-          setCurrentStep(7);
-        } else if (["pending", "rejected"].includes(data.status)) {
+            else if (["pending", "rejected"].includes(data.status)) {
             console.warn("⚠️ Pago no aprobado:", data.status);
             setQuote((prev) => ({ ...prev!, paymentStatus: data.status }));
             setCurrentStep(8);
