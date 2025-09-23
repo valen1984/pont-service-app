@@ -6,6 +6,7 @@ if (!SENDGRID_KEY) {
   console.warn("⚠️ Falta SENDGRID_API_KEY en env");
 }
 sgMail.setApiKey(SENDGRID_KEY);
+
 export const sendConfirmationEmail = async ({
   recipient,
   cc,
@@ -27,16 +28,23 @@ export const sendConfirmationEmail = async ({
     ? `https://www.google.com/maps?q=${coords.lat},${coords.lon}`
     : "";
 
-  const photos_block =
-    photos && photos.length > 0
-      ? photos
-          .slice(0, 2)
-          .map(
-            (url) =>
-              `<img src="${url}" width="200" style="margin-right:8px;border-radius:8px;"/>`
-          )
-          .join("")
-      : `<span style="color:#64748b;">No adjuntadas</span>`;
+  // ⚡ Armamos datos dinámicos para el template
+  const dynamicTemplateData = {
+    estado: estado ?? "📩 Estado no especificado",
+    fullName: fullName ?? "No informado",
+    phone: phone ?? "No informado",
+    email: recipient,
+    address: address ?? "No informado",
+    location: location ?? "No informado",
+    coords: coordsText,
+    mapsLink,
+    baseCost: quote?.baseCost ?? "-",
+    travelCost: quote?.travelCost ?? "-",
+    subtotal: quote?.subtotal ?? "-",
+    iva: quote?.iva ?? "-",
+    total: quote?.total ?? "-",
+    photos: photos ?? [],
+  };
 
   const msg = {
     to: recipient,
@@ -45,46 +53,16 @@ export const sendConfirmationEmail = async ({
       email: "pontserviciosderefrigeracion@gmail.com", // 👈 remitente validado en SendGrid
       name: "Pont Refrigeración",
     },
-    subject: estado ? estado : "📩 Actualización de tu servicio",
-    html: `
-      <h2 style="font-family:sans-serif;">Estado de tu orden</h2>
-      <p><strong>${estado ?? "📩 Estado no especificado"}</strong></p>
-
-      <h3>👤 Cliente</h3>
-      <p><b>Nombre:</b> ${fullName ?? "No informado"}</p>
-      <p><b>Teléfono:</b> ${phone ?? "No informado"}</p>
-      <p><b>Email:</b> ${recipient}</p>
-      <p><b>Dirección:</b> ${address ?? "No informado"}</p>
-      <p><b>Localidad:</b> ${location ?? "No informado"}</p>
-
-      <h3>📍 Ubicación</h3>
-      <p>${coordsText} ${mapsLink ? `(<a href="${mapsLink}">Ver en Maps</a>)` : ""}</p>
-
-      <h3>💰 Presupuesto</h3>
-      <p>Base: $${quote?.baseCost ?? "-"}</p>
-      <p>Traslado: $${quote?.travelCost ?? "-"}</p>
-      <p>Subtotal: $${quote?.subtotal ?? "-"}</p>
-      <p>IVA: $${quote?.iva ?? "-"}</p>
-      <p><b>Total: $${quote?.total ?? "-"}</b></p>
-
-      <h3>📸 Fotos</h3>
-      <div>${photos_block}</div>
-
-      <hr/>
-      <p style="font-size:12px;color:#555;">
-        Este correo es automático.<br/>
-        Cliente: ${recipient}<br/>
-        Copia: ${cc ?? "No enviada"}
-      </p>
-    `,
+    templateId: process.env.SENDGRID_TEMPLATE_UNICO, // 👈 tu template ID en Railway
+    dynamicTemplateData,
   };
 
   try {
     await sgMail.send(msg);
     console.log(`📩 Email enviado a ${recipient} ${cc ? `+ CC ${cc}` : ""}`);
     return { success: true };
-} catch (err) {
-  console.error("❌ Error enviando email:", err.response?.body || err.message);
-  return { success: false, error: err.message };
-}
+  } catch (err) {
+    console.error("❌ Error enviando email:", err.response?.body || err.message);
+    return { success: false, error: err.message };
+  }
 };
