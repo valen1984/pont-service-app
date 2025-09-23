@@ -182,6 +182,7 @@ app.post("/webhook", async (req, res) => {
 
         if (formData.appointmentSlot) {
           await createCalendarEvent(formData, quote);
+          console.log("🛠️ Enviando a Calendar:", JSON.stringify(formData.appointmentSlot, null, 2));
         } else {
           console.warn("⚠️ Pago aprobado pero sin appointmentSlot, no se crea evento");
         }
@@ -203,6 +204,7 @@ app.post("/webhook", async (req, res) => {
 
         if (formData.appointmentSlot) {
           await createCalendarEvent(formData, quote);
+          console.log("🛠️ Enviando a Calendar:", JSON.stringify(formData.appointmentSlot, null, 2));
         } else {
           console.warn("⚠️ Pago pendiente pero sin appointmentSlot");
         }
@@ -273,7 +275,7 @@ app.post("/reservation/onsite", async (req, res) => {
     await sendOnSiteReservationEmail({ recipient: TECHNICIAN_EMAIL, ...formData, quote });
 
     await createCalendarEvent(formData, quote);
-
+    console.log("🛠️ Enviando a Calendar:", JSON.stringify(formData.appointmentSlot, null, 2));
     res.json({ ok: true, message: "📧 Correo de pago presencial enviado" });
   } catch (err) {
     console.error("❌ Error en /reservation/onsite:", err);
@@ -463,6 +465,7 @@ app.post("/api/confirm-payment", async (req, res) => {
     // 📅 Calendar
     if (formData.appointmentSlot) {
       await createCalendarEvent(formData, quote);
+      console.log("🛠️ Enviando a Calendar:", JSON.stringify(formData.appointmentSlot, null, 2));
     } else {
       console.warn("⚠️ No appointmentSlot → no se crea evento");
     }
