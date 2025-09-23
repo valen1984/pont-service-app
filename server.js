@@ -138,8 +138,19 @@ app.post("/webhook", async (req, res) => {
 
       const status = payment.status;
       const metadata = payment.metadata || {};
-      const formData = metadata.formData || {};
-      const quote = metadata.quote || {};
+
+      let formData = {};
+      let quote = {};
+      try {
+        formData = metadata.formData ? JSON.parse(metadata.formData) : {};
+      } catch (e) {
+        console.error("⚠️ No se pudo parsear formData:", metadata.formData);
+      }
+      try {
+        quote = metadata.quote ? JSON.parse(metadata.quote) : {};
+      } catch (e) {
+        console.error("⚠️ No se pudo parsear quote:", metadata.quote);
+      }
 
       if (status === "approved") {
         console.log("✅ Pago aprobado:", paymentId);
@@ -195,6 +206,38 @@ app.post("/webhook", async (req, res) => {
 });
 
 // ======================
+// 📌 Consultar estado de un pago (para Step7)
+// ======================
+app.get("/api/payment-status/:paymentId", async (req, res) => {
+  try {
+    const { paymentId } = req.params;
+    const paymentClient = new Payment(client);
+    const payment = await paymentClient.get({ id: paymentId });
+
+    const status = payment.status;
+    const metadata = payment.metadata || {};
+
+    let formData = {};
+    let quote = {};
+    try {
+      formData = metadata.formData ? JSON.parse(metadata.formData) : {};
+    } catch (e) {
+      console.error("⚠️ No se pudo parsear formData:", metadata.formData);
+    }
+    try {
+      quote = metadata.quote ? JSON.parse(metadata.quote) : {};
+    } catch (e) {
+      console.error("⚠️ No se pudo parsear quote:", metadata.quote);
+    }
+
+    res.json({ status, formData, quote });
+  } catch (err) {
+    console.error("❌ Error consultando pago:", err.message || err);
+    res.status(404).json({ status: "error", message: "Pago no encontrado" });
+  }
+});
+
+// ======================
 // 📌 Pago presencial (sin Mercado Pago)
 // ======================
 app.post("/reservation/onsite", async (req, res) => {
@@ -210,27 +253,6 @@ app.post("/reservation/onsite", async (req, res) => {
   } catch (err) {
     console.error("❌ Error en /reservation/onsite:", err);
     res.status(500).json({ ok: false, error: err.message });
-  }
-});
-
-// ======================
-// 📌 Consultar estado de un pago (para Step7)
-// ======================
-app.get("/api/payment-status/:paymentId", async (req, res) => {
-  try {
-    const { paymentId } = req.params;
-    const paymentClient = new Payment(client);
-    const payment = await paymentClient.get({ id: paymentId });
-
-    const status = payment.status;
-    const metadata = payment.metadata || {};
-    const formData = metadata.formData || {};
-    const quote = metadata.quote || {};
-
-    res.json({ status, formData, quote });
-  } catch (err) {
-    console.error("❌ Error consultando pago:", err.message || err);
-    res.status(404).json({ status: "error", message: "Pago no encontrado" });
   }
 });
 
