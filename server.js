@@ -103,15 +103,25 @@ app.post("/create_preference", async (req, res) => {
           pending: `${process.env.FRONTEND_URL}/?status=pending`,
         },
         auto_return: "approved",
-        metadata: { formData, quote },
+        metadata: {
+          formData: JSON.stringify(formData), // ✅ serializar
+          quote: JSON.stringify(quote),
+        },
       },
     });
 
+    if (!result || !result.id) {
+      throw new Error("No se pudo crear preference en Mercado Pago");
+    }
+
     console.log("✅ Preference creada:", result.id);
+
+    // Por ahora devolvemos solo el preferenceId
+    // paymentId real lo obtendrás vía webhook cuando el pago se cree
     res.json({ id: result.id });
   } catch (error) {
     console.error("❌ Error creando preferencia:", error);
-    res.status(500).send("Error creando preferencia");
+    res.status(500).json({ error: "Error creando preferencia" });
   }
 });
 

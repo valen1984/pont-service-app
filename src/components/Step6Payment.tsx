@@ -32,11 +32,10 @@ const Step6Payment: React.FC<Props> = ({
       console.error("⚠️ Mercado Pago PUBLIC KEY no definida en .env");
       return;
     }
-    // 👇 Forzamos idioma español
     initMercadoPago(publicKey, { locale: "es-AR" });
   }, []);
 
-  // Manejo de estados de pago
+  // Manejo de estados de pago (confirmado o rechazado)
   useEffect(() => {
     if (!paymentData) return;
 
@@ -70,7 +69,6 @@ const Step6Payment: React.FC<Props> = ({
       if (!data.id) throw new Error("No se recibió un preferenceId válido");
 
       setPreferenceId(data.id);
-      if (data.paymentId) setPaymentId(data.paymentId);
     } catch (error) {
       console.error("❌ Error creando preferencia:", error);
       onPaymentFailure();
@@ -123,9 +121,17 @@ const Step6Payment: React.FC<Props> = ({
           Pagar con Mercado Pago
         </button>
       ) : (
-        <div key={preferenceId} className="flex justify-center">
-          <Wallet initialization={{ preferenceId }} />
-        </div>
+      <div key={preferenceId} className="flex justify-center">
+        <Wallet
+          initialization={{ preferenceId }}
+          onSubmit={(param: any) => {
+            console.log("🆔 PaymentId capturado:", param.id);
+            setPaymentId(param.id); // alimenta usePaymentStatus
+          }}
+          onReady={() => console.log("✅ Wallet listo")}
+          onError={(err: any) => console.error("❌ Error en Wallet:", err)}
+        />
+      </div>
       )}
 
       {statusLoading && <p className="text-xs text-slate-500">Verificando estado de pago...</p>}
