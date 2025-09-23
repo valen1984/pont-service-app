@@ -1,12 +1,14 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Quote, FormData } from "../../types";
-import { initMercadoPago, Wallet } from "@mercadopago/sdk-react";
+import { Wallet } from "@mercadopago/sdk-react";
 
 interface Props {
   quote: Quote | null;
   formData: FormData;
   onPayOnSite: () => void;
   prevStep: () => void;
+  onPaymentSuccess: () => void;
+  onPaymentFailure: () => void;
 }
 
 const Step6Payment: React.FC<Props> = ({
@@ -14,18 +16,11 @@ const Step6Payment: React.FC<Props> = ({
   formData,
   onPayOnSite,
   prevStep,
+  onPaymentSuccess,
+  onPaymentFailure,
 }) => {
   const [preferenceId, setPreferenceId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    const publicKey = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
-    if (!publicKey) {
-      console.error("⚠️ Mercado Pago PUBLIC KEY no definida en .env");
-      return;
-    }
-    initMercadoPago(publicKey, { locale: "es-AR" });
-  }, []);
 
   const createPreference = async () => {
     if (!quote) return;
@@ -46,10 +41,10 @@ const Step6Payment: React.FC<Props> = ({
       const data = await response.json();
       if (!data.id) throw new Error("No se recibió un preferenceId válido");
 
-      setPreferenceId(data.id); // 👈 solo una vez
+      setPreferenceId(data.id);
     } catch (error) {
       console.error("❌ Error creando preferencia:", error);
-      alert("Error iniciando pago");
+      onPaymentFailure();
     }
   };
 

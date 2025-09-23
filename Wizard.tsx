@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FormData, Quote } from "./types.ts";
 import { STEPS } from "./constants.ts";
+import { initMercadoPago } from "@mercadopago/sdk-react";
 
 import LogoHeader from "@/components/LogoHeader";
 import ProgressBar from "@/components/ProgressBar";
@@ -33,6 +34,17 @@ interface Props {
 const Wizard: React.FC<Props> = ({ setFormData, setQuote }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [localFormData, setLocalFormData] = useState<FormData>(initialFormData);
+  const [quote, setLocalQuote] = useState<Quote | null>(null);
+
+  // ✅ Inicializar Mercado Pago una sola vez
+  useEffect(() => {
+    const publicKey = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
+    if (publicKey) {
+      initMercadoPago(publicKey, { locale: "es-AR" });
+    } else {
+      console.error("⚠️ Mercado Pago PUBLIC KEY no definida en .env");
+    }
+  }, []);
 
   const nextStep = () => setCurrentStep((prev) => prev + 1);
   const prevStep = () => setCurrentStep((prev) => prev - 1);
@@ -40,9 +52,28 @@ const Wizard: React.FC<Props> = ({ setFormData, setQuote }) => {
   const updateFormData = (data: Partial<FormData>) => {
     setLocalFormData((prev) => {
       const updated = { ...prev, ...data };
-      setFormData(updated); // 👈 sincronizamos con App
+      setFormData(updated); // 👈 sincroniza con App
       return updated;
     });
+  };
+
+  // ✅ Handlers de pago
+  const handlePaymentSuccess = () => {
+    setLocalQuote((prev) => (prev ? { ...prev, paymentStatus: "confirmed" } : prev));
+    setQuote((prev) => (prev ? { ...prev, paymentStatus: "confirmed" } : prev));
+    nextStep(); // avanza al Step7
+  };
+
+  const handlePaymentFailure = () => {
+    setLocalQuote((prev) => (prev ? { ...prev, paymentStatus: "rejected" } : prev));
+    setQuote((prev) => (prev ? { ...prev, paymentStatus: "rejected" } : prev));
+    nextStep(); // avanza al Step8 o error
+  };
+
+  const handlePayOnSite = () => {
+    setLocalQuote((prev) => (prev ? { ...prev, paymentStatus: "onSite" } : prev));
+    setQuote((prev) => (prev ? { ...prev, paymentStatus: "onSite" } : prev));
+    nextStep(); // avanza al Step7
   };
 
   const renderStep = () => {
@@ -77,7 +108,10 @@ const Wizard: React.FC<Props> = ({ setFormData, setQuote }) => {
         return (
           <Step4Quote
             formData={localFormData}
-            setQuote={setQuote}
+            setQuote={(q) => {
+              setLocalQuote(q);
+              setQuote(q); // sincroniza con App
+            }}
             nextStep={nextStep}
             prevStep={prevStep}
           />
@@ -94,9 +128,11 @@ const Wizard: React.FC<Props> = ({ setFormData, setQuote }) => {
       case 6:
         return (
           <Step6Payment
-            quote={null} // se inyecta desde App cuando haga falta
-            onPaymentSuccess={() => {}}
-            onPaymentFailure={() => {}}
+            quote={quote}
+            formData={localFormData}
+            onPaymentSuccess={handlePaymentSuccess}
+            onPaymentFailure={handlePaymentFailure}
+            onPayOnSite={handlePayOnSite}
             prevStep={prevStep}
           />
         );
