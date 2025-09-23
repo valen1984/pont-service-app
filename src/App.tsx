@@ -165,23 +165,25 @@ function App() {
   }, []);
 
   // ⏳ Timer splash
-  useEffect(() => {
-    console.log("⏳ Iniciando splash screen...");
-    const timer = setTimeout(() => {
-      console.log("✅ Terminó splash, ocultando");
-      setShowSplash(false);
+// ⏳ Timer splash
+useEffect(() => {
+  console.log("⏳ Iniciando splash screen...");
+  const timer = setTimeout(() => {
+    console.log("✅ Terminó splash, ocultando");
+    setShowSplash(false);
 
-      if (window?.history?.replaceState) {
-        window.history.replaceState({}, document.title, window.location.pathname);
-      }
+    if (window?.history?.replaceState) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
 
-      if (!quote && currentStep === 1) {
-        setCurrentStep(1);
-      }
-    }, 6000);
+    // 🔹 Solo forzar a step 1 si NO hay quote ni se avanzó en el flujo
+    if (!quote && currentStep <= 1) {
+      setCurrentStep(1);
+    }
+  }, 6000);
 
-    return () => clearTimeout(timer);
-  }, []);
+  return () => clearTimeout(timer);
+}, [quote, currentStep]);
 
   const nextStep = () => {
     console.log("➡️ nextStep:", currentStep + 1);
