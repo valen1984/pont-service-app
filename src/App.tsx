@@ -86,71 +86,70 @@ function App() {
   useEffect(() => {
     if (currentStep < 1) {
       setCurrentStep(1);
-    } else if (currentStep > STEPS.length) {
+    } else if (Array.isArray(STEPS) && currentStep > STEPS.length) {
       setCurrentStep(STEPS.length);
     }
   }, [currentStep]);
 
-// 🔁 Retorno desde Mercado Pago → confirmación automática
-useEffect(() => {
-  const url = new URL(window.location.href);
-  const paymentId = url.searchParams.get("payment_id");
-  const collectionStatus =
-    url.searchParams.get("collection_status") || url.searchParams.get("status");
+  // 🔁 Retorno desde Mercado Pago → confirmación automática
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const paymentId = url.searchParams.get("payment_id");
+    const collectionStatus =
+      url.searchParams.get("collection_status") || url.searchParams.get("status");
 
-  if (paymentId && collectionStatus) {
-    console.log("🔎 Detectado retorno de Mercado Pago:", {
-      paymentId,
-      collectionStatus,
-    });
-
-    // Consultar backend para traer formData + quote del pago
-    fetch(`/api/payment-status/${paymentId}`)
-      .then((res) => res.json())
-      .then(async (data) => {
-        if (data?.quote) {
-          setFormData(data.formData);
-          setQuote(data.quote);
-
-          if (data.status === "approved") {
-            // 🔹 Confirmación manual (emails + calendar)
-            try {
-              await fetch("/api/confirm-payment", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  paymentId,
-                  formData: data.formData,
-                  quote: { ...data.quote, paymentStatus: "confirmed" },
-                }),
-              });
-            } catch (err) {
-              console.error("❌ Error confirmando pago:", err);
-            }
-
-            setCurrentStep(7);
-          } else if (["pending", "rejected"].includes(data.status)) {
-            setQuote((prev) => ({
-              ...prev!,
-              paymentStatus: data.status,
-            }));
-            setCurrentStep(8);
-          }
-        } else {
-          console.warn("⚠️ No se encontró quote en /api/payment-status");
-        }
-      })
-      .catch((err) => {
-        console.error("❌ Error consultando estado de pago:", err);
+    if (paymentId && collectionStatus) {
+      console.log("🔎 Detectado retorno de Mercado Pago:", {
+        paymentId,
+        collectionStatus,
       });
-  }
-}, []);
+
+      // Consultar backend para traer formData + quote del pago
+      fetch(`/api/payment-status/${paymentId}`)
+        .then((res) => res.json())
+        .then(async (data) => {
+          if (data?.quote) {
+            setFormData(data.formData);
+            setQuote(data.quote);
+
+            if (data.status === "approved") {
+              try {
+                await fetch("/api/confirm-payment", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    paymentId,
+                    formData: data.formData,
+                    quote: { ...data.quote, paymentStatus: "confirmed" },
+                  }),
+                });
+              } catch (err) {
+                console.error("❌ Error confirmando pago:", err);
+              }
+
+              setCurrentStep(7);
+            } else if (["pending", "rejected"].includes(data.status)) {
+              setQuote((prev) => ({
+                ...prev!,
+                paymentStatus: data.status,
+              }));
+              setCurrentStep(8);
+            }
+          } else {
+            console.warn("⚠️ No se encontró quote en /api/payment-status");
+          }
+        })
+        .catch((err) => {
+          console.error("❌ Error consultando estado de pago:", err);
+        });
+    }
+  }, []);
+
   // ⏳ Timer de splash (6s)
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowSplash(false);
 
-      // 🧹 limpiar querystring para evitar loop
       if (window?.history?.replaceState) {
         window.history.replaceState({}, document.title, window.location.pathname);
       }
@@ -226,7 +225,7 @@ useEffect(() => {
 
   return (
     <div className="bg-gradient-to-b from-slate-700 to-slate-500 min-h-screen font-sans flex items-center justify-center p-4 relative">
-      {!isFinalStep && currentStep <= 6 && (
+      {!isFinalStep && Array.isArray(STEPS) && currentStep <= (STEPS?.length ?? 0) && (
         <Snowfall
           style={{ position: "absolute", width: "100%", height: "100%" }}
           snowflakeCount={160}
@@ -244,12 +243,12 @@ useEffect(() => {
             <>
               <LogoHeader />
               <h1 className="text-2xl font-bold text-center text-slate-800 mb-2">
-                {STEPS?.[currentStep - 1] ?? ""}
+                {Array.isArray(STEPS) ? STEPS[currentStep - 1] ?? "" : ""}
               </h1>
 
               {renderStep()}
 
-              {!isFinalStep && currentStep <= 6 && (
+              {!isFinalStep && Array.isArray(STEPS) && currentStep <= (STEPS?.length ?? 0) && (
                 <p className="mt-6 text-center text-xs text-slate-500">
                   <a
                     href="mailto:valentin.alvarez@alvarezllc.net"
