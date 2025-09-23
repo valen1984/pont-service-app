@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import type { FormData, ScheduleDay } from "../../types";
-import Picker from "react-mobile-picker"; // 👈
+import Picker from "react-mobile-picker";
 
 interface Props {
   formData: FormData;
@@ -27,18 +27,14 @@ const Step5Scheduler: React.FC<Props> = ({
     const fetchSchedule = async () => {
       try {
         const res = await fetch("/api/schedule");
-        const data = await res.json();
+        const data: ScheduleDay[] = await res.json();
         setSchedule(data);
 
-        // Inicializar el picker con el primer slot disponible
         if (data.length > 0) {
           const firstDay = data[0];
           const firstSlot = firstDay.slots.find((s) => s.isAvailable);
           if (firstSlot) {
-            setPickerValue({
-              date: firstDay.date,
-              time: firstSlot.time,
-            });
+            setPickerValue({ date: firstDay.date, time: firstSlot.time });
           }
         }
       } catch (err) {
@@ -62,29 +58,17 @@ const Step5Scheduler: React.FC<Props> = ({
         time: pickerValue.time,
       },
     });
-
     nextStep();
   };
 
-  if (loading) {
+  if (loading)
     return <p className="text-center text-slate-500">Cargando disponibilidad...</p>;
-  }
+  if (schedule.length === 0)
+    return <p className="text-center text-slate-500">No hay turnos disponibles.</p>;
 
-  if (schedule.length === 0) {
-    return <p className="text-center text-slate-500">No hay turnos disponibles en este momento.</p>;
-  }
-
-  // Opciones para el picker
+  // Valores crudos
   const optionGroups = {
-    date: schedule.map((d) =>
-      new Intl.DateTimeFormat("es-AR", {
-        weekday: "short",
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        timeZone: "America/Argentina/Buenos_Aires",
-      }).format(new Date(`${d.date}T00:00:00`))
-    ),
+    date: schedule.map((d) => d.date),
     time:
       schedule
         .find((d) => d.date === pickerValue.date)?.slots
@@ -92,21 +76,51 @@ const Step5Scheduler: React.FC<Props> = ({
         .map((s) => s.time) || [],
   };
 
+  // Labels formateados
+  const labels: Record<string, { dayShort: string; dateFull: string }> = {};
+  schedule.forEach((d) => {
+    const dateObj = new Date(`${d.date}T00:00:00`);
+    labels[d.date] = {
+      dayShort: new Intl.DateTimeFormat("es-AR", {
+        weekday: "short",
+        timeZone: "America/Argentina/Buenos_Aires",
+      }).format(dateObj),
+      dateFull: new Intl.DateTimeFormat("es-AR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        timeZone: "America/Argentina/Buenos_Aires",
+      }).format(dateObj),
+    };
+  });
+
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-bold text-center">Seleccionar Turno</h2>
 
-      {/* Picker estilo iPhone con efecto barrel */}
       <div className="border rounded-lg p-4 bg-white shadow">
         <Picker
           value={pickerValue}
           onChange={setPickerValue}
           optionGroups={optionGroups}
+          renderOption={(option, groupKey) => {
+            if (groupKey === "date") {
+              const label = labels[option];
+              return (
+                <div className="flex flex-col items-center">
+                  <span className="text-lg font-bold text-sky-600">
+                    {label.dayShort.toUpperCase()}
+                  </span>
+                  <span className="text-xs text-slate-500">{label.dateFull}</span>
+                </div>
+              );
+            }
+            return <span className="text-base">{option}</span>;
+          }}
           className="flex justify-between text-lg font-semibold text-slate-800"
         />
       </div>
 
-      {/* Efecto barrel */}
       <style>{`
         .rmc-picker-item {
           transition: transform 0.3s ease, opacity 0.3s ease;
