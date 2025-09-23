@@ -192,12 +192,13 @@ app.get("/api/payment-status/:paymentId", async (req, res) => {
 });
 
 // ======================
-// 📌 Agenda con Google Calendar (fix TZ Buenos Aires, sin domingos, con bloqueo 48h)
+// 📌 Agenda con Google Calendar (fix TZ Buenos Aires, sin domingos)
 // ======================
 async function generateSchedule() {
   const today = new Date();
   const result = [];
 
+  // 👉 Función auxiliar para obtener fecha en Buenos Aires
   function getDateInBuenosAires(baseDate, offsetDays) {
     const tz = "America/Argentina/Buenos_Aires";
     const localStr = new Date(baseDate).toLocaleString("en-US", { timeZone: tz });
@@ -217,16 +218,16 @@ async function generateSchedule() {
 
     const events = eventsRes.data.items || [];
 
-    const WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // lunes a sábado
+    const WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // ✅ lunes a sábado (0 = domingo fuera)
     const START_HOUR = 9;
     const END_HOUR = 17;
     const INTERVAL = 2;
 
     for (let i = 1; i <= 14; i++) {
       const date = getDateInBuenosAires(today, i);
-      const dayOfWeek = date.getDay();
+      const dayOfWeek = date.getDay(); // ya corregido en TZ Argentina
 
-      if (!WORKING_DAYS.includes(dayOfWeek)) continue; // 🚫 salta domingos
+      if (!WORKING_DAYS.includes(dayOfWeek)) continue; // ❌ nunca devuelve domingos
 
       const yyyy = date.getFullYear();
       const mm = String(date.getMonth() + 1).padStart(2, "0");
@@ -242,6 +243,7 @@ async function generateSchedule() {
         const diffMs = slotStart.getTime() - now.getTime();
         const within48h = diffMs >= 0 && diffMs < 48 * 60 * 60 * 1000;
 
+        // Chequeo de solapamiento con eventos del Calendar
         const isBusy = events.some((ev) => {
           const evStart = ev.start?.dateTime
             ? new Date(ev.start.dateTime)
