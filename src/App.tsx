@@ -143,22 +143,26 @@ useEffect(() => {
 
           if (data.status === "approved") {
             try {
+              // 🔹 Siempre tomamos lo de localStorage/memoria
+              const cachedForm = JSON.parse(localStorage.getItem("formData") || "{}");
               const mergedForm = {
-                ...formData,          // lo que ya estaba en memoria
-                ...(data.formData||{}) // lo que vino del backend
-              };
-              const mergedQuote = {
-                ...quote,
-                ...(data.quote||{})
+                ...cachedForm,
+                ...(data.formData || {}), // si vino algo del backend, se mergea
               };
 
-              // 👇 Igual que “onsite”: mandamos todo el form completo
+              const cachedQuote = JSON.parse(localStorage.getItem("quote") || "{}");
+              const mergedQuote = {
+                ...cachedQuote,
+                ...(data.quote || {}),
+              };
+
+              // 👇 Igual que “onsite”: mandamos el formData completo (con appointmentSlot, fullName, serviceType, etc.)
               const confirmRes = await fetch("/api/confirm-payment", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                   paymentId,
-                  formData: mergedForm, 
+                  formData: mergedForm,
                   quote: { ...mergedQuote, paymentStatus: "confirmed" },
                 }),
               });
@@ -167,18 +171,12 @@ useEffect(() => {
               console.log("📤 Respuesta /api/confirm-payment:", confirmData);
 
               if (confirmData?.formData) {
-                setFormData((prev) => ({ ...prev, ...confirmData.formData }));
-                localStorage.setItem("formData", JSON.stringify({
-                  ...formData,
-                  ...confirmData.formData,
-                }));
+                setFormData(confirmData.formData);
+                localStorage.setItem("formData", JSON.stringify(confirmData.formData));
               }
               if (confirmData?.quote) {
-                setQuote((prev) => ({ ...prev, ...confirmData.quote }));
-                localStorage.setItem("quote", JSON.stringify({
-                  ...quote,
-                  ...confirmData.quote,
-                }));
+                setQuote(confirmData.quote);
+                localStorage.setItem("quote", JSON.stringify(confirmData.quote));
               }
             } catch (err) {
               console.error("❌ Error confirmando pago:", err);
