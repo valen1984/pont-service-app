@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { FormData, Quote } from "./types.ts";
+import { FormData, Quote } from "./types";
 import { STEPS } from "./constants";
 import LogoHeader from "@/components/LogoHeader";
 import ProgressBar from "@/components/ProgressBar";
