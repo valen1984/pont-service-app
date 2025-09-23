@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Quote, FormData } from "../../types";
 import { Wallet } from "@mercadopago/sdk-react";
 
@@ -22,9 +22,20 @@ const Step6Payment: React.FC<Props> = ({
   const [preferenceId, setPreferenceId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // 👉 Crear preferencia de pago en el backend
+  // ✅ Memorizar initialization para evitar re-montajes innecesarios
+  const initialization = useMemo(() => {
+    if (preferenceId) {
+      console.log("🟦 useMemo initialization con prefId:", preferenceId);
+      return { preferenceId };
+    }
+    return null;
+  }, [preferenceId]);
+
+  // 👉 Crear preferencia en el backend
   const createPreference = async () => {
     if (!quote) return;
+
+    console.log("🟢 createPreference llamado");
 
     try {
       const response = await fetch("/create_preference", {
@@ -40,6 +51,8 @@ const Step6Payment: React.FC<Props> = ({
       });
 
       const data = await response.json();
+      console.log("📦 Respuesta backend:", data);
+
       if (!data.id) throw new Error("No se recibió un preferenceId válido");
 
       setPreferenceId(data.id);
@@ -96,9 +109,12 @@ const Step6Payment: React.FC<Props> = ({
           Pagar con Mercado Pago
         </button>
       ) : (
-        <div className="flex justify-center">
-          <Wallet initialization={{ preferenceId }} />
-        </div>
+        initialization && (
+          <div className="flex justify-center">
+            {console.log("🟦 Renderizando Wallet con prefId:", preferenceId)}
+            <Wallet initialization={initialization} />
+          </div>
+        )
       )}
 
       <p className="text-xs text-slate-500">Serás redirigido a Mercado Pago</p>
