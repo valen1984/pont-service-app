@@ -59,7 +59,15 @@ export default function SplashScreen({ onFinish }: SplashProps) {
       </AnimatePresence>
 
       {/* Footer */}
-      <p className="text-xs text-slate-400">Powered by ALVAREZ LLC</p>
+      {/* Footer */}
+      <p className="mt-6 text-center text-xs text-slate-500">
+        <a
+          href="mailto:valentin.alvarez@alvarezllc.net"
+          className="inline-flex items-center gap-1 text-sky-600 hover:text-sky-700 transition-colors font-semibold tracking-wide underline underline-offset-4 decoration-sky-400 hover:decoration-sky-600"
+        >
+          ⚡ Powered by ALVAREZ LLC 2025®
+        </a>
+      </p>
     </motion.div>
   );
 }

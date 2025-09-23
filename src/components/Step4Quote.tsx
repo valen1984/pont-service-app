@@ -110,7 +110,7 @@ const Step4Quote: React.FC<Props> = ({ formData, setQuote, nextStep, prevStep })
           onClick={nextStep}
           className="w-full px-4 py-3 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition-colors"
         >
-          Aceptar y Continuar al Pago
+          Aceptar y Continuar al Turno
         </button>
       </div>
     </div>
