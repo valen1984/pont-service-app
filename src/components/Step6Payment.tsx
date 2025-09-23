@@ -29,6 +29,7 @@ const Step6Payment: React.FC<Props> = ({
 
   const createPreference = async () => {
     if (!quote) return;
+
     try {
       const response = await fetch("/create_preference", {
         method: "POST",
@@ -44,7 +45,8 @@ const Step6Payment: React.FC<Props> = ({
 
       const data = await response.json();
       if (!data.id) throw new Error("No se recibió un preferenceId válido");
-      setPreferenceId(data.id);
+
+      setPreferenceId(data.id); // 👈 solo una vez
     } catch (error) {
       console.error("❌ Error creando preferencia:", error);
       alert("Error iniciando pago");
@@ -54,6 +56,7 @@ const Step6Payment: React.FC<Props> = ({
   const handlePayOnSite = async () => {
     if (!quote) return;
     setLoading(true);
+
     try {
       const response = await fetch("/reservation/onsite", {
         method: "POST",
@@ -96,7 +99,7 @@ const Step6Payment: React.FC<Props> = ({
           Pagar con Mercado Pago
         </button>
       ) : (
-        <div key={preferenceId} className="flex justify-center">
+        <div className="flex justify-center">
           <Wallet initialization={{ preferenceId }} />
         </div>
       )}
