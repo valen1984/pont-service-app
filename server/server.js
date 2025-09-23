@@ -41,8 +41,6 @@ const CALENDAR_ID = process.env.CALENDAR_ID; // ID del calendario compartido
 // ======================
 // 📌 Crear evento en Google Calendar
 // ======================
-console.log("📤 En confirm-payment → formData:", formData);
-console.log("📤 En confirm-payment → quote:", quote);
 async function createCalendarEvent(formData, quote) {
   try {
     console.log("📅 Datos recibidos para Calendar:", formData);
