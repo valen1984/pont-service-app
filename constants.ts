@@ -32,12 +32,14 @@ export const BASE_LOCATION = "General Villegas";
 
 // Pasos del wizard
 export const STEPS = [
-  "Información de contacto",
-  "Servicio",
-  "Equipo",
+  "Datos del cliente",
+  "Tipo de servicio",
+  "Detalles del equipo",
   "Presupuesto",
-  "Calendario",
+  "Agenda",
   "Pago",
+  "Confirmación",
+  "Error de pago",
 ];
 
 // ====================================================================
