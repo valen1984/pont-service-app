@@ -195,7 +195,7 @@ app.get("/api/payment-status/:paymentId", async (req, res) => {
 });
 
 // ======================
-// 📌 Agenda con Google Calendar (detección correcta de solapamiento)
+// 📌 Agenda con Google Calendar (fix: evitar corrimientos de día y domingos)
 // ======================
 async function generateSchedule() {
   const today = new Date();
@@ -212,37 +212,37 @@ async function generateSchedule() {
 
     const events = eventsRes.data.items || [];
 
-    const WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // lunes a sábado
+    const WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // lunes a sábado (0 = domingo)
     const START_HOUR = 9;
     const END_HOUR = 17;
     const INTERVAL = 2;
 
     for (let i = 1; i <= 14; i++) {
-      const date = new Date(today);
-      date.setDate(today.getDate() + i);
+      // usamos siempre UTC
+      const date = new Date(Date.UTC(
+        today.getUTCFullYear(),
+        today.getUTCMonth(),
+        today.getUTCDate() + i
+      ));
+      const dayOfWeek = date.getUTCDay();
+      if (!WORKING_DAYS.includes(dayOfWeek)) continue; // saltar domingos
 
-      const localDate = new Date(
-        date.toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires" })
-      );
-      const dayOfWeek = localDate.getDay();
-      if (!WORKING_DAYS.includes(dayOfWeek)) continue;
-
-      const yyyy = localDate.getFullYear();
-      const mm = String(localDate.getMonth() + 1).padStart(2, "0");
-      const dd = String(localDate.getDate()).padStart(2, "0");
+      const yyyy = date.getUTCFullYear();
+      const mm = String(date.getUTCMonth() + 1).padStart(2, "0");
+      const dd = String(date.getUTCDate()).padStart(2, "0");
       const formattedDate = `${yyyy}-${mm}-${dd}`;
 
       const slots = [];
       for (let hour = START_HOUR; hour < END_HOUR; hour += INTERVAL) {
-        const slotStart = new Date(
-          `${formattedDate}T${hour.toString().padStart(2, "0")}:00:00-03:00`
-        );
+        // slot explícito con timezone Argentina
+        const slotStart = new Date(`${formattedDate}T${hour.toString().padStart(2, "0")}:00:00-03:00`);
         const slotEnd = new Date(slotStart.getTime() + INTERVAL * 60 * 60 * 1000);
 
         const now = new Date();
         const diffMs = slotStart.getTime() - now.getTime();
         const within48h = diffMs >= 0 && diffMs < 48 * 60 * 60 * 1000;
 
+        // chequeo de solapamiento
         const isBusy = events.some((ev) => {
           const evStart = ev.start?.dateTime
             ? new Date(ev.start.dateTime)
@@ -266,14 +266,12 @@ async function generateSchedule() {
       }
 
       result.push({
-        day:
-          localDate.toLocaleDateString("es-AR", { weekday: "short" }) +
-          " " +
-          localDate.toLocaleDateString("es-AR", {
-            day: "2-digit",
-            month: "2-digit",
-            year: "numeric",
-          }),
+        day: date.toLocaleDateString("es-AR", {
+          weekday: "short",
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        }),
         date: formattedDate,
         slots,
       });
