@@ -30,7 +30,7 @@ router.post("/update-order", async (req, res) => {
     // 🚀 Enviar mail al cliente y en copia al dueño
     await sendConfirmationEmail({
       recipient: order.customerEmail,
-      cc: "pontrefrigeracion@gmail.com", // copia al dueño
+      cc: "pontserviciosderefrigeracion@gmail.com", // copia al dueño
       fullName: order.customerName,
       phone: order.customerPhone,
       appointment: order.appointmentDate,

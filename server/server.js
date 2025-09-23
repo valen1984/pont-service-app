@@ -129,7 +129,7 @@ app.post("/webhook", async (req, res) => {
       // Defaults seguros
       let formData = {
         fullName: "⚠️ No informado",
-        email: "no-reply@pontrefrigeracion.com.ar",
+        email: "pontserviciosderefrigeracion@gmail.com",
         phone: "⚠️ No informado",
         address: "",
         location: "",
@@ -167,7 +167,7 @@ app.post("/webhook", async (req, res) => {
 
       // Mandar mail cliente + CC técnico
       await sendConfirmationEmail({
-        recipient: formData.email || "no-reply@pontrefrigeracion.com.ar",
+        recipient: formData.email || "pontserviciosderefrigeracion@gmail.com",
         cc: TECHNICIAN_EMAIL,
         ...formData,
         quote,
@@ -195,7 +195,7 @@ app.post("/reservation/onsite", async (req, res) => {
     const { formData, quote } = req.body;
 
     await sendConfirmationEmail({
-      recipient: formData.email || "no-reply@pontrefrigeracion.com.ar",
+      recipient: formData.email || "pontserviciosderefrigeracion@gmail.com",
       cc: TECHNICIAN_EMAIL,
       ...formData,
       quote,
@@ -229,7 +229,7 @@ app.post("/api/confirm-payment", async (req, res) => {
     }
 
     await sendConfirmationEmail({
-      recipient: formData.email || "no-reply@pontrefrigeracion.com.ar",
+      recipient: formData.email || "pontserviciosderefrigeracion@gmail.com",
       cc: TECHNICIAN_EMAIL,
       ...formData,
       quote,

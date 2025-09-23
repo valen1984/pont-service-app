@@ -66,7 +66,7 @@ export const sendConfirmationEmail = async ({
     to: recipient,
     cc,
     from: {
-      email: "pontrefrigeracion@gmail.com", // 📌 remitente validado en SendGrid
+      email: "pontserviciosderefrigeracion@gmail.com", // 📌 remitente validado en SendGrid
       name: "Pont Refrigeración",
     },
     subject: estado ? estado : "📩 Actualización de tu servicio",
