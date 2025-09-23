@@ -81,23 +81,23 @@ const Step5Scheduler: React.FC<Props> = ({
             key={day.date}
             className="p-4 border rounded-lg bg-slate-50"
           >
-            <h3 className="font-semibold">
+            <h3 className="font-semibold mb-2">
               {new Intl.DateTimeFormat("es-AR", {
                 weekday: "short",
                 day: "2-digit",
                 month: "2-digit",
                 year: "numeric",
-                timeZone: "America/Argentina/Buenos_Aires", // 👈 clave
+                timeZone: "America/Argentina/Buenos_Aires",
               }).format(new Date(`${day.date}T00:00:00`))}
             </h3>
 
-            <div className="flex flex-wrap gap-2 mt-2">
+            {/* 🎯 Slots autoajustados */}
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(100px,1fr))] gap-2 w-full">
               {day.slots.map((slot) => {
                 const isSelected =
                   formData.appointmentSlot?.date === day.date &&
                   formData.appointmentSlot?.time === slot.time;
 
-                // 🎨 Colores según estado
                 let slotClasses = "";
                 if (!slot.isAvailable && slot.reason === "within48h") {
                   slotClasses =
@@ -117,7 +117,7 @@ const Step5Scheduler: React.FC<Props> = ({
                     key={slot.time}
                     onClick={() => handleSelectSlot(day, slot.time)}
                     disabled={!slot.isAvailable}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${slotClasses}`}
+                    className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors w-full ${slotClasses}`}
                   >
                     {slot.time}
                   </button>
