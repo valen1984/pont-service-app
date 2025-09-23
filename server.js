@@ -38,7 +38,7 @@ const calendar = google.calendar({ version: "v3", auth });
 const CALENDAR_ID = process.env.CALENDAR_ID; // ID del calendario compartido
 
 // ======================
-// 📌 Crear evento en Google Calendar (con TZ Buenos Aires)
+// 📌 Crear evento en Google Calendar
 // ======================
 async function createCalendarEvent(formData, quote) {
   try {
@@ -50,15 +50,13 @@ async function createCalendarEvent(formData, quote) {
     const dateStr = formData.appointmentSlot.date; // ej: "2025-09-24"
     const timeStr = formData.appointmentSlot.time; // ej: "15:00"
 
-    // ⏱️ Split de hora
     const [hStr, mStr = "00"] = timeStr.split(":");
     const h = parseInt(hStr, 10);
-    const endH = h + 2; // intervalo 2h
+    const endH = h + 2;
 
     const pad2 = (n) => String(n).padStart(2, "0");
     const endTimeStr = `${pad2(endH)}:${pad2(mStr)}`;
 
-    // 👉 Construcción del evento con TZ explícita
     const event = {
       summary: `Servicio: ${formData.serviceType || "Turno"} - ${formData.fullName}`,
       description: `Cliente: ${formData.fullName}\nTel: ${formData.phone}\nDirección: ${formData.address}\nServicio: ${formData.serviceType}\nTotal: $${quote?.total}`,
@@ -138,7 +136,6 @@ app.post("/webhook", async (req, res) => {
         await sendConfirmationEmail({ recipient: formData.email, ...formData, quote, paymentStatus: "confirmed" });
         await sendConfirmationEmail({ recipient: TECHNICIAN_EMAIL, ...formData, quote, paymentStatus: "confirmed" });
 
-        // 👉 Guardar evento en Google Calendar
         await createCalendarEvent(formData, quote);
       }
 
@@ -164,7 +161,6 @@ app.post("/reservation/onsite", async (req, res) => {
     await sendOnSiteReservationEmail({ recipient: formData.email, ...formData, quote });
     await sendOnSiteReservationEmail({ recipient: TECHNICIAN_EMAIL, ...formData, quote });
 
-    // 👉 Guardar evento en Google Calendar
     await createCalendarEvent(formData, quote);
 
     res.json({ ok: true, message: "📧 Correo de pago presencial enviado" });
@@ -196,15 +192,21 @@ app.get("/api/payment-status/:paymentId", async (req, res) => {
 });
 
 // ======================
-// 📌 Agenda con Google Calendar (TZ Buenos Aires real, incluye sábado, sin domingo)
+// 📌 Agenda con Google Calendar (fix TZ Buenos Aires, sin domingos, con bloqueo 48h)
 // ======================
 async function generateSchedule() {
+  const today = new Date();
   const result = [];
-  const tz = "America/Argentina/Buenos_Aires";
+
+  function getDateInBuenosAires(baseDate, offsetDays) {
+    const tz = "America/Argentina/Buenos_Aires";
+    const localStr = new Date(baseDate).toLocaleString("en-US", { timeZone: tz });
+    const local = new Date(localStr);
+    local.setDate(local.getDate() + offsetDays);
+    return local;
+  }
 
   try {
-    const today = new Date();
-
     const eventsRes = await calendar.events.list({
       calendarId: CALENDAR_ID,
       timeMin: today.toISOString(),
@@ -215,32 +217,21 @@ async function generateSchedule() {
 
     const events = eventsRes.data.items || [];
 
-    const WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // lunes-sábado
+    const WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // lunes a sábado
     const START_HOUR = 9;
     const END_HOUR = 17;
     const INTERVAL = 2;
 
     for (let i = 1; i <= 14; i++) {
-      const base = new Date(today);
-      base.setDate(today.getDate() + i);
+      const date = getDateInBuenosAires(today, i);
+      const dayOfWeek = date.getDay();
 
-      // Fecha en Buenos Aires
-      const localParts = new Intl.DateTimeFormat("en-CA", {
-        timeZone: tz,
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      }).formatToParts(base);
+      if (!WORKING_DAYS.includes(dayOfWeek)) continue; // 🚫 salta domingos
 
-      const year = localParts.find(p => p.type === "year").value;
-      const month = localParts.find(p => p.type === "month").value;
-      const day = localParts.find(p => p.type === "day").value;
-      const formattedDate = `${year}-${month}-${day}`;
-
-      // Día de semana ISO
-      const weekday = new Date(`${formattedDate}T00:00:00-03:00`).getDay();
-      const weekdayISO = weekday === 0 ? 7 : weekday;
-      if (!WORKING_DAYS.includes(weekdayISO)) continue; // salta domingo
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, "0");
+      const dd = String(date.getDate()).padStart(2, "0");
+      const formattedDate = `${yyyy}-${mm}-${dd}`;
 
       const slots = [];
       for (let hour = START_HOUR; hour < END_HOUR; hour += INTERVAL) {
@@ -274,13 +265,12 @@ async function generateSchedule() {
       }
 
       result.push({
-        day: new Intl.DateTimeFormat("es-AR", {
-          timeZone: tz,
+        day: date.toLocaleDateString("es-AR", {
           weekday: "short",
           day: "2-digit",
           month: "2-digit",
           year: "numeric",
-        }).format(new Date(`${formattedDate}T00:00:00-03:00`)),
+        }),
         date: formattedDate,
         slots,
       });
