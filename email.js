@@ -223,3 +223,92 @@ export const sendOnSiteReservationEmail = async (payload) => {
     paymentStatus: "onSite",
   });
 };
+
+// ===== Pendiente de pago =====
+export const sendPaymentPendingEmail = async ({
+  recipient,
+  fullName,
+  phone,
+  appointment,   // string legible
+  address,
+  location,
+  coords,
+  quote,
+  photos = [],
+  bcc = process.env.TECH_EMAIL,
+}) => {
+  const html = `
+  <div style="font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; background:#f8fafc; padding:20px;">
+    <div style="max-width:680px; margin:0 auto; background:#ffffff; border-radius:10px; padding:20px; box-shadow:0 4px 14px rgba(0,0,0,0.08);">
+      <h2 style="color:#0f172a; text-align:center; margin:0 0 8px;">Reserva Pendiente de Pago</h2>
+      <p style="color:#334155; text-align:center; margin:0 0 16px;">
+        Hola <strong>${fullName || "cliente"}</strong>. 
+        Tu turno fue reservado y ya quedó ocupado en la agenda, pero el pago está 
+        <strong>Pendiente de acreditación</strong>.
+      </p>
+
+      <div style="background:#fef9c3; border-radius:8px; padding:12px 16px; margin-bottom:16px;">
+        <span style="display:inline-block; font-weight:bold; color:#b45309;">Estado: Pendiente de Pago ⚠️</span>
+      </div>
+
+      <h3 style="color:#0f172a; margin:16px 0 8px;">👤 Datos del Cliente</h3>
+      <table style="width:100%; border-collapse:collapse; margin-bottom: 16px; font-size:14px;">
+        <tr><td style="padding:6px 0; width:160px;"><b>Nombre</b></td><td style="padding:6px 0;">${fullName || "-"}</td></tr>
+        <tr><td style="padding:6px 0;"><b>Email</b></td><td style="padding:6px 0;">${recipient}</td></tr>
+        <tr><td style="padding:6px 0;"><b>Teléfono</b></td><td style="padding:6px 0;">${phone || "-"}</td></tr>
+        <tr><td style="padding:6px 0;"><b>Dirección</b></td><td style="padding:6px 0;">${address || "-"}</td></tr>
+        <tr><td style="padding:6px 0;"><b>Localidad</b></td><td style="padding:6px 0;">${location || "-"}</td></tr>
+      </table>
+
+      <h3 style="color:#0f172a; margin:16px 0 8px;">💰 Detalle del Presupuesto</h3>
+      <table style="width:100%; border-collapse:collapse; margin-bottom: 16px; font-size:14px;">
+        <tr><td style="padding:6px 0;">Costo base</td><td style="padding:6px 0;">${currencyAR(quote?.baseCost)}</td></tr>
+        <tr><td style="padding:6px 0;">Traslado</td><td style="padding:6px 0;">${
+          typeof quote?.travelCost === "number" ? currencyAR(quote?.travelCost) : (quote?.travelCost ?? "")
+        }</td></tr>
+        <tr><td style="padding:6px 0;">Subtotal</td><td style="padding:6px 0;">${currencyAR(quote?.subtotal)}</td></tr>
+        <tr><td style="padding:6px 0;">IVA (21%)</td><td style="padding:6px 0;">${currencyAR(quote?.iva)}</td></tr>
+        <tr style="background-color:#fef9c3;"><td style="padding:6px 0;"><b>TOTAL</b></td><td style="padding:6px 0;"><b style="color:#b45309;">${currencyAR(quote?.total)}</b></td></tr>
+      </table>
+
+      <h3 style="color:#0f172a; margin:16px 0 8px;">🗓 Turno</h3>
+      <p style="margin:0 0 16px; color:#334155;"><b>${appointment || "-"}</b></p>
+
+      <p style="color:#334155; margin:0 0 16px;">
+        🔒 El turno ya quedó reservado. Te enviaremos un correo de confirmación apenas se acredite el pago.
+      </p>
+
+      <div style="text-align:center; margin-top:24px;">
+        <a href="${process.env.FRONTEND_URL || "#"}"
+           style="display:inline-block; background:#f59e0b; color:#fff; text-decoration:none; padding:12px 24px; border-radius:6px; font-weight:600;">
+          Ir a la App
+        </a>
+      </div>
+
+      <p style="font-size:12px; color:#64748b; text-align:center; margin-top:24px;">
+        Este correo es una notificación automática.
+      </p>
+    </div>
+  </div>`;
+
+  try {
+    const [resp] = await sgMail.send({
+      to: recipient,
+      from: process.env.EMAIL_FROM,
+      bcc,
+      subject: "⏳ Reserva pendiente de pago - PONT",
+      html,
+    });
+
+    console.log("📧 Pendiente de pago enviado →", {
+      to: recipient,
+      bcc,
+      status: resp?.statusCode,
+    });
+
+    return { ok: true };
+  } catch (err) {
+    console.error("❌ Error al enviar pendiente de pago:", err.response?.body || err.message || err);
+    return { ok: false, error: err.message || String(err) };
+  }
+};

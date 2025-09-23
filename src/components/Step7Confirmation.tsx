@@ -5,48 +5,33 @@ interface Props {
   formData: FormData;
   quote: Quote | null;
   restart: () => void;
+  loading?: boolean; // 👈 nuevo
 }
 
-const SuccessIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg
-    className={className}
-    xmlns="http://www.w3.org/2000/svg"
-    fill="none"
-    viewBox="0 0 24 24"
-    strokeWidth={1.5}
-    stroke="currentColor"
-  >
-    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-  </svg>
-);
-
-const ErrorIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg
-    className={className}
-    xmlns="http://www.w3.org/2000/svg"
-    fill="none"
-    viewBox="0 0 24 24"
-    strokeWidth={1.5}
-    stroke="currentColor"
-  >
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M12 9v2.25m0 3.75h.008v.008H12v-.008zm0-12a9 9 0 110 18 9 9 0 010-18z"
-    />
-  </svg>
-);
-
-const Step7Confirmation: React.FC<Props> = ({ formData, quote, restart }) => {
+const Step7Confirmation: React.FC<Props> = ({ formData, quote, restart, loading }) => {
   const paymentStatus = quote?.paymentStatus;
+
+  if (loading) {
+    return (
+      <div className="space-y-6 text-center">
+        <div className="flex justify-center">
+          <div className="w-12 h-12 border-4 border-sky-600 border-t-transparent rounded-full animate-spin"></div>
+        </div>
+        <h2 className="text-xl font-bold">Procesando tu pago...</h2>
+        <p className="text-slate-600">
+          Aguarda unos segundos mientras confirmamos la transacción con Mercado Pago.
+        </p>
+      </div>
+    );
+  }
 
   const renderStatusText = () => {
     switch (paymentStatus) {
       case "onSite":
         return (
           <>
-            Tu reserva fue confirmada y abonás <strong>presencialmente</strong> en
-            el domicilio o en el taller. Recibirás un correo con todos los detalles.
+            Tu reserva fue confirmada y abonás <strong>presencialmente</strong>.
+            Recibirás un correo con todos los detalles.
           </>
         );
       case "confirmed":
@@ -81,14 +66,6 @@ const Step7Confirmation: React.FC<Props> = ({ formData, quote, restart }) => {
 
   return (
     <div className="space-y-6 text-center">
-      <div className="flex justify-center">
-        {isError ? (
-          <ErrorIcon className="w-16 h-16 text-red-500" />
-        ) : (
-          <SuccessIcon className="w-16 h-16 text-green-500" />
-        )}
-      </div>
-
       <h2 className="text-2xl font-bold">
         {isError ? "Hubo un problema con tu pago" : "¡Servicio Confirmado!"}
       </h2>

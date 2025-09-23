@@ -133,15 +133,47 @@ app.post("/webhook", async (req, res) => {
       if (status === "approved") {
         console.log("✅ Pago aprobado:", paymentId);
 
-        await sendConfirmationEmail({ recipient: formData.email, ...formData, quote, paymentStatus: "confirmed" });
-        await sendConfirmationEmail({ recipient: TECHNICIAN_EMAIL, ...formData, quote, paymentStatus: "confirmed" });
+        await sendConfirmationEmail({
+          recipient: formData.email,
+          ...formData,
+          quote,
+          paymentStatus: "confirmed",
+        });
+        await sendConfirmationEmail({
+          recipient: TECHNICIAN_EMAIL,
+          ...formData,
+          quote,
+          paymentStatus: "confirmed",
+        });
 
+        await createCalendarEvent(formData, quote);
+      }
+
+      if (status === "pending") {
+        console.log("⏳ Pago pendiente:", paymentId);
+
+        await sendPaymentPendingEmail({
+          recipient: formData.email,
+          ...formData,
+          quote,
+        });
+        await sendPaymentPendingEmail({
+          recipient: TECHNICIAN_EMAIL,
+          ...formData,
+          quote,
+        });
+
+        // ✅ Igual bloqueamos el turno en Google Calendar
         await createCalendarEvent(formData, quote);
       }
 
       if (status === "rejected") {
         console.log("❌ Pago rechazado:", paymentId);
-        await sendPaymentRejectedEmail({ recipient: formData.email, ...formData, quote });
+        await sendPaymentRejectedEmail({
+          recipient: formData.email,
+          ...formData,
+          quote,
+        });
       }
     }
     res.sendStatus(200);

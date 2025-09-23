@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom"; // 👈 nuevo
 import { FormData, Quote } from "./types";
 import { STEPS } from "./constants.ts";
 import LogoHeader from "@/components/LogoHeader";
@@ -34,6 +35,8 @@ function App() {
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [quote, setQuote] = useState<Quote | null>(null);
 
+  const [searchParams] = useSearchParams(); // 👈 para leer querystring
+
   // Restaurar desde localStorage al cargar la app
   useEffect(() => {
     const cachedForm = localStorage.getItem("formData");
@@ -51,15 +54,31 @@ function App() {
 
   // Detectar resultado de Mercado Pago al volver desde la pasarela
   useEffect(() => {
-    const url = new URL(window.location.href);
-    const paymentStatus = url.searchParams.get("collection_status");
-    const paymentId = url.searchParams.get("payment_id");
-    if (paymentStatus === "approved" && paymentId) {
-      setCurrentStep(7); // Confirmación
-    } else if (paymentStatus === "rejected" && paymentId) {
-      setCurrentStep(8); // Error de pago
-    }
-  }, []);
+    const paymentId = searchParams.get("payment_id");
+    if (!paymentId) return;
+
+    const fetchStatus = async () => {
+      try {
+        const res = await fetch(`/api/payment-status/${paymentId}`);
+        const data = await res.json();
+
+        if (data.quote) {
+          setFormData(data.formData);
+          setQuote(data.quote);
+
+          if (data.paymentStatus === "confirmed") {
+            setCurrentStep(7);
+          } else if (data.paymentStatus === "rejected" || data.paymentStatus === "pending") {
+            setCurrentStep(8);
+          }
+        }
+      } catch (err) {
+        console.error("❌ Error consultando estado de pago:", err);
+      }
+    };
+
+    fetchStatus();
+  }, [searchParams]);
 
   const nextStep = () => setCurrentStep((prev) => prev + 1);
   const prevStep = () => setCurrentStep((prev) => prev - 1);
@@ -146,7 +165,7 @@ function App() {
             formData={formData}
             onPaymentSuccess={handlePaymentSuccess}
             onPaymentFailure={handlePaymentFailure}
-            onPayOnSite={handlePayOnSite} // 👈 nuevo
+            onPayOnSite={handlePayOnSite}
             prevStep={prevStep}
           />
         );
@@ -180,50 +199,49 @@ function App() {
   const isFinalStep = currentStep === 7 || currentStep === 8;
 
   return (
-  <div className="bg-slate-900 min-h-screen font-sans flex items-center justify-center p-4 relative">
-    {/* 🌨️ Nieve global hasta paso 6 */}
-    {!isFinalStep && currentStep <= 6 && (
-      <Snowfall style={{ position: "absolute", width: "100%", height: "100%" }} />
-    )}
+    <div className="bg-slate-900 min-h-screen font-sans flex items-center justify-center p-4 relative">
+      {/* 🌨️ Nieve global hasta paso 6 */}
+      {!isFinalStep && currentStep <= 6 && (
+        <Snowfall style={{ position: "absolute", width: "100%", height: "100%" }} />
+      )}
 
-    <main className="max-w-xl w-full relative z-10">
-      <Card className={showSplash ? "bg-white/80 backdrop-blur" : ""}>
-        {showSplash ? (
-          <SplashScreen onFinish={() => setShowSplash(false)} />
-        ) : (
-          <>
-            {!isFinalStep && (
-              <>
-                <LogoHeader />
-                <h1 className="text-2xl font-bold text-center text-slate-800 mb-2">
-                  {STEPS[currentStep - 1]}
-                </h1>
-                <ProgressBar
-                  currentStep={currentStep}
-                  totalSteps={STEPS.length}
-                />
-              </>
-            )}
-            {renderStep()}
+      <main className="max-w-xl w-full relative z-10">
+        <Card className={showSplash ? "bg-white/80 backdrop-blur" : ""}>
+          {showSplash ? (
+            <SplashScreen onFinish={() => setShowSplash(false)} />
+          ) : (
+            <>
+              {!isFinalStep && (
+                <>
+                  <LogoHeader />
+                  <h1 className="text-2xl font-bold text-center text-slate-800 mb-2">
+                    {STEPS[currentStep - 1]}
+                  </h1>
+                  <ProgressBar
+                    currentStep={currentStep}
+                    totalSteps={STEPS.length}
+                  />
+                </>
+              )}
+              {renderStep()}
 
-            {/* Footer "Powered by" hasta paso 6 */}
-            {!isFinalStep && currentStep <= 6 && (
-              <p className="mt-6 text-center text-xs text-slate-500">
-                <a
-                  href="mailto:valentin.alvarez@alvarezllc.net"
-                  className="inline-flex items-center gap-1 text-sky-600 hover:text-sky-700 transition-colors font-semibold tracking-wide underline underline-offset-4 decoration-sky-400 hover:decoration-sky-600"
-                >
-                  ⚡ Powered by ALVAREZ LLC 2025®
-                </a>
-              </p>
-            )}
-          </>
-        )}
-      </Card>
-    </main>
-  </div>
-);
-
+              {/* Footer "Powered by" hasta paso 6 */}
+              {!isFinalStep && currentStep <= 6 && (
+                <p className="mt-6 text-center text-xs text-slate-500">
+                  <a
+                    href="mailto:valentin.alvarez@alvarezllc.net"
+                    className="inline-flex items-center gap-1 text-sky-600 hover:text-sky-700 transition-colors font-semibold tracking-wide underline underline-offset-4 decoration-sky-400 hover:decoration-sky-600"
+                  >
+                    ⚡ Powered by ALVAREZ LLC 2025®
+                  </a>
+                </p>
+              )}
+            </>
+          )}
+        </Card>
+      </main>
+    </div>
+  );
 }
 
 export default App;
