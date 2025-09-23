@@ -6,12 +6,12 @@
   "scripts": {
     "dev": "npm run dev:all",
     "dev:frontend": "vite",
-    "dev:backend": "node server.js",
+    "dev:backend": "node server/server.js",
     "dev:ngrok": "ngrok http 4000",
     "dev:all": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "build": "vite build",
     "preview": "vite preview",
-    "start": "node server.js"
+    "start": "node server/server.js"
   },
   "dependencies": {
     "@mercadopago/sdk-react": "^1.0.6",
