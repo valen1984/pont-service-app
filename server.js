@@ -196,27 +196,15 @@ app.get("/api/payment-status/:paymentId", async (req, res) => {
 });
 
 // ======================
-// 📌 Agenda con Google Calendar (fix TZ Buenos Aires, sin domingos)
+// 📌 Agenda con Google Calendar (TZ Buenos Aires real, incluye sábado, sin domingo)
 // ======================
 async function generateSchedule() {
-  const today = new Date();
   const result = [];
-
-  // 👉 Aux: convierte "today + offsetDays" a medianoche en Buenos Aires
-  function getDateInBuenosAires(baseDate, offsetDays) {
-    const tz = "America/Argentina/Buenos_Aires";
-    // convierte baseDate a string en la TZ de BA
-    const localStr = new Date(baseDate).toLocaleString("en-US", { timeZone: tz });
-    // crea un objeto Date local en BA
-    const local = new Date(localStr);
-    // fuerza medianoche
-    const localMidnight = new Date(local.getFullYear(), local.getMonth(), local.getDate());
-    // suma offset
-    localMidnight.setDate(localMidnight.getDate() + offsetDays);
-    return localMidnight;
-  }
+  const tz = "America/Argentina/Buenos_Aires";
 
   try {
+    const today = new Date();
+
     const eventsRes = await calendar.events.list({
       calendarId: CALENDAR_ID,
       timeMin: today.toISOString(),
@@ -233,19 +221,30 @@ async function generateSchedule() {
     const INTERVAL = 2;
 
     for (let i = 1; i <= 14; i++) {
-      const date = getDateInBuenosAires(today, i);
-      const dayOfWeek = date.getDay(); // ya en BA
+      // obtenemos fecha local en Buenos Aires
+      const base = new Date(today);
+      base.setDate(today.getDate() + i);
 
-      if (!WORKING_DAYS.includes(dayOfWeek)) continue; // excluye domingos
+      const localParts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: tz,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        weekday: "numeric", // 1 = lunes, 7 = domingo
+      }).formatToParts(base);
 
-      const yyyy = date.getFullYear();
-      const mm = String(date.getMonth() + 1).padStart(2, "0");
-      const dd = String(date.getDate()).padStart(2, "0");
-      const formattedDate = `${yyyy}-${mm}-${dd}`;
+      const year = localParts.find(p => p.type === "year").value;
+      const month = localParts.find(p => p.type === "month").value;
+      const day = localParts.find(p => p.type === "day").value;
+      const weekday = parseInt(localParts.find(p => p.type === "weekday").value, 10);
+
+      // saltamos domingos (7)
+      if (weekday === 7) continue;
+
+      const formattedDate = `${year}-${month}-${day}`;
 
       const slots = [];
       for (let hour = START_HOUR; hour < END_HOUR; hour += INTERVAL) {
-        // construimos slots en BA explícitamente
         const slotStart = new Date(`${formattedDate}T${hour.toString().padStart(2, "0")}:00:00-03:00`);
         const slotEnd = new Date(slotStart.getTime() + INTERVAL * 60 * 60 * 1000);
 
@@ -253,7 +252,6 @@ async function generateSchedule() {
         const diffMs = slotStart.getTime() - now.getTime();
         const within48h = diffMs >= 0 && diffMs < 48 * 60 * 60 * 1000;
 
-        // Chequeo de solapamiento con eventos de Calendar
         const isBusy = events.some((ev) => {
           const evStart = ev.start?.dateTime
             ? new Date(ev.start.dateTime)
@@ -277,12 +275,13 @@ async function generateSchedule() {
       }
 
       result.push({
-        day: date.toLocaleDateString("es-AR", {
+        day: new Intl.DateTimeFormat("es-AR", {
+          timeZone: tz,
           weekday: "short",
           day: "2-digit",
           month: "2-digit",
           year: "numeric",
-        }),
+        }).format(new Date(`${formattedDate}T00:00:00-03:00`)),
         date: formattedDate,
         slots,
       });
