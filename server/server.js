@@ -2,12 +2,7 @@ import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
 import { MercadoPagoConfig, Preference, Payment } from "mercadopago";
-import {
-  sendConfirmationEmail,
-  sendPaymentRejectedEmail,
-  sendOnSiteReservationEmail,
-  sendPaymentPendingEmail,
-} from "./email.js";
+import { sendConfirmationEmail } from "./email.js";
 import { TECHNICIAN_EMAIL } from "./constants.js";
 
 import path from "path";
@@ -43,7 +38,6 @@ const CALENDAR_ID = process.env.CALENDAR_ID; // ID del calendario compartido
 // ======================
 async function createCalendarEvent(formData, quote) {
   try {
-    console.log("📅 Datos recibidos para Calendar:", formData);
     if (!formData.appointmentSlot) {
       console.warn("⚠️ No hay appointmentSlot en formData, no se crea evento");
       return;
@@ -51,7 +45,6 @@ async function createCalendarEvent(formData, quote) {
 
     const dateStr = formData.appointmentSlot.date;
     const timeStr = formData.appointmentSlot.time;
-    console.log("📅 Creando evento con:", { dateStr, timeStr });
 
     const [hStr, mStr = "00"] = timeStr.split(":");
     const h = parseInt(hStr, 10);
@@ -72,8 +65,6 @@ async function createCalendarEvent(formData, quote) {
         timeZone: "America/Argentina/Buenos_Aires",
       },
     };
-
-    console.log("🗓️ Creando evento con TZ Buenos Aires:", event);
 
     const response = await calendar.events.insert({
       calendarId: CALENDAR_ID,
@@ -106,18 +97,14 @@ app.post("/create_preference", async (req, res) => {
         },
         auto_return: "approved",
         metadata: {
-          // ✅ encode en base64
           formData: Buffer.from(JSON.stringify(formData)).toString("base64"),
           quote: Buffer.from(JSON.stringify(quote)).toString("base64"),
         },
       },
     });
 
-    if (!result || !result.id) {
-      throw new Error("No se pudo crear preference en Mercado Pago");
-    }
+    if (!result?.id) throw new Error("No se pudo crear preference en Mercado Pago");
 
-    console.log("✅ Preference creada:", result.id);
     res.json({ id: result.id });
   } catch (error) {
     console.error("❌ Error creando preferencia:", error);
@@ -139,20 +126,34 @@ app.post("/webhook", async (req, res) => {
       const status = payment.status; // approved | pending | rejected
       const metadata = payment.metadata || {};
 
-      let formData = {};
+      // Defaults seguros
+      let formData = {
+        fullName: "⚠️ No informado",
+        email: "no-reply@pontrefrigeracion.com.ar",
+        phone: "⚠️ No informado",
+        address: "",
+        location: "",
+        appointmentSlot: null,
+      };
       let quote = {};
+
       try {
         formData = metadata.formData
           ? JSON.parse(Buffer.from(metadata.formData, "base64").toString("utf8"))
-          : {};
-      } catch {}
+          : formData;
+      } catch (e) {
+        console.error("⚠️ No se pudo parsear formData:", metadata.formData);
+      }
+
       try {
         quote = metadata.quote
           ? JSON.parse(Buffer.from(metadata.quote, "base64").toString("utf8"))
           : {};
-      } catch {}
+      } catch (e) {
+        console.error("⚠️ No se pudo parsear quote:", metadata.quote);
+      }
 
-      // 📧 Elegir mensaje según estado
+      // Mensaje según estado
       let estadoMsg = "";
       if (status === "approved") {
         estadoMsg = "✅ Pago aprobado - orden CONFIRMADA";
@@ -164,16 +165,16 @@ app.post("/webhook", async (req, res) => {
         estadoMsg = `📩 Estado desconocido: ${status}`;
       }
 
-      // 📧 Mandar mail cliente + CC técnico
+      // Mandar mail cliente + CC técnico
       await sendConfirmationEmail({
-        recipient: formData.email,
+        recipient: formData.email || "no-reply@pontrefrigeracion.com.ar",
         cc: TECHNICIAN_EMAIL,
         ...formData,
         quote,
-        estado: estadoMsg, // 👈 acá va el estado
+        estado: estadoMsg,
       });
 
-      // 📅 Calendar si corresponde
+      // Calendar si corresponde
       if ((status === "approved" || status === "pending") && formData.appointmentSlot) {
         await createCalendarEvent(formData, quote);
       }
@@ -187,54 +188,72 @@ app.post("/webhook", async (req, res) => {
 });
 
 // ======================
-// 📌 Consultar estado de un pago (para Step7)
+// 📌 Pago presencial (sin Mercado Pago)
 // ======================
-app.get("/api/payment-status/:paymentId", async (req, res) => {
+app.post("/reservation/onsite", async (req, res) => {
   try {
-    const { paymentId } = req.params;
-    const paymentClient = new Payment(client);
-    const payment = await paymentClient.get({ id: paymentId });
+    const { formData, quote } = req.body;
 
-    const status = payment.status;
-    const metadata = payment.metadata || {};
+    await sendConfirmationEmail({
+      recipient: formData.email || "no-reply@pontrefrigeracion.com.ar",
+      cc: TECHNICIAN_EMAIL,
+      ...formData,
+      quote,
+      estado: "💵 Pago presencial confirmado",
+    });
 
-    let formData = {};
-    let quote = {};
-    try {
-      formData = metadata.formData
-        ? JSON.parse(Buffer.from(metadata.formData, "base64").toString("utf8"))
-        : {};
-    } catch (e) {
-      console.error("⚠️ No se pudo parsear formData:", metadata.formData);
-    }
-    try {
-      quote = metadata.quote
-        ? JSON.parse(Buffer.from(metadata.quote, "base64").toString("utf8"))
-        : {};
-    } catch (e) {
-      console.error("⚠️ No se pudo parsear quote:", metadata.quote);
+    if (formData.appointmentSlot) {
+      await createCalendarEvent(formData, quote);
     }
 
-    res.json({ status, formData, quote });
+    res.json({ ok: true, message: "📧 Correo de pago presencial enviado" });
   } catch (err) {
-    console.error("❌ Error consultando pago:", err.message || err);
-    res.status(404).json({ status: "error", message: "Pago no encontrado" });
+    console.error("❌ Error en /reservation/onsite:", err);
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
 // ======================
-// 📌 Pago presencial (sin Mercado Pago)
+// 📌 Confirmación manual de pago
 // ======================
-await sendConfirmationEmail({
-  recipient: formData.email,
-  cc: TECHNICIAN_EMAIL,
-  ...formData,
-  quote,
-  estado: "💵 Pago presencial confirmado",
+app.post("/api/confirm-payment", async (req, res) => {
+  try {
+    let { formData, quote, paymentId } = req.body;
+
+    if (paymentId) {
+      const paymentClient = new Payment(client);
+      const payment = await paymentClient.get({ id: paymentId });
+      if (payment.status !== "approved") {
+        return res.status(400).json({ ok: false, error: "El pago no está aprobado" });
+      }
+    }
+
+    await sendConfirmationEmail({
+      recipient: formData.email || "no-reply@pontrefrigeracion.com.ar",
+      cc: TECHNICIAN_EMAIL,
+      ...formData,
+      quote,
+      estado: "✅ Pago aprobado - orden CONFIRMADA",
+    });
+
+    if (formData.appointmentSlot) {
+      await createCalendarEvent(formData, quote);
+    }
+
+    res.json({
+      ok: true,
+      message: "Confirmación procesada",
+      formData,
+      quote: { ...quote, paymentStatus: "confirmed" },
+    });
+  } catch (err) {
+    console.error("❌ Error en confirm-payment:", err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
 });
 
 // ======================
-// 📌 Agenda con Google Calendar (fix TZ Buenos Aires, sin domingos)
+// 📌 Agenda con Google Calendar
 // ======================
 async function generateSchedule() {
   const today = new Date();
@@ -350,43 +369,3 @@ const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
 });
-
-// ======================
-// 📌 Confirmación manual de pago (con logs detallados)
-// ======================
-app.post("/api/confirm-payment", async (req, res) => {
-  try {
-    let { formData, quote, paymentId } = req.body;
-
-    if (paymentId) {
-      const paymentClient = new Payment(client);
-      const payment = await paymentClient.get({ id: paymentId });
-      if (payment.status !== "approved") {
-        return res.status(400).json({ ok: false, error: "El pago no está aprobado" });
-      }
-    }
-
-    await sendConfirmationEmail({
-      recipient: formData.email,
-      cc: TECHNICIAN_EMAIL,
-      ...formData,
-      quote,
-      estado: "✅ Pago aprobado - orden CONFIRMADA",
-    });
-
-    if (formData.appointmentSlot) {
-      await createCalendarEvent(formData, quote);
-    }
-
-    res.json({
-      ok: true,
-      message: "Confirmación procesada",
-      formData,
-      quote: { ...quote, paymentStatus: "confirmed" },
-    });
-  } catch (err) {
-    console.error("❌ Error en confirm-payment:", err);
-    res.status(500).json({ ok: false, error: err.message });
-  }
-});
-
