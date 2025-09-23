@@ -48,8 +48,8 @@ async function createCalendarEvent(formData, quote) {
       return;
     }
 
-    const dateStr = formData.appointmentSlot.date; // ej: "2025-09-24"
-    const timeStr = formData.appointmentSlot.time; // ej: "15:00"
+    const dateStr = formData.appointmentSlot.date;
+    const timeStr = formData.appointmentSlot.time;
 
     const [hStr, mStr = "00"] = timeStr.split(":");
     const h = parseInt(hStr, 10);
@@ -104,8 +104,9 @@ app.post("/create_preference", async (req, res) => {
         },
         auto_return: "approved",
         metadata: {
-          formData: JSON.stringify(formData), // ✅ serializar
-          quote: JSON.stringify(quote),
+          // ✅ encode en base64
+          formData: Buffer.from(JSON.stringify(formData)).toString("base64"),
+          quote: Buffer.from(JSON.stringify(quote)).toString("base64"),
         },
       },
     });
@@ -115,9 +116,6 @@ app.post("/create_preference", async (req, res) => {
     }
 
     console.log("✅ Preference creada:", result.id);
-
-    // Por ahora devolvemos solo el preferenceId
-    // paymentId real lo obtendrás vía webhook cuando el pago se cree
     res.json({ id: result.id });
   } catch (error) {
     console.error("❌ Error creando preferencia:", error);
@@ -143,27 +141,24 @@ app.post("/webhook", async (req, res) => {
       const status = payment.status;
       const metadata = payment.metadata || {};
 
-      console.log("📊 Datos de pago:", {
-        status,
-        metadataKeys: Object.keys(metadata),
-      });
-
       let formData = {};
       let quote = {};
-
       try {
-        formData = metadata.formData ? JSON.parse(metadata.formData) : {};
+        formData = metadata.formData
+          ? JSON.parse(Buffer.from(metadata.formData, "base64").toString("utf8"))
+          : {};
       } catch (e) {
         console.error("⚠️ No se pudo parsear formData:", metadata.formData);
       }
 
       try {
-        quote = metadata.quote ? JSON.parse(metadata.quote) : {};
+        quote = metadata.quote
+          ? JSON.parse(Buffer.from(metadata.quote, "base64").toString("utf8"))
+          : {};
       } catch (e) {
         console.error("⚠️ No se pudo parsear quote:", metadata.quote);
       }
 
-      // ✅ Logs extra para debug
       console.log("📝 formData parseado:", formData);
       console.log("📝 quote parseado:", quote);
 
@@ -205,7 +200,6 @@ app.post("/webhook", async (req, res) => {
         });
 
         if (formData.appointmentSlot) {
-          // ✅ bloquea turno en Calendar aunque esté pendiente
           await createCalendarEvent(formData, quote);
         } else {
           console.warn("⚠️ Pago pendiente pero sin appointmentSlot");
@@ -245,12 +239,16 @@ app.get("/api/payment-status/:paymentId", async (req, res) => {
     let formData = {};
     let quote = {};
     try {
-      formData = metadata.formData ? JSON.parse(metadata.formData) : {};
+      formData = metadata.formData
+        ? JSON.parse(Buffer.from(metadata.formData, "base64").toString("utf8"))
+        : {};
     } catch (e) {
       console.error("⚠️ No se pudo parsear formData:", metadata.formData);
     }
     try {
-      quote = metadata.quote ? JSON.parse(metadata.quote) : {};
+      quote = metadata.quote
+        ? JSON.parse(Buffer.from(metadata.quote, "base64").toString("utf8"))
+        : {};
     } catch (e) {
       console.error("⚠️ No se pudo parsear quote:", metadata.quote);
     }
@@ -288,7 +286,6 @@ async function generateSchedule() {
   const today = new Date();
   const result = [];
 
-  // 👉 Función auxiliar para obtener fecha en Buenos Aires
   function getDateInBuenosAires(baseDate, offsetDays) {
     const tz = "America/Argentina/Buenos_Aires";
     const localStr = new Date(baseDate).toLocaleString("en-US", { timeZone: tz });
@@ -308,16 +305,16 @@ async function generateSchedule() {
 
     const events = eventsRes.data.items || [];
 
-    const WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // ✅ lunes a sábado (0 = domingo fuera)
+    const WORKING_DAYS = [1, 2, 3, 4, 5, 6];
     const START_HOUR = 9;
     const END_HOUR = 17;
     const INTERVAL = 2;
 
     for (let i = 1; i <= 14; i++) {
       const date = getDateInBuenosAires(today, i);
-      const dayOfWeek = date.getDay(); // ya corregido en TZ Argentina
+      const dayOfWeek = date.getDay();
 
-      if (!WORKING_DAYS.includes(dayOfWeek)) continue; // ❌ nunca devuelve domingos
+      if (!WORKING_DAYS.includes(dayOfWeek)) continue;
 
       const yyyy = date.getFullYear();
       const mm = String(date.getMonth() + 1).padStart(2, "0");
@@ -333,18 +330,17 @@ async function generateSchedule() {
         const diffMs = slotStart.getTime() - now.getTime();
         const within48h = diffMs >= 0 && diffMs < 48 * 60 * 60 * 1000;
 
-        // Chequeo de solapamiento con eventos del Calendar
         const isBusy = events.some((ev) => {
           const evStart = ev.start?.dateTime
             ? new Date(ev.start.dateTime)
             : ev.start?.date
-              ? new Date(ev.start.date)
-              : null;
+            ? new Date(ev.start.date)
+            : null;
           const evEnd = ev.end?.dateTime
             ? new Date(ev.end.dateTime)
             : ev.end?.date
-              ? new Date(ev.end.date)
-              : null;
+            ? new Date(ev.end.date)
+            : null;
           if (!evStart || !evEnd) return false;
           return slotStart < evEnd && slotEnd > evStart;
         });
@@ -391,7 +387,6 @@ app.get("/api/schedule", async (req, res) => {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// 🚀 apuntar a ../dist (fuera de /server)
 app.use(express.static(path.join(__dirname, "../dist")));
 app.get("*", (req, res) => {
   res.sendFile(path.join(__dirname, "../dist", "index.html"));
@@ -402,13 +397,15 @@ app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
 });
 
+// ======================
+// 📌 Confirmación manual de pago
+// ======================
 app.post("/api/confirm-payment", async (req, res) => {
   try {
     const { formData, quote, paymentId } = req.body;
 
     console.log("🔎 Confirmación manual recibida:", { paymentId });
 
-    // 1. Si hay paymentId, validamos con Mercado Pago
     if (paymentId) {
       const paymentClient = new Payment(client);
       const payment = await paymentClient.get({ id: paymentId });
@@ -418,14 +415,11 @@ app.post("/api/confirm-payment", async (req, res) => {
       }
     }
 
-    // 2. Evitar duplicados: podés usar metadata o calendar.events.list para chequear
-    //   👉 Simplificado: si ya confirmamos antes, no hacemos nada
     if (quote?.paymentStatus === "confirmed") {
       console.log("⚠️ Pago ya confirmado, no se duplica evento.");
       return res.json({ ok: true, message: "Pago ya confirmado previamente" });
     }
 
-    // 3. Enviar mails
     await sendConfirmationEmail({
       recipient: formData.email,
       ...formData,
@@ -439,7 +433,6 @@ app.post("/api/confirm-payment", async (req, res) => {
       paymentStatus: "confirmed",
     });
 
-    // 4. Crear evento en Calendar
     await createCalendarEvent(formData, quote);
 
     res.json({ ok: true, message: "Confirmación procesada" });
