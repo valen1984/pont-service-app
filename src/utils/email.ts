@@ -21,7 +21,7 @@ export const sendConfirmationEmail = async ({
   estado,
 }: {
   recipient: string;
-  cc?: string; // 👈 copia opcional (para tu amigo)
+  cc?: string;
   fullName?: string;
   phone?: string;
   appointment?: string;
@@ -51,30 +51,18 @@ export const sendConfirmationEmail = async ({
           .join("")
       : `<span style="color:#64748b;">No adjuntadas</span>`;
 
-  // 🎨 Color dinámico para el estado
-  let estadoColor = "#555";
-  if (estado?.includes("aprobado") || estado?.includes("CONFIRMADA")) {
-    estadoColor = "#16a34a"; // verde
-  } else if (estado?.includes("pendiente")) {
-    estadoColor = "#ca8a04"; // amarillo
-  } else if (estado?.includes("rechazado")) {
-    estadoColor = "#dc2626"; // rojo
-  }
-
   // 🚀 Enviar con SendGrid
   const msg = {
     to: recipient,
     cc,
     from: {
-      email: process.env.SENDGRID_FROM_EMAIL || "pontserviciosderefrigeracion@gmail.com", // 📌 remitente validado en SendGrid
-      name: "Pont Refrigeración",
+      email: "pontserviciosderefrigeracion@gmail.com", // ✅ remitente verificado
+      name: "Pont Refrigeración",                      // opcional, nombre visible
     },
     subject: estado ? estado : "📩 Actualización de tu servicio",
     html: `
       <h2 style="font-family:sans-serif;">Estado de tu orden</h2>
-      <p style="color:${estadoColor};font-weight:bold;">
-        ${estado ?? "📩 Estado no especificado"}
-      </p>
+      <p><strong>${estado ?? "📩 Estado no especificado"}</strong></p>
 
       <h3>👤 Cliente</h3>
       <p><b>Nombre:</b> ${fullName ?? "No informado"}</p>
@@ -84,9 +72,7 @@ export const sendConfirmationEmail = async ({
       <p><b>Localidad:</b> ${location ?? "No informado"}</p>
 
       <h3>📍 Ubicación</h3>
-      <p>${coordsText} ${
-      mapsLink ? `(<a href="${mapsLink}">Ver en Maps</a>)` : ""
-    }</p>
+      <p>${coordsText} ${mapsLink ? `(<a href="${mapsLink}">Ver en Maps</a>)` : ""}</p>
 
       <h3>💰 Presupuesto</h3>
       <p>Base: $${quote?.baseCost ?? "-"}</p>
