@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { FormData, Quote } from "./types";
 import { STEPS } from "@/constants";
 import LogoHeader from "@/components/LogoHeader";
-import ProgressBar from "@/components/ProgressBar";
 import Card from "@/components/Card";
 import SplashScreen from "@/components/SplashScreen";
 import Step1UserInfo from "@/components/Step1UserInfo";
@@ -34,7 +33,6 @@ const snowflakeImages = [
   createEmojiImage("✦"),
   createEmojiImage("✧"),
 ];
-
 
 const initialFormData: FormData = {
   fullName: "",
@@ -84,74 +82,65 @@ function App() {
     }
   }, [quote]);
 
-    // ✅ Guardia: si el currentStep queda fuera de rango, forzarlo al último válido
+  // ✅ Guardia: si el currentStep queda fuera de rango
   useEffect(() => {
     if (currentStep < 1) {
-      console.warn("⚠️ currentStep menor a 1, reseteando a 1");
       setCurrentStep(1);
     } else if (currentStep > STEPS.length) {
-      console.warn(
-        `⚠️ currentStep (${currentStep}) fuera de rango, reseteando a ${STEPS.length}`
-      );
       setCurrentStep(STEPS.length);
     }
   }, [currentStep]);
 
-// 🔁 Retorno desde Mercado Pago con confirmación en backend
-useEffect(() => {
-  const url = new URL(window.location.href);
-  const paymentId = url.searchParams.get("payment_id");
-  const collectionStatus =
-    url.searchParams.get("collection_status") || url.searchParams.get("status");
+  // 🔁 Retorno desde Mercado Pago
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const paymentId = url.searchParams.get("payment_id");
+    const collectionStatus =
+      url.searchParams.get("collection_status") || url.searchParams.get("status");
 
-  if (!paymentId && !collectionStatus) return;
-
-  const processPayment = async () => {
-    try {
-      if (paymentId) {
-        const res = await fetch(`/api/payment-status/${paymentId}`);
-        const data = await res.json();
-
-        if (data?.quote) {
-          setFormData(data.formData);
-          setQuote(data.quote);
-
-          if (data.status === "approved") {
-            setCurrentStep(7);
-
-            // 🔔 Notificar backend para calendar + mails
-            await fetch("/api/confirm-payment", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                formData: data.formData,
-                quote: data.quote,
-              }),
-            });
-          } else if (["rejected", "pending"].includes(data.status)) {
-            setCurrentStep(8);
-          }
-        }
-      } else if (collectionStatus) {
-        if (collectionStatus.toLowerCase() === "approved") {
-          setCurrentStep(7);
-
-          await fetch("/api/confirm-payment", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ formData, quote }),
-          });
-        } else {
-          setCurrentStep(8);
-        }
+    const handleFallbackByCollectionStatus = (status: string) => {
+      const s = status.toLowerCase();
+      if (s === "approved") {
+        setCurrentStep(7);
+        setQuote((prev) => (prev ? { ...prev, paymentStatus: "confirmed" } : prev));
+      } else if (s === "pending") {
+        setCurrentStep(8);
+        setQuote((prev) => (prev ? { ...prev, paymentStatus: "pending" } : prev));
+      } else if (s === "rejected") {
+        setCurrentStep(8);
+        setQuote((prev) => (prev ? { ...prev, paymentStatus: "rejected" } : prev));
       }
-    } catch (err) {
-      console.error("❌ Error consultando o confirmando pago:", err);
-    }
-  };
+    };
 
-  processPayment();
-}, []);
+    const fetchStatus = async () => {
+      try {
+        if (paymentId) {
+          const res = await fetch(`/api/payment-status/${paymentId}`);
+          const data = await res.json();
+
+          if (data?.quote) {
+            setFormData(data.formData);
+            setQuote(data.quote);
+
+            if (data.status === "approved") {
+              setCurrentStep(7);
+            } else if (["rejected", "pending"].includes(data.status)) {
+              setCurrentStep(8);
+            }
+          } else if (collectionStatus) {
+            handleFallbackByCollectionStatus(collectionStatus);
+          }
+        } else if (collectionStatus) {
+          handleFallbackByCollectionStatus(collectionStatus);
+        }
+      } catch (err) {
+        console.error("❌ Error consultando estado de pago:", err);
+        if (collectionStatus) handleFallbackByCollectionStatus(collectionStatus);
+      }
+    };
+
+    if (paymentId || collectionStatus) fetchStatus();
+  }, []);
 
   // ⏳ Timer de splash (6s)
   useEffect(() => {
@@ -163,7 +152,6 @@ useEffect(() => {
         window.history.replaceState({}, document.title, window.location.pathname);
       }
 
-      // Garantizar arranque en Step 1
       if (!quote && currentStep === 1) {
         setCurrentStep(1);
       }
@@ -211,141 +199,69 @@ useEffect(() => {
   const renderStep = () => {
     switch (currentStep) {
       case 1:
-        return (
-          <Step1UserInfo
-            formData={formData}
-            updateFormData={updateFormData}
-            nextStep={nextStep}
-          />
-        );
+        return <Step1UserInfo formData={formData} updateFormData={updateFormData} nextStep={nextStep} />;
       case 2:
-        return (
-          <Step2ServiceType
-            formData={formData}
-            updateFormData={updateFormData}
-            nextStep={nextStep}
-            prevStep={prevStep}
-          />
-        );
+        return <Step2ServiceType formData={formData} updateFormData={updateFormData} nextStep={nextStep} prevStep={prevStep} />;
       case 3:
-        return (
-          <Step3EquipmentDetails
-            formData={formData}
-            updateFormData={updateFormData}
-            nextStep={nextStep}
-            prevStep={prevStep}
-          />
-        );
+        return <Step3EquipmentDetails formData={formData} updateFormData={updateFormData} nextStep={nextStep} prevStep={prevStep} />;
       case 4:
-        return (
-          <Step4Quote
-            formData={formData}
-            setQuote={setQuote}
-            nextStep={nextStep}
-            prevStep={prevStep}
-          />
-        );
+        return <Step4Quote formData={formData} setQuote={setQuote} nextStep={nextStep} prevStep={prevStep} />;
       case 5:
-        return (
-          <Step5Scheduler
-            formData={formData}
-            updateFormData={updateFormData}
-            nextStep={nextStep}
-            prevStep={prevStep}
-          />
-        );
+        return <Step5Scheduler formData={formData} updateFormData={updateFormData} nextStep={nextStep} prevStep={prevStep} />;
       case 6:
-        return (
-          <Step6Payment
-            quote={quote}
-            formData={formData}
-            onPaymentSuccess={handlePaymentSuccess}
-            onPaymentFailure={handlePaymentFailure}
-            onPayOnSite={handlePayOnSite}
-            prevStep={prevStep}
-          />
-        );
+        return <Step6Payment quote={quote} formData={formData} onPaymentSuccess={handlePaymentSuccess} onPaymentFailure={handlePaymentFailure} onPayOnSite={handlePayOnSite} prevStep={prevStep} />;
       case 7:
-        return (
-          <Step7Confirmation
-            formData={formData}
-            quote={quote}
-            restart={restart}
-          />
-        );
+        return <Step7Confirmation formData={formData} quote={quote} restart={restart} />;
       case 8:
-        return (
-          <StepPaymentError
-            formData={formData}
-            quote={quote}
-            restart={restart}
-          />
-        );
+        return <StepPaymentError formData={formData} quote={quote} restart={restart} />;
       default:
-        return (
-          <Step1UserInfo
-            formData={formData}
-            updateFormData={updateFormData}
-            nextStep={nextStep}
-          />
-        );
+        return <Step1UserInfo formData={formData} updateFormData={updateFormData} nextStep={nextStep} />;
     }
   };
 
   const isFinalStep = currentStep === 7 || currentStep === 8;
 
-return (
-  <div className="bg-gradient-to-b from-slate-700 to-slate-500 min-h-screen font-sans flex items-center justify-center p-4 relative">
-    {/* ❄️ Copos */}
-    {!isFinalStep && currentStep <= 6 && (
-      <Snowfall
-        style={{ position: "absolute", width: "100%", height: "100%" }}
-        snowflakeCount={160}
-        radius={[2, 8]}
-        speed={[0.5, 2]}
-        images={snowflakeImages}
-      />
-    )}
+  return (
+    <div className="bg-gradient-to-b from-slate-700 to-slate-500 min-h-screen font-sans flex items-center justify-center p-4 relative">
+      {!isFinalStep && currentStep <= 6 && (
+        <Snowfall
+          style={{ position: "absolute", width: "100%", height: "100%" }}
+          snowflakeCount={160}
+          radius={[2, 8]}
+          speed={[0.5, 2]}
+          images={snowflakeImages}
+        />
+      )}
 
-    <main className="max-w-xl w-full relative z-10">
-      <Card className={showSplash ? "bg-white/80 backdrop-blur" : ""}>
-        {showSplash ? (
-          <SplashScreen onFinish={() => setShowSplash(false)} />
-        ) : (
-          <>
-            <LogoHeader />
+      <main className="max-w-xl w-full relative z-10">
+        <Card className={showSplash ? "bg-white/80 backdrop-blur" : ""}>
+          {showSplash ? (
+            <SplashScreen onFinish={() => setShowSplash(false)} />
+          ) : (
+            <>
+              <LogoHeader />
+              <h1 className="text-2xl font-bold text-center text-slate-800 mb-2">
+                {STEPS?.[currentStep - 1] ?? ""}
+              </h1>
 
-            <h1 className="text-2xl font-bold text-center text-slate-800 mb-2">
-              {STEPS?.[currentStep - 1] ?? ""}
-            </h1>
+              {renderStep()}
 
-            {Array.isArray(STEPS) &&
-              STEPS.length > 0 &&
-              currentStep <= STEPS.length && (
-                <ProgressBar
-                  currentStep={currentStep}
-                  totalSteps={STEPS.length}
-                />
+              {!isFinalStep && currentStep <= 6 && (
+                <p className="mt-6 text-center text-xs text-slate-500">
+                  <a
+                    href="mailto:valentin.alvarez@alvarezllc.net"
+                    className="inline-flex items-center gap-1 text-sky-600 hover:text-sky-700 transition-colors font-semibold tracking-wide underline underline-offset-4 decoration-sky-400 hover:decoration-sky-600"
+                  >
+                    ⚡ Powered by ALVAREZ LLC 2025®
+                  </a>
+                </p>
               )}
-
-            {renderStep()}
-
-            {!isFinalStep && currentStep <= 6 && (
-              <p className="mt-6 text-center text-xs text-slate-500">
-                <a
-                  href="mailto:valentin.alvarez@alvarezllc.net"
-                  className="inline-flex items-center gap-1 text-sky-600 hover:text-sky-700 transition-colors font-semibold tracking-wide underline underline-offset-4 decoration-sky-400 hover:decoration-sky-600"
-                >
-                  ⚡ Powered by ALVAREZ LLC 2025®
-                </a>
-              </p>
-            )}
-          </>
-        )}
-      </Card>
-    </main>
-  </div>
-);
+            </>
+          )}
+        </Card>
+      </main>
+    </div>
+  );
 }
 
 export default App;
