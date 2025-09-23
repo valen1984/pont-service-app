@@ -404,29 +404,70 @@ app.listen(PORT, () => {
 // ======================
 app.post("/api/confirm-payment", async (req, res) => {
   try {
-    const { formData, quote, paymentId } = req.body;
+    let { formData, quote, paymentId } = req.body;
 
-    console.log("🔎 Confirmación recibida:", { paymentId, formData });
+    console.log("🔎 Confirmación manual recibida:", { paymentId, formData, quote });
+
+    // 🚨 Debug: mostrar si vienen campos clave vacíos
+    if (!formData?.fullName || !formData?.appointmentSlot || !formData?.address) {
+      console.warn("⚠️ formData incompleto recibido:", formData);
+    }
+
+    // ✅ Asegurarnos que no venga vacío
+    formData = {
+      fullName: formData?.fullName || "⚠️ Sin nombre",
+      phone: formData?.phone || "⚠️ Sin teléfono",
+      email: formData?.email || "⚠️ Sin email",
+      address: formData?.address || "⚠️ Sin dirección",
+      location: formData?.location || "",
+      serviceType: formData?.serviceType || "⚠️ Sin servicio",
+      brand: formData?.brand || "",
+      model: formData?.model || "",
+      photos: formData?.photos || [],
+      appointmentSlot: formData?.appointmentSlot || null,
+    };
 
     if (paymentId) {
       const paymentClient = new Payment(client);
       const payment = await paymentClient.get({ id: paymentId });
+
       if (payment.status !== "approved") {
         return res.status(400).json({ ok: false, error: "El pago no está aprobado" });
       }
     }
 
-    // Enviar mails
-    await sendOnSiteReservationEmail({ recipient: formData.email, ...formData, quote });
-    await sendOnSiteReservationEmail({ recipient: TECHNICIAN_EMAIL, ...formData, quote });
+    if (quote?.paymentStatus === "confirmed") {
+      console.log("⚠️ Pago ya confirmado, no se duplica evento.");
+      return res.json({
+        ok: true,
+        message: "Pago ya confirmado previamente",
+        formData,
+        quote,
+      });
+    }
 
-    // Crear evento si hay slot
+    // 📧 Emails
+    await sendConfirmationEmail({
+      recipient: formData.email,
+      ...formData,
+      quote,
+      paymentStatus: "confirmed",
+    });
+    await sendConfirmationEmail({
+      recipient: TECHNICIAN_EMAIL,
+      ...formData,
+      quote,
+      paymentStatus: "confirmed",
+    });
+
+    // 📅 Calendar
     if (formData.appointmentSlot) {
       await createCalendarEvent(formData, quote);
     } else {
-      console.warn("⚠️ Confirmación sin appointmentSlot, no se crea evento");
+      console.warn("⚠️ No appointmentSlot → no se crea evento");
     }
 
+    // ✅ Devolvemos todo
     res.json({
       ok: true,
       message: "Confirmación procesada",
