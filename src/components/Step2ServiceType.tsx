@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { FormData, ServiceType } from '../../types';
+import { FormData, ServiceType } from '../types.js';
 import { SERVICE_OPTIONS } from '../../server/constants.js';
 
 interface Props {

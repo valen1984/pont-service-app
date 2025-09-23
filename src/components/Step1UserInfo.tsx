@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import type { FormData } from "../../types";
+import type { FormData } from "../types";
 
 interface Props {
   formData: FormData;

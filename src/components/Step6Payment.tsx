@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Quote, FormData } from "../../types";
+import { Quote, FormData } from "../types";
 import { Wallet } from "@mercadopago/sdk-react";
 
 interface Props {

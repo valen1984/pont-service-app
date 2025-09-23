@@ -1,4 +1,4 @@
-import { FormData, Quote, ScheduleDay } from "../types.ts";
+import { FormData, Quote, ScheduleDay } from "../src/types.ts";
 import { SERVICE_BASE_PRICES, IVA_RATE } from "../server/constants.js";
 
 // =========================

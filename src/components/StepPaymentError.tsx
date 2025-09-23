@@ -1,5 +1,5 @@
 import React from "react";
-import { FormData, Quote } from "../../types";
+import { FormData, Quote } from "../types";
 
 interface Props {
   formData: FormData;

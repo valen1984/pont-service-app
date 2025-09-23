@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import type { FormData, ScheduleDay } from "../../types";
+import type { FormData, ScheduleDay } from "../types";
 
 interface Props {
   formData: FormData;

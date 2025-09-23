@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FormData, Quote } from "../types";
+import { FormData, Quote } from "../src/types";
 
 interface PaymentStatusData {
   status: string; // estado crudo de MP: approved, rejected, pending

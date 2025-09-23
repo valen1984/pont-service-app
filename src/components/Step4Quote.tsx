@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import type { FormData, Quote } from "../../types";
+import type { FormData, Quote } from "../types";
 import { calculateQuote } from "../../services/mockApi";
 
 interface Props {

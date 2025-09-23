@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { FormData, Quote } from "./types.ts";
+import { FormData, Quote } from "./src/types.ts";
 import { STEPS } from "./server/constants.js";
 
 import LogoHeader from "@/components/LogoHeader";
