@@ -130,26 +130,29 @@ function App() {
             setQuote(data.quote);
 
             if (data.status === "approved") {
-              try {
-                const confirmRes = await fetch("/api/confirm-payment", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    paymentId,
-                    formData: data.formData,
-                    quote: { ...data.quote, paymentStatus: "confirmed" },
-                  }),
-                });
-                console.log(
-                  "📤 Respuesta /api/confirm-payment:",
-                  await confirmRes.json()
-                );
-              } catch (err) {
-                console.error("❌ Error confirmando pago:", err);
-              }
+          try {
+            const confirmRes = await fetch("/api/confirm-payment", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                paymentId,
+                formData: data.formData,
+                quote: { ...data.quote, paymentStatus: "confirmed" },
+              }),
+            });
 
-              setCurrentStep(7);
-            } else if (["pending", "rejected"].includes(data.status)) {
+            const confirmData = await confirmRes.json();
+            console.log("📤 Respuesta /api/confirm-payment:", confirmData);
+
+            if (confirmData?.formData) setFormData(confirmData.formData);
+            if (confirmData?.quote) setQuote(confirmData.quote);
+          } catch (err) {
+            console.error("❌ Error confirmando pago:", err);
+          }
+
+          setCurrentStep(7);
+        }
+         else if (["pending", "rejected"].includes(data.status)) {
               console.warn("⚠️ Pago no aprobado:", data.status);
               setQuote((prev) => ({ ...prev!, paymentStatus: data.status }));
               setCurrentStep(8);
