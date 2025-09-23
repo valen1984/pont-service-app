@@ -180,44 +180,57 @@ function App() {
   const isFinalStep = currentStep === 7 || currentStep === 8;
 
   return (
-    <div className="bg-slate-100 min-h-screen font-sans flex items-center justify-center p-4 relative">
-      {/* 🌨️ Nieve global hasta paso 6 */}
-      {!isFinalStep && currentStep <= 6 && (
-        <Snowfall style={{ position: "absolute", width: "100%", height: "100%" }} />
-      )}
+  <div className="bg-slate-900 min-h-screen font-sans flex items-center justify-center p-4 relative">
+    {/* 🌨️ Nieve global hasta paso 6 */}
+    {!isFinalStep && currentStep <= 6 && (
+      <Snowfall style={{ position: "absolute", width: "100%", height: "100%" }} />
+    )}
 
-      <main className="max-w-xl w-full relative z-10">
-        <Card>
-          {showSplash ? (
-            <SplashScreen onFinish={() => setShowSplash(false)} />
-          ) : (
-            <>
-              {!isFinalStep && (
-                <>
-                  <LogoHeader />
-                  <h1 className="text-2xl font-bold text-center text-slate-800 mb-2">
-                    {STEPS[currentStep - 1]}
-                  </h1>
-                  <ProgressBar
-                    currentStep={currentStep}
-                    totalSteps={STEPS.length}
-                  />
-                </>
-              )}
-              {renderStep()}
+    <main className="max-w-xl w-full relative z-10">
+      <Card className={showSplash ? "bg-white/80 backdrop-blur" : ""}>
+        {showSplash ? (
+          <SplashScreen onFinish={() => setShowSplash(false)} />
+        ) : (
+          <>
+            {!isFinalStep && (
+              <>
+                <LogoHeader />
+                <h1 className="text-2xl font-bold text-center text-slate-800 mb-2">
+                  {STEPS[currentStep - 1]}
+                </h1>
+                <ProgressBar
+                  currentStep={currentStep}
+                  totalSteps={STEPS.length}
+                />
+              </>
+            )}
+            {renderStep()}
 
-              {/* Footer "Powered by" hasta paso 6 */}
-              {!isFinalStep && currentStep <= 6 && (
-                <p className="mt-6 text-center text-xs text-slate-500">
-                  Powered by ALVAREZ LLC 2025®
-                </p>
-              )}
-            </>
-          )}
-        </Card>
-      </main>
-    </div>
-  );
+            {/* Footer "Powered by" hasta paso 6 */}
+            {!isFinalStep && currentStep <= 6 && (
+              <p className="mt-6 text-center text-xs text-slate-500">
+                <span className="inline-flex items-center gap-1">
+                  <span className="opacity-80">⚡</span>
+                  <span>
+                    Powered by <span className="font-semibold tracking-wide">ALVAREZ LLC</span> 2025®
+                  </span>
+                  <span className="mx-2 text-slate-400">•</span>
+                  <a
+                    href="mailto:valentin.alvarez@alvarezllc.net"
+                    className="text-sky-600 hover:text-sky-700 underline underline-offset-4 decoration-sky-400 hover:decoration-sky-600 transition-colors"
+                  >
+                    valentin.alvarez@alvarezllc.net
+                  </a>
+                </span>
+              </p>
+            )}
+          </>
+        )}
+      </Card>
+    </main>
+  </div>
+);
+
 }
 
 export default App;
