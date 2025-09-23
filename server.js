@@ -215,33 +215,32 @@ async function generateSchedule() {
 
     const events = eventsRes.data.items || [];
 
-    const WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // lunes (1) a sábado (6)
+    const WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // lunes-sábado
     const START_HOUR = 9;
     const END_HOUR = 17;
     const INTERVAL = 2;
 
     for (let i = 1; i <= 14; i++) {
-      // obtenemos fecha local en Buenos Aires
       const base = new Date(today);
       base.setDate(today.getDate() + i);
 
+      // Fecha en Buenos Aires
       const localParts = new Intl.DateTimeFormat("en-CA", {
         timeZone: tz,
         year: "numeric",
         month: "2-digit",
         day: "2-digit",
-        weekday: "numeric", // 1 = lunes, 7 = domingo
       }).formatToParts(base);
 
       const year = localParts.find(p => p.type === "year").value;
       const month = localParts.find(p => p.type === "month").value;
       const day = localParts.find(p => p.type === "day").value;
-      const weekday = parseInt(localParts.find(p => p.type === "weekday").value, 10);
-
-      // saltamos domingos (7)
-      if (weekday === 7) continue;
-
       const formattedDate = `${year}-${month}-${day}`;
+
+      // Día de semana ISO
+      const weekday = new Date(`${formattedDate}T00:00:00-03:00`).getDay();
+      const weekdayISO = weekday === 0 ? 7 : weekday;
+      if (!WORKING_DAYS.includes(weekdayISO)) continue; // salta domingo
 
       const slots = [];
       for (let hour = START_HOUR; hour < END_HOUR; hour += INTERVAL) {
