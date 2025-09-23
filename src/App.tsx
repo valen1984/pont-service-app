@@ -276,52 +276,58 @@ function App() {
 
   const isFinalStep = currentStep === 7 || currentStep === 8;
 
-  return (
-    <div className="bg-gradient-to-b from-slate-700 to-slate-500 min-h-screen font-sans flex items-center justify-center p-4 relative">
-      {/* ❄️ Copos */}
-      {!isFinalStep && currentStep <= 6 && (
-        <Snowfall
-          style={{ position: "absolute", width: "100%", height: "100%" }}
-          snowflakeCount={160}
-          radius={[2, 8]}
-          speed={[0.5, 2]}
-          //wind={[wind - 0.5, wind + 0.5]}
-          images={snowflakeImages}
-        />
-      )}
+return (
+  <div className="bg-gradient-to-b from-slate-700 to-slate-500 min-h-screen font-sans flex items-center justify-center p-4 relative">
+    {/* ❄️ Copos */}
+    {!isFinalStep && currentStep <= 6 && (
+      <Snowfall
+        style={{ position: "absolute", width: "100%", height: "100%" }}
+        snowflakeCount={160}
+        radius={[2, 8]}
+        speed={[0.5, 2]}
+        images={snowflakeImages}
+      />
+    )}
 
-      <main className="max-w-xl w-full relative z-10">
-        <Card className={showSplash ? "bg-white/80 backdrop-blur" : ""}>
-          {showSplash ? (
-            <SplashScreen onFinish={() => setShowSplash(false)} />
-          ) : (
-            <>
-              <LogoHeader />
-              <h1 className="text-2xl font-bold text-center text-slate-800 mb-2">
+    <main className="max-w-xl w-full relative z-10">
+      <Card className={showSplash ? "bg-white/80 backdrop-blur" : ""}>
+        {showSplash ? (
+          <SplashScreen onFinish={() => setShowSplash(false)} />
+        ) : (
+          <>
+            <LogoHeader />
+
+            <h1 className="text-2xl font-bold text-center text-slate-800 mb-2">
               {STEPS?.[currentStep - 1] ?? ""}
-              </h1>
-              <ProgressBar
-                currentStep={currentStep}
-                totalSteps={STEPS.length}
-              />
-              {renderStep()}
+            </h1>
 
-              {!isFinalStep && currentStep <= 6 && (
-                <p className="mt-6 text-center text-xs text-slate-500">
-                  <a
-                    href="mailto:valentin.alvarez@alvarezllc.net"
-                    className="inline-flex items-center gap-1 text-sky-600 hover:text-sky-700 transition-colors font-semibold tracking-wide underline underline-offset-4 decoration-sky-400 hover:decoration-sky-600"
-                  >
-                    ⚡ Powered by ALVAREZ LLC 2025®
-                  </a>
-                </p>
+            {Array.isArray(STEPS) &&
+              STEPS.length > 0 &&
+              currentStep <= STEPS.length && (
+                <ProgressBar
+                  currentStep={currentStep}
+                  totalSteps={STEPS.length}
+                />
               )}
-            </>
-          )}
-        </Card>
-      </main>
-    </div>
-  );
+
+            {renderStep()}
+
+            {!isFinalStep && currentStep <= 6 && (
+              <p className="mt-6 text-center text-xs text-slate-500">
+                <a
+                  href="mailto:valentin.alvarez@alvarezllc.net"
+                  className="inline-flex items-center gap-1 text-sky-600 hover:text-sky-700 transition-colors font-semibold tracking-wide underline underline-offset-4 decoration-sky-400 hover:decoration-sky-600"
+                >
+                  ⚡ Powered by ALVAREZ LLC 2025®
+                </a>
+              </p>
+            )}
+          </>
+        )}
+      </Card>
+    </main>
+  </div>
+);
 }
 
 export default App;
