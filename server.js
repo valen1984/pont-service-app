@@ -38,7 +38,7 @@ const calendar = google.calendar({ version: "v3", auth });
 const CALENDAR_ID = process.env.CALENDAR_ID; // ID del calendario compartido
 
 // ======================
-// 📌 Crear evento en Google Calendar
+// 📌 Crear evento en Google Calendar (sin toISOString, sin -03:00)
 // ======================
 async function createCalendarEvent(formData, quote) {
   try {
@@ -47,27 +47,30 @@ async function createCalendarEvent(formData, quote) {
       return;
     }
 
-    const dateStr = formData.appointmentSlot.date; // ej: 2025-09-29
-    const timeStr = formData.appointmentSlot.time; // ej: 15:00
+    const dateStr = formData.appointmentSlot.date; // ej: "2025-09-24"
+    const timeStr = formData.appointmentSlot.time; // ej: "11:00"
 
-    // 👉 Armamos string local, no toISOString()
-    const startDateTime = `${dateStr}T${timeStr}:00`;
-    const endDateTime = new Date(`${dateStr}T${timeStr}:00-03:00`);
-    endDateTime.setHours(endDateTime.getHours() + 2);
+    // ⏱️ Calculamos la hora de fin solo como string (evitamos objetos Date que dependen del TZ del servidor)
+    const [hStr, mStr = "00"] = timeStr.split(":");
+    const h = parseInt(hStr, 10);
+    const endH = h + 2; // tu intervalo es de 2h; no cruza de día en tu rango laboral
 
+    const pad2 = (n) => String(n).padStart(2, "0");
+    const endTimeStr = `${pad2(endH)}:${pad2(mStr)}`;
+
+    // 👉 Importante: NO usamos toISOString ni offsets; mandamos timeZone explícita
     const event = {
       summary: `Servicio: ${formData.serviceType || "Turno"} - ${formData.fullName}`,
       description: `Cliente: ${formData.fullName}\nTel: ${formData.phone}\nDirección: ${formData.address}\nServicio: ${formData.serviceType}\nTotal: $${quote?.total}`,
       start: {
-        dateTime: startDateTime,
+        dateTime: `${dateStr}T${timeStr}:00`,
         timeZone: "America/Argentina/Buenos_Aires",
       },
       end: {
-        dateTime: `${dateStr}T${endDateTime
-          .toTimeString()
-          .slice(0, 5)}:00`,
+        dateTime: `${dateStr}T${endTimeStr}:00`,
         timeZone: "America/Argentina/Buenos_Aires",
       },
+      // sin attendees para evitar DWD
     };
 
     const response = await calendar.events.insert({
