@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import type { FormData, ScheduleDay } from "../../types";
-import Picker from "react-mobile-picker"; // 👈 picker estilo iOS
+import Picker from "react-mobile-picker"; // 👈
 
 interface Props {
   formData: FormData;
@@ -18,8 +18,8 @@ const Step5Scheduler: React.FC<Props> = ({
   const [schedule, setSchedule] = useState<ScheduleDay[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [pickerValue, setPickerValue] = useState({
-    day: "",
+  const [pickerValue, setPickerValue] = useState<{ date: string; time: string }>({
+    date: "",
     time: "",
   });
 
@@ -30,12 +30,16 @@ const Step5Scheduler: React.FC<Props> = ({
         const data = await res.json();
         setSchedule(data);
 
-        // Valor inicial del picker
+        // Inicializar el picker con el primer slot disponible
         if (data.length > 0) {
-          setPickerValue({
-            day: data[0].date,
-            time: data[0].slots.find((s: any) => s.isAvailable)?.time || "",
-          });
+          const firstDay = data[0];
+          const firstSlot = firstDay.slots.find((s) => s.isAvailable);
+          if (firstSlot) {
+            setPickerValue({
+              date: firstDay.date,
+              time: firstSlot.time,
+            });
+          }
         }
       } catch (err) {
         console.error("❌ Error cargando agenda:", err);
@@ -47,8 +51,8 @@ const Step5Scheduler: React.FC<Props> = ({
     fetchSchedule();
   }, []);
 
-  const handleConfirmPicker = () => {
-    const selectedDay = schedule.find((d) => d.date === pickerValue.day);
+  const handleConfirm = () => {
+    const selectedDay = schedule.find((d) => d.date === pickerValue.date);
     if (!selectedDay) return;
 
     updateFormData({
@@ -63,24 +67,16 @@ const Step5Scheduler: React.FC<Props> = ({
   };
 
   if (loading) {
-    return (
-      <p className="text-center text-slate-500">
-        Cargando disponibilidad...
-      </p>
-    );
+    return <p className="text-center text-slate-500">Cargando disponibilidad...</p>;
   }
 
   if (schedule.length === 0) {
-    return (
-      <p className="text-center text-slate-500">
-        No hay turnos disponibles en este momento.
-      </p>
-    );
+    return <p className="text-center text-slate-500">No hay turnos disponibles en este momento.</p>;
   }
 
-  // Opciones para el picker estilo iPhone
-  const pickerOptions = {
-    day: schedule.map((d) =>
+  // Opciones para el picker
+  const optionGroups = {
+    date: schedule.map((d) =>
       new Intl.DateTimeFormat("es-AR", {
         weekday: "short",
         day: "2-digit",
@@ -90,7 +86,8 @@ const Step5Scheduler: React.FC<Props> = ({
       }).format(new Date(`${d.date}T00:00:00`))
     ),
     time:
-      schedule.find((d) => d.date === pickerValue.day)?.slots
+      schedule
+        .find((d) => d.date === pickerValue.date)?.slots
         .filter((s) => s.isAvailable)
         .map((s) => s.time) || [],
   };
@@ -99,17 +96,17 @@ const Step5Scheduler: React.FC<Props> = ({
     <div className="space-y-6">
       <h2 className="text-xl font-bold text-center">Seleccionar Turno</h2>
 
-      {/* 📱 Picker estilo iPhone con efecto barrel */}
-      <div className="flex justify-center border rounded-lg p-4 bg-white shadow">
+      {/* Picker estilo iPhone con efecto barrel */}
+      <div className="border rounded-lg p-4 bg-white shadow">
         <Picker
           value={pickerValue}
           onChange={setPickerValue}
-          optionGroups={pickerOptions}
-          className="w-full flex justify-between gap-4 text-lg font-semibold text-slate-800"
+          optionGroups={optionGroups}
+          className="flex justify-between text-lg font-semibold text-slate-800"
         />
       </div>
 
-      {/* Efecto barrel (CSS 3D) */}
+      {/* Efecto barrel */}
       <style>{`
         .rmc-picker-item {
           transition: transform 0.3s ease, opacity 0.3s ease;
@@ -118,7 +115,7 @@ const Step5Scheduler: React.FC<Props> = ({
         .rmc-picker-item-selected {
           transform: perspective(600px) rotateX(0deg) scale(1.1);
           opacity: 1;
-          color: #0ea5e9; /* sky-500 */
+          color: #0ea5e9;
         }
         .rmc-picker-item-before {
           transform: perspective(600px) rotateX(30deg) scale(0.9);
@@ -138,8 +135,8 @@ const Step5Scheduler: React.FC<Props> = ({
           Anterior
         </button>
         <button
-          onClick={handleConfirmPicker}
-          disabled={!pickerValue.day || !pickerValue.time}
+          onClick={handleConfirm}
+          disabled={!pickerValue.date || !pickerValue.time}
           className="w-full px-4 py-3 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition-colors disabled:bg-slate-300"
         >
           Confirmar Turno
