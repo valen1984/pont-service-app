@@ -97,21 +97,61 @@ function App() {
     }
   }, [currentStep]);
 
-  // ✅ Debug: ver qué devuelve Mercado Pago en el redirect
-  useEffect(() => {
-    const url = new URL(window.location.href);
-    const paymentId = url.searchParams.get("payment_id");
-    const collectionStatus =
-      url.searchParams.get("collection_status") || url.searchParams.get("status");
+// 🔁 Retorno desde Mercado Pago con confirmación en backend
+useEffect(() => {
+  const url = new URL(window.location.href);
+  const paymentId = url.searchParams.get("payment_id");
+  const collectionStatus =
+    url.searchParams.get("collection_status") || url.searchParams.get("status");
 
-    console.log("🔎 Redirect desde MP →", {
-      paymentId,
-      collectionStatus,
-      currentStep,
-      quote,
-    });
-  }, []);
+  if (!paymentId && !collectionStatus) return;
 
+  const processPayment = async () => {
+    try {
+      if (paymentId) {
+        const res = await fetch(`/api/payment-status/${paymentId}`);
+        const data = await res.json();
+
+        if (data?.quote) {
+          setFormData(data.formData);
+          setQuote(data.quote);
+
+          if (data.status === "approved") {
+            setCurrentStep(7);
+
+            // 🔔 Notificar backend para calendar + mails
+            await fetch("/api/confirm-payment", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                formData: data.formData,
+                quote: data.quote,
+              }),
+            });
+          } else if (["rejected", "pending"].includes(data.status)) {
+            setCurrentStep(8);
+          }
+        }
+      } else if (collectionStatus) {
+        if (collectionStatus.toLowerCase() === "approved") {
+          setCurrentStep(7);
+
+          await fetch("/api/confirm-payment", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ formData, quote }),
+          });
+        } else {
+          setCurrentStep(8);
+        }
+      }
+    } catch (err) {
+      console.error("❌ Error consultando o confirmando pago:", err);
+    }
+  };
+
+  processPayment();
+}, []);
 
   // ⏳ Timer de splash (6s)
   useEffect(() => {
