@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react"; // 👈 agregamos useEffect y useState
 import { FormData, Quote } from "../types";
 
 interface Props {
@@ -9,9 +9,45 @@ interface Props {
 }
 
 const Step7Confirmation: React.FC<Props> = ({ formData, quote, restart, loading }) => {
+  const [confirming, setConfirming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
   const paymentStatus = quote?.paymentStatus ?? "-"; // ✅ fallback seguro
 
-  if (loading) {
+  // 🚀 Confirmar automáticamente en el backend
+  useEffect(() => {
+    const confirm = async () => {
+      if (!quote || !formData) return;
+
+      // Solo confirmamos si fue pago aprobado o presencial
+      if (paymentStatus === "confirmed" || paymentStatus === "onSite") {
+        try {
+          setConfirming(true);
+          const res = await fetch("/api/confirm-payment", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ formData, quote }),
+          });
+
+          const data = await res.json();
+          if (!data.ok) {
+            setError(data.error || "Error al confirmar el pago");
+          } else {
+            console.log("✅ Confirmación registrada y evento creado en Calendar");
+          }
+        } catch (err: any) {
+          setError("Error de conexión con el servidor");
+        } finally {
+          setConfirming(false);
+        }
+      }
+    };
+
+    confirm();
+  }, [formData, quote, paymentStatus]);
+
+  // 🔄 Mientras espera confirmación
+  if (loading || confirming) {
     return (
       <div className="space-y-6 text-center">
         <div className="flex justify-center">
@@ -25,6 +61,23 @@ const Step7Confirmation: React.FC<Props> = ({ formData, quote, restart, loading 
     );
   }
 
+  // 🚨 Si falla la confirmación
+  if (error) {
+    return (
+      <div className="space-y-6 text-center text-red-600">
+        <h2 className="text-xl font-bold">❌ Error en la confirmación</h2>
+        <p>{error}</p>
+        <button
+          onClick={restart}
+          className="w-full px-4 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
+        >
+          Volver al inicio
+        </button>
+      </div>
+    );
+  }
+
+  // 👉 todo lo tuyo sigue igual
   const renderStatusText = () => {
     switch (paymentStatus) {
       case "onSite":
