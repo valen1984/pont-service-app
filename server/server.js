@@ -438,8 +438,21 @@ app.post("/api/confirm-payment", async (req, res) => {
       }
     }
 
-    if (quote?.paymentStatus === "confirmed") {
-      console.log("⚠️ Pago ya confirmado, no se duplica evento.");
+if (quote?.paymentStatus === "confirmed") {
+      console.log("⚠️ Pago ya confirmado, verifico/creo evento en Calendar si falta…");
+
+      if (formData?.appointmentSlot) {
+        console.log("🛠️ Enviando a Calendar:", JSON.stringify(formData.appointmentSlot, null, 2));
+        try {
+          await createCalendarEvent(formData, quote);
+        } catch (err) {
+          console.error("❌ Error creando evento (confirmación repetida):", err);
+        }
+      } else {
+        console.warn("⚠️ Confirmado pero sin appointmentSlot, no se crea evento.");
+      }
+
+      // devolvemos igual para que el front muestre todo
       return res.json({
         ok: true,
         message: "Pago ya confirmado previamente",
