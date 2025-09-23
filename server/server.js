@@ -152,7 +152,7 @@ app.post("/webhook", async (req, res) => {
           : {};
       } catch {}
 
-      // 📧 Mensaje según estado
+      // 📧 Elegir mensaje según estado
       let estadoMsg = "";
       if (status === "approved") {
         estadoMsg = "✅ Pago aprobado - orden CONFIRMADA";
@@ -160,15 +160,17 @@ app.post("/webhook", async (req, res) => {
         estadoMsg = "⏳ Pago pendiente - en espera de confirmación";
       } else if (status === "rejected") {
         estadoMsg = "❌ Pago rechazado - por favor intentá nuevamente";
+      } else {
+        estadoMsg = `📩 Estado desconocido: ${status}`;
       }
 
-      // 📧 Enviar mail cliente + técnico
+      // 📧 Mandar mail cliente + CC técnico
       await sendConfirmationEmail({
         recipient: formData.email,
         cc: TECHNICIAN_EMAIL,
         ...formData,
         quote,
-        estado: estadoMsg,
+        estado: estadoMsg, // 👈 acá va el estado
       });
 
       // 📅 Calendar si corresponde
@@ -223,20 +225,12 @@ app.get("/api/payment-status/:paymentId", async (req, res) => {
 // ======================
 // 📌 Pago presencial (sin Mercado Pago)
 // ======================
-app.post("/reservation/onsite", async (req, res) => {
-  try {
-    const { formData, quote } = req.body;
-
-    await sendOnSiteReservationEmail({ recipient: formData.email, ...formData, quote });
-    await sendOnSiteReservationEmail({ recipient: TECHNICIAN_EMAIL, ...formData, quote });
-
-    await createCalendarEvent(formData, quote);
-    console.log("🛠️ Enviando a Calendar:", JSON.stringify(formData.appointmentSlot, null, 2));
-    res.json({ ok: true, message: "📧 Correo de pago presencial enviado" });
-  } catch (err) {
-    console.error("❌ Error en /reservation/onsite:", err);
-    res.status(500).json({ ok: false, error: err.message });
-  }
+await sendConfirmationEmail({
+  recipient: formData.email,
+  cc: TECHNICIAN_EMAIL,
+  ...formData,
+  quote,
+  estado: "💵 Pago presencial confirmado",
 });
 
 // ======================
@@ -372,7 +366,6 @@ app.post("/api/confirm-payment", async (req, res) => {
       }
     }
 
-    // 📧 Enviar correos (cliente + técnico)
     await sendConfirmationEmail({
       recipient: formData.email,
       cc: TECHNICIAN_EMAIL,
@@ -381,12 +374,10 @@ app.post("/api/confirm-payment", async (req, res) => {
       estado: "✅ Pago aprobado - orden CONFIRMADA",
     });
 
-    // 📅 Calendar
     if (formData.appointmentSlot) {
       await createCalendarEvent(formData, quote);
     }
 
-    // ✅ Devolvemos todo
     res.json({
       ok: true,
       message: "Confirmación procesada",

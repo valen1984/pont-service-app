@@ -1,6 +1,6 @@
 import sgMail from "@sendgrid/mail";
 
-// Configuración de API Key (desde Railway envs)
+// ⚡ Configuración de API Key (desde Railway envs)
 const SENDGRID_KEY = process.env.SENDGRID_API_KEY ?? "";
 if (!SENDGRID_KEY) {
   console.warn("⚠️ Falta SENDGRID_API_KEY en env");
@@ -9,7 +9,7 @@ sgMail.setApiKey(SENDGRID_KEY);
 
 export const sendConfirmationEmail = async ({
   recipient,
-  cc, // 👈 agregado
+  cc,
   fullName,
   phone,
   appointment,
@@ -18,25 +18,19 @@ export const sendConfirmationEmail = async ({
   coords,
   quote,
   photos,
-  estado, // 👈 opcional: para mostrar el estado en el mail
+  estado,
 }: {
   recipient: string;
-  cc?: string; // 👈 agregado
-  fullName: string;
-  phone: string;
-  appointment: string;
+  cc?: string; // 👈 copia opcional (para tu amigo)
+  fullName?: string;
+  phone?: string;
+  appointment?: string;
   address?: string;
   location?: string;
   coords?: { lat: number; lon: number };
-  quote?: {
-    baseCost: string;
-    travelCost: string;
-    subtotal: string;
-    iva: string;
-    total: string;
-  };
+  quote?: { baseCost: string; travelCost: string; subtotal: string; iva: string; total: string };
   photos?: string[];
-  estado?: string; // 👈 opcional
+  estado?: string;
 }) => {
   const coordsText = coords
     ? `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}`
@@ -60,36 +54,47 @@ export const sendConfirmationEmail = async ({
   // 🚀 Enviar con SendGrid
   const msg = {
     to: recipient,
-    cc, // 👈 opcional
+    cc: cc, // 👈 copia para el técnico si la pasás
     from: "pontrefrigeracion@gmail.com", // 📌 remitente validado en SendGrid
-    subject: "✅ Confirmación de tu servicio",
+    subject: estado ? estado : "📩 Actualización de tu servicio",
     html: `
-      <h2>Confirmación de turno</h2>
-      <p><strong>Estado:</strong> ${estado ?? "No informado"}</p>
-      <p><strong>Cliente:</strong> ${fullName}</p>
-      <p><strong>Teléfono:</strong> ${phone || "No especificado"}</p>
-      <p><strong>Dirección:</strong> ${address || "No especificada"}</p>
-      <p><strong>Localidad:</strong> ${location || "No especificada"}</p>
-      <p><strong>Fecha/Hora:</strong> ${appointment}</p>
-      <p><strong>Coordenadas:</strong> ${coordsText} ${
+      <h2 style="font-family:sans-serif;">Estado de tu orden</h2>
+      <p><strong>${estado ?? "📩 Estado no especificado"}</strong></p>
+
+      <h3>👤 Cliente</h3>
+      <p><b>Nombre:</b> ${fullName ?? "No informado"}</p>
+      <p><b>Teléfono:</b> ${phone ?? "No informado"}</p>
+      <p><b>Email:</b> ${recipient}</p>
+      <p><b>Dirección:</b> ${address ?? "No informado"}</p>
+      <p><b>Localidad:</b> ${location ?? "No informado"}</p>
+
+      <h3>📍 Ubicación</h3>
+      <p>${coordsText} ${
       mapsLink ? `(<a href="${mapsLink}">Ver en Maps</a>)` : ""
     }</p>
+
+      <h3>💰 Presupuesto</h3>
+      <p>Base: $${quote?.baseCost ?? "-"}</p>
+      <p>Traslado: $${quote?.travelCost ?? "-"}</p>
+      <p>Subtotal: $${quote?.subtotal ?? "-"}</p>
+      <p>IVA: $${quote?.iva ?? "-"}</p>
+      <p><b>Total: $${quote?.total ?? "-"}</b></p>
+
+      <h3>📸 Fotos</h3>
+      <div>${photos_block}</div>
+
       <hr/>
-      <h3>Presupuesto</h3>
-      <p>Base: $${quote?.baseCost ?? ""}</p>
-      <p>Viaje: $${quote?.travelCost ?? ""}</p>
-      <p>Subtotal: $${quote?.subtotal ?? ""}</p>
-      <p>IVA: $${quote?.iva ?? ""}</p>
-      <p>Total: <strong>$${quote?.total ?? ""}</strong></p>
-      <hr/>
-      <h3>Fotos</h3>
-      ${photos_block}
+      <p style="font-size:12px;color:#555;">
+        Este correo es automático.<br/>
+        Cliente: ${recipient}<br/>
+        Copia: ${cc ?? "No enviada"}
+      </p>
     `,
   };
 
   try {
     await sgMail.send(msg);
-    console.log(`📩 Email enviado a ${recipient} (cc: ${cc ?? "ninguno"})`);
+    console.log(`📩 Email enviado a ${recipient} ${cc ? `+ CC ${cc}` : ""}`);
     return { success: true };
   } catch (err: any) {
     console.error("❌ Error enviando email:", err.response?.body || err.message);
