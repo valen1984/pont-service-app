@@ -38,7 +38,7 @@ const calendar = google.calendar({ version: "v3", auth });
 const CALENDAR_ID = process.env.CALENDAR_ID; // ID del calendario compartido
 
 // ======================
-// 📌 Crear evento en Google Calendar (alineado con generateSchedule)
+// 📌 Crear evento en Google Calendar (ISO + TZ explícito)
 // ======================
 async function createCalendarEvent(formData, quote) {
   try {
@@ -47,26 +47,32 @@ async function createCalendarEvent(formData, quote) {
       return;
     }
 
-    const dateStr = formData.appointmentSlot.date; // ej: "2025-09-24"
-    const timeStr = formData.appointmentSlot.time; // ej: "15:00"
+    const dateStr = formData.appointmentSlot.date; // p.ej. "2025-09-24"
+    const timeStr = formData.appointmentSlot.time; // p.ej. "15:00"
 
-    // 🔹 Hora de inicio y fin como strings
-    const [hStr, mStr = "00"] = timeStr.split(":");
-    const h = parseInt(hStr, 10);
-    const endH = h + 2; // intervalo de 2h
+    // Construimos Date con offset -03:00 para fijar la hora local AR.
+    // Luego enviamos .toISOString() y además declaramos el timeZone en el request.
+    const slotStart = new Date(`${dateStr}T${timeStr}:00-03:00`);
+    const slotEnd   = new Date(slotStart.getTime() + 2 * 60 * 60 * 1000); // +2hs
 
-    const pad2 = (n) => String(n).padStart(2, "0");
-    const endTimeStr = `${pad2(endH)}:${pad2(mStr)}`;
+    // Logs de depuración (te muestran exactamente lo que se mandará)
+    console.log("🗓️ Creando evento para:", {
+      dateStr, timeStr,
+      slotStart_local: slotStart.toString(),
+      slotStart_iso: slotStart.toISOString(),
+      slotEnd_local: slotEnd.toString(),
+      slotEnd_iso: slotEnd.toISOString()
+    });
 
     const event = {
       summary: `Servicio: ${formData.serviceType || "Turno"} - ${formData.fullName}`,
       description: `Cliente: ${formData.fullName}\nTel: ${formData.phone}\nDirección: ${formData.address}\nServicio: ${formData.serviceType}\nTotal: $${quote?.total}`,
       start: {
-        dateTime: `${dateStr}T${timeStr}:00`,
+        dateTime: slotStart.toISOString(),
         timeZone: "America/Argentina/Buenos_Aires",
       },
       end: {
-        dateTime: `${dateStr}T${endTimeStr}:00`,
+        dateTime: slotEnd.toISOString(),
         timeZone: "America/Argentina/Buenos_Aires",
       },
     };
