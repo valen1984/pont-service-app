@@ -101,6 +101,8 @@ const Step6Payment: React.FC<Props> = ({
         </div>
       )}
 
+      <p className="text-xs text-slate-500">Serás redirigido a Mercado Pago</p>
+
       {/* Nuevo botón: Abonar en domicilio/taller */}
       <button
         onClick={handlePayOnSite}
@@ -109,8 +111,6 @@ const Step6Payment: React.FC<Props> = ({
       >
         {loading ? "Procesando..." : "Abonar en el domicilio / taller"}
       </button>
-
-      <p className="text-xs text-slate-500">Serás redirigido a Mercado Pago</p>
 
       <div className="pt-4">
         <button
