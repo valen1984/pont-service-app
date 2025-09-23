@@ -24,6 +24,7 @@
     "nodemailer": "^7.0.6",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
+    "react-mobile-picker": "^1.2.0",
     "react-native-web": "^0.21.1",
     "react-router-dom": "^7.9.1",
     "react-snowfall": "^2.3.0"
