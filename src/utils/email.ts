@@ -1,16 +1,11 @@
-// src/utils/email.ts
-import emailjs from "@emailjs/browser";
+import sgMail from "@sendgrid/mail";
 
-const SERVICE_ID  = import.meta.env.VITE_EMAILJS_SERVICE_ID  ?? "";
-const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_TEMPLATE_ID ?? "";
-const PUBLIC_KEY  = import.meta.env.VITE_EMAILJS_PUBLIC_KEY  ?? "";
-
-// (opcional) log mínimo para detectar si faltan envs en prod:
-if (!SERVICE_ID || !TEMPLATE_ID || !PUBLIC_KEY) {
-  console.warn("EmailJS env faltantes",
-    { hasService: !!SERVICE_ID, hasTemplate: !!TEMPLATE_ID, hasKey: !!PUBLIC_KEY }
-  );
+// Configuración de API Key (desde Railway envs)
+const SENDGRID_KEY = process.env.SENDGRID_API_KEY ?? "";
+if (!SENDGRID_KEY) {
+  console.warn("⚠️ Falta SENDGRID_API_KEY en env");
 }
+sgMail.setApiKey(SENDGRID_KEY);
 
 export const sendConfirmationEmail = async ({
   recipient,
@@ -20,7 +15,7 @@ export const sendConfirmationEmail = async ({
   address,
   location,
   coords,
-  quote,   // { baseCost, travelCost, subtotal, iva, total } como string o number->string
+  quote,   // { baseCost, travelCost, subtotal, iva, total }
   photos,  // string[] con URLs Cloudinary (0..2)
 }: {
   recipient: string;
@@ -45,30 +40,47 @@ export const sendConfirmationEmail = async ({
     photos && photos.length > 0
       ? photos
           .slice(0, 2)
-          .map(url => `<img src="${url}" width="200" style="margin-right:8px;border-radius:8px;"/>`)
+          .map(
+            (url) =>
+              `<img src="${url}" width="200" style="margin-right:8px;border-radius:8px;"/>`
+          )
           .join("")
       : `<span style="color:#64748b;">No adjuntadas</span>`;
 
-  // 🚀 Enviar. Notá el 4º argumento: PUBLIC_KEY
-  return emailjs.send(
-    SERVICE_ID,
-    TEMPLATE_ID,
-    {
-      to_email: recipient,
-      full_name: fullName,
-      phone: phone || "No especificado",
-      appointment,
-      address: address || "No especificada",
-      location: location || "No especificada",
-      coords: coordsText,
-      maps_link: mapsLink,
-      base_cost:  quote?.baseCost  ?? "",
-      travel_cost: quote?.travelCost ?? "",
-      subtotal:   quote?.subtotal  ?? "",
-      iva:        quote?.iva       ?? "",
-      total:      quote?.total     ?? "",
-      photos_block,
-    },
-    PUBLIC_KEY
-  );
+  // 🚀 Enviar con SendGrid
+  const msg = {
+    to: recipient,
+    from: "pontrefrigeracion@gmail.com", // 📌 remitente validado en SendGrid
+    subject: "✅ Confirmación de tu servicio",
+    html: `
+      <h2>Confirmación de turno</h2>
+      <p><strong>Cliente:</strong> ${fullName}</p>
+      <p><strong>Teléfono:</strong> ${phone || "No especificado"}</p>
+      <p><strong>Dirección:</strong> ${address || "No especificada"}</p>
+      <p><strong>Localidad:</strong> ${location || "No especificada"}</p>
+      <p><strong>Fecha/Hora:</strong> ${appointment}</p>
+      <p><strong>Coordenadas:</strong> ${coordsText} ${
+      mapsLink ? `(<a href="${mapsLink}">Ver en Maps</a>)` : ""
+    }</p>
+      <hr/>
+      <h3>Presupuesto</h3>
+      <p>Base: $${quote?.baseCost ?? ""}</p>
+      <p>Viaje: $${quote?.travelCost ?? ""}</p>
+      <p>Subtotal: $${quote?.subtotal ?? ""}</p>
+      <p>IVA: $${quote?.iva ?? ""}</p>
+      <p>Total: <strong>$${quote?.total ?? ""}</strong></p>
+      <hr/>
+      <h3>Fotos</h3>
+      ${photos_block}
+    `,
+  };
+
+  try {
+    await sgMail.send(msg);
+    console.log(`📩 Email enviado a ${recipient}`);
+    return { success: true };
+  } catch (err: any) {
+    console.error("❌ Error enviando email:", err.response?.body || err.message);
+    return { success: false, error: err.message };
+  }
 };
