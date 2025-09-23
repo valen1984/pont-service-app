@@ -408,30 +408,20 @@ app.post("/api/confirm-payment", async (req, res) => {
 
     console.log("🔎 Confirmación manual recibida:", { paymentId });
 
-    // 1. Validar con Mercado Pago si hay paymentId
     if (paymentId) {
       const paymentClient = new Payment(client);
       const payment = await paymentClient.get({ id: paymentId });
 
       if (payment.status !== "approved") {
-        return res
-          .status(400)
-          .json({ ok: false, error: "El pago no está aprobado" });
+        return res.status(400).json({ ok: false, error: "El pago no está aprobado" });
       }
     }
 
-    // 2. Evitar duplicados
     if (quote?.paymentStatus === "confirmed") {
       console.log("⚠️ Pago ya confirmado, no se duplica evento.");
-      return res.json({
-        ok: true,
-        message: "Pago ya confirmado previamente",
-        formData,
-        quote,
-      });
+      return res.json({ ok: true, message: "Pago ya confirmado previamente", formData, quote });
     }
 
-    // 3. Enviar mails
     await sendConfirmationEmail({
       recipient: formData.email,
       ...formData,
@@ -445,16 +435,10 @@ app.post("/api/confirm-payment", async (req, res) => {
       paymentStatus: "confirmed",
     });
 
-    // 4. Crear evento en Calendar
     await createCalendarEvent(formData, quote);
 
-    // 5. Devolver también formData + quote completos
-    res.json({
-      ok: true,
-      message: "Confirmación procesada",
-      formData,
-      quote: { ...quote, paymentStatus: "confirmed" },
-    });
+    // ✅ Devolvemos formData + quote igual que onsite
+    res.json({ ok: true, message: "Confirmación procesada", formData, quote });
   } catch (err) {
     console.error("❌ Error en confirm-payment:", err);
     res.status(500).json({ ok: false, error: err.message });

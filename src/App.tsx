@@ -131,21 +131,21 @@ function App() {
 
             if (data.status === "approved") {
           try {
-            const confirmRes = await fetch("/api/confirm-payment", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                paymentId,
-                formData: data.formData,
-                quote: { ...data.quote, paymentStatus: "confirmed" },
-              }),
-            });
+              const confirmRes = await fetch("/api/confirm-payment", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  paymentId,
+                  formData: data.formData,
+                  quote: { ...data.quote, paymentStatus: "confirmed" },
+                }),
+              });
 
-            const confirmData = await confirmRes.json();
-            console.log("📤 Respuesta /api/confirm-payment:", confirmData);
+              const confirmData = await confirmRes.json();
+              console.log("📤 Respuesta /api/confirm-payment:", confirmData);
 
-            if (confirmData?.formData) setFormData(confirmData.formData);
-            if (confirmData?.quote) setQuote(confirmData.quote);
+              if (confirmData?.formData) setFormData(confirmData.formData);
+              if (confirmData?.quote) setQuote(confirmData.quote);
           } catch (err) {
             console.error("❌ Error confirmando pago:", err);
           }
