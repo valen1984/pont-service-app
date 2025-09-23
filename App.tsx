@@ -296,18 +296,15 @@ function App() {
             <SplashScreen onFinish={() => setShowSplash(false)} />
           ) : (
             <>
-              {!isFinalStep && (
-              <>
-                <LogoHeader />
-                <h1 className="text-2xl font-bold text-center text-slate-800 mb-2">
-                  {STEPS[currentStep - 1]}
-                </h1>
-                <ProgressBar
-                  currentStep={currentStep}
-                  totalSteps={STEPS.length}
-                />
-              </>
-              )}
+              <LogoHeader />
+              <h1 className="text-2xl font-bold text-center text-slate-800 mb-2">
+                {STEPS[currentStep - 1]}
+              </h1>
+              <ProgressBar
+                currentStep={currentStep}
+                totalSteps={STEPS.length}
+              />
+
               {renderStep()}
 
               {!isFinalStep && currentStep <= 6 && (
