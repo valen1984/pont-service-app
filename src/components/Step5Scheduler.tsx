@@ -22,7 +22,17 @@ const Step5Scheduler: React.FC<Props> = ({
       try {
         const res = await fetch("/api/schedule");
         const data = await res.json();
-        setSchedule(data);
+
+        // 🔎 Filtramos domingos directamente en frontend
+        const filtered = data.filter((day: ScheduleDay) => {
+          const d = new Date(day.date);
+          return d.getDay() !== 0; // 0 = domingo
+        });
+
+        console.log("📅 Días recibidos desde backend:", data.map((d: ScheduleDay) => d.date));
+        console.log("✅ Días mostrados (sin domingos):", filtered.map((d: ScheduleDay) => d.date));
+
+        setSchedule(filtered);
       } catch (err) {
         console.error("❌ Error cargando agenda:", err);
       } finally {
@@ -95,7 +105,6 @@ const Step5Scheduler: React.FC<Props> = ({
                   formData.appointmentSlot?.date === day.date &&
                   formData.appointmentSlot?.time === slot.time;
 
-                // 🎨 Colores según estado
                 let slotClasses = "";
                 if (!slot.isAvailable && slot.reason === "within48h") {
                   slotClasses =
