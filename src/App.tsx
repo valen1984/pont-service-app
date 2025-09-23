@@ -91,57 +91,60 @@ function App() {
     }
   }, [currentStep]);
 
-  // 🔁 Retorno desde Mercado Pago
-  useEffect(() => {
-    const url = new URL(window.location.href);
-    const paymentId = url.searchParams.get("payment_id");
-    const collectionStatus =
-      url.searchParams.get("collection_status") || url.searchParams.get("status");
+// 🔁 Retorno desde Mercado Pago → confirmación automática
+useEffect(() => {
+  const url = new URL(window.location.href);
+  const paymentId = url.searchParams.get("payment_id");
+  const collectionStatus =
+    url.searchParams.get("collection_status") || url.searchParams.get("status");
 
-    const handleFallbackByCollectionStatus = (status: string) => {
-      const s = status.toLowerCase();
-      if (s === "approved") {
-        setCurrentStep(7);
-        setQuote((prev) => (prev ? { ...prev, paymentStatus: "confirmed" } : prev));
-      } else if (s === "pending") {
-        setCurrentStep(8);
-        setQuote((prev) => (prev ? { ...prev, paymentStatus: "pending" } : prev));
-      } else if (s === "rejected") {
-        setCurrentStep(8);
-        setQuote((prev) => (prev ? { ...prev, paymentStatus: "rejected" } : prev));
-      }
-    };
+  if (paymentId && collectionStatus) {
+    console.log("🔎 Detectado retorno de Mercado Pago:", {
+      paymentId,
+      collectionStatus,
+    });
 
-    const fetchStatus = async () => {
-      try {
-        if (paymentId) {
-          const res = await fetch(`/api/payment-status/${paymentId}`);
-          const data = await res.json();
+    // Consultar backend para traer formData + quote del pago
+    fetch(`/api/payment-status/${paymentId}`)
+      .then((res) => res.json())
+      .then(async (data) => {
+        if (data?.quote) {
+          setFormData(data.formData);
+          setQuote(data.quote);
 
-          if (data?.quote) {
-            setFormData(data.formData);
-            setQuote(data.quote);
-
-            if (data.status === "approved") {
-              setCurrentStep(7);
-            } else if (["rejected", "pending"].includes(data.status)) {
-              setCurrentStep(8);
+          if (data.status === "approved") {
+            // 🔹 Confirmación manual (emails + calendar)
+            try {
+              await fetch("/api/confirm-payment", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  paymentId,
+                  formData: data.formData,
+                  quote: { ...data.quote, paymentStatus: "confirmed" },
+                }),
+              });
+            } catch (err) {
+              console.error("❌ Error confirmando pago:", err);
             }
-          } else if (collectionStatus) {
-            handleFallbackByCollectionStatus(collectionStatus);
+
+            setCurrentStep(7);
+          } else if (["pending", "rejected"].includes(data.status)) {
+            setQuote((prev) => ({
+              ...prev!,
+              paymentStatus: data.status,
+            }));
+            setCurrentStep(8);
           }
-        } else if (collectionStatus) {
-          handleFallbackByCollectionStatus(collectionStatus);
+        } else {
+          console.warn("⚠️ No se encontró quote en /api/payment-status");
         }
-      } catch (err) {
+      })
+      .catch((err) => {
         console.error("❌ Error consultando estado de pago:", err);
-        if (collectionStatus) handleFallbackByCollectionStatus(collectionStatus);
-      }
-    };
-
-    if (paymentId || collectionStatus) fetchStatus();
-  }, []);
-
+      });
+  }
+}, []);
   // ⏳ Timer de splash (6s)
   useEffect(() => {
     const timer = setTimeout(() => {

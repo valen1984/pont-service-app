@@ -379,8 +379,28 @@ app.listen(PORT, () => {
 
 app.post("/api/confirm-payment", async (req, res) => {
   try {
-    const { formData, quote } = req.body;
+    const { formData, quote, paymentId } = req.body;
 
+    console.log("🔎 Confirmación manual recibida:", { paymentId });
+
+    // 1. Si hay paymentId, validamos con Mercado Pago
+    if (paymentId) {
+      const paymentClient = new Payment(client);
+      const payment = await paymentClient.get({ id: paymentId });
+
+      if (payment.status !== "approved") {
+        return res.status(400).json({ ok: false, error: "El pago no está aprobado" });
+      }
+    }
+
+    // 2. Evitar duplicados: podés usar metadata o calendar.events.list para chequear
+    //   👉 Simplificado: si ya confirmamos antes, no hacemos nada
+    if (quote?.paymentStatus === "confirmed") {
+      console.log("⚠️ Pago ya confirmado, no se duplica evento.");
+      return res.json({ ok: true, message: "Pago ya confirmado previamente" });
+    }
+
+    // 3. Enviar mails
     await sendConfirmationEmail({
       recipient: formData.email,
       ...formData,
@@ -394,12 +414,12 @@ app.post("/api/confirm-payment", async (req, res) => {
       paymentStatus: "confirmed",
     });
 
+    // 4. Crear evento en Calendar
     await createCalendarEvent(formData, quote);
 
-    res.json({ ok: true });
+    res.json({ ok: true, message: "Confirmación procesada" });
   } catch (err) {
     console.error("❌ Error en confirm-payment:", err);
     res.status(500).json({ ok: false, error: err.message });
   }
 });
-
