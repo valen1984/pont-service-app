@@ -22,6 +22,7 @@ const Step6Payment: React.FC<Props> = ({
   const [preferenceId, setPreferenceId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // 👉 Crear preferencia de pago en el backend
   const createPreference = async () => {
     if (!quote) return;
 
@@ -48,6 +49,7 @@ const Step6Payment: React.FC<Props> = ({
     }
   };
 
+  // 👉 Pago presencial
   const handlePayOnSite = async () => {
     if (!quote) return;
     setLoading(true);

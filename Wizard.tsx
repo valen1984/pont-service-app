@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { FormData, Quote } from "./types.ts";
 import { STEPS } from "./constants.ts";
-import { initMercadoPago } from "@mercadopago/sdk-react";
 
 import LogoHeader from "@/components/LogoHeader";
 import ProgressBar from "@/components/ProgressBar";
@@ -35,16 +34,6 @@ const Wizard: React.FC<Props> = ({ setFormData, setQuote }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [localFormData, setLocalFormData] = useState<FormData>(initialFormData);
   const [quote, setLocalQuote] = useState<Quote | null>(null);
-
-  // ✅ Inicializar Mercado Pago una sola vez
-  useEffect(() => {
-    const publicKey = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
-    if (publicKey) {
-      initMercadoPago(publicKey, { locale: "es-AR" });
-    } else {
-      console.error("⚠️ Mercado Pago PUBLIC KEY no definida en .env");
-    }
-  }, []);
 
   const nextStep = () => setCurrentStep((prev) => prev + 1);
   const prevStep = () => setCurrentStep((prev) => prev - 1);
