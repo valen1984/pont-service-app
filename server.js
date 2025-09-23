@@ -199,7 +199,7 @@ app.get("/api/payment-status/:paymentId", async (req, res) => {
 });
 
 // ======================
-// 📌 Agenda con Google Calendar (fix: medianoche local, sin domingos)
+// 📌 Agenda con Google Calendar (fix: TZ Argentina, sin domingos)
 // ======================
 async function generateSchedule() {
   const today = new Date();
@@ -222,18 +222,18 @@ async function generateSchedule() {
     const INTERVAL = 2;
 
     for (let i = 1; i <= 14; i++) {
-      // hoy a medianoche local
-      const base = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-      const date = new Date(base);
-      date.setDate(base.getDate() + i);
+      // 👉 Creamos la fecha base como string AR (evita corrimientos UTC)
+      const base = new Date();
+      base.setDate(today.getDate() + i);
 
-      const dayOfWeek = date.getDay(); // 0 = domingo
-      if (!WORKING_DAYS.includes(dayOfWeek)) continue;
-
-      const yyyy = date.getFullYear();
-      const mm = String(date.getMonth() + 1).padStart(2, "0");
-      const dd = String(date.getDate()).padStart(2, "0");
+      const yyyy = base.getFullYear();
+      const mm = String(base.getMonth() + 1).padStart(2, "0");
+      const dd = String(base.getDate()).padStart(2, "0");
       const formattedDate = `${yyyy}-${mm}-${dd}`;
+
+      // Evaluar el día de la semana en AR
+      const localDay = new Date(`${formattedDate}T00:00:00-03:00`).getDay();
+      if (!WORKING_DAYS.includes(localDay)) continue;
 
       const slots = [];
       for (let hour = START_HOUR; hour < END_HOUR; hour += INTERVAL) {
@@ -244,7 +244,7 @@ async function generateSchedule() {
         const diffMs = slotStart.getTime() - now.getTime();
         const within48h = diffMs >= 0 && diffMs < 48 * 60 * 60 * 1000;
 
-        // Chequeo de solapamiento con eventos del Calendar
+        // Chequeo de solapamiento con eventos
         const isBusy = events.some((ev) => {
           const evStart = ev.start?.dateTime
             ? new Date(ev.start.dateTime)
@@ -268,7 +268,7 @@ async function generateSchedule() {
       }
 
       result.push({
-        day: date.toLocaleDateString("es-AR", {
+        day: new Date(`${formattedDate}T00:00:00-03:00`).toLocaleDateString("es-AR", {
           weekday: "short",
           day: "2-digit",
           month: "2-digit",
