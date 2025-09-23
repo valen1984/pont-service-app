@@ -31,11 +31,13 @@ const Step6Payment: React.FC<Props> = ({
     return null;
   }, [preferenceId]);
 
-  // 👉 Crear preferencia en el backend
+  // 👉 Crear preferencia en el backend (Mercado Pago)
   const createPreference = async () => {
     if (!quote) return;
 
     console.log("🟢 createPreference llamado");
+    console.log("➡️ formData enviado:", formData);
+    console.log("➡️ quote enviado:", quote);
 
     try {
       const response = await fetch("/create_preference", {
@@ -45,8 +47,8 @@ const Step6Payment: React.FC<Props> = ({
           title: "Servicio técnico Pont",
           quantity: 1,
           unit_price: quote.total,
-          formData,
-          quote,
+          formData, // 🔹 Enviar formData completo
+          quote,    // 🔹 Enviar quote completo
         }),
       });
 
