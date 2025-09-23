@@ -189,7 +189,7 @@ app.get("/api/payment-status/:paymentId", async (req, res) => {
 });
 
 // ======================
-// 📌 Agenda con Google Calendar
+// 📌 Agenda con Google Calendar (con FIX de eventos largos)
 // ======================
 async function generateSchedule() {
   const today = new Date();
@@ -212,21 +212,29 @@ async function generateSchedule() {
       const end = ev.end?.dateTime ? new Date(ev.end.dateTime) : new Date(ev.end?.date);
       if (!start || !end) continue;
 
-      const yyyy = start.getFullYear();
-      const mm = String(start.getMonth() + 1).padStart(2, "0");
-      const dd = String(start.getDate()).padStart(2, "0");
-      const formattedDate = `${yyyy}-${mm}-${dd}`;
+      let current = new Date(start);
+      while (current <= end) {
+        const yyyy = current.getFullYear();
+        const mm = String(current.getMonth() + 1).padStart(2, "0");
+        const dd = String(current.getDate()).padStart(2, "0");
+        const formattedDate = `${yyyy}-${mm}-${dd}`;
 
-      for (let hour = 9; hour < 17; hour += 2) {
-        const slotDateTime = new Date(`${formattedDate}T${hour.toString().padStart(2, "0")}:00`);
-        if (slotDateTime >= start && slotDateTime < end) {
-          busySlotsFromCalendar.push({
-            date: formattedDate,
-            time: slotDateTime.toTimeString().slice(0, 5),
-          });
+        for (let hour = 9; hour < 17; hour += 2) {
+          const slotDateTime = new Date(`${formattedDate}T${hour.toString().padStart(2, "0")}:00`);
+          if (slotDateTime >= start && slotDateTime < end) {
+            busySlotsFromCalendar.push({
+              date: formattedDate,
+              time: slotDateTime.toTimeString().slice(0, 5),
+            });
+          }
         }
+
+        current.setDate(current.getDate() + 1);
       }
     }
+
+    // 🔎 Log para debug en Railway
+    console.log("📌 Slots ocupados detectados en Calendar:", busySlotsFromCalendar);
 
     const WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // lunes a sábado
     const START_HOUR = 9;
@@ -237,7 +245,6 @@ async function generateSchedule() {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
 
-      // ✅ Forzar timezone Argentina
       const localDate = new Date(
         date.toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires" })
       );

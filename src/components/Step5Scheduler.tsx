@@ -70,10 +70,6 @@ const Step5Scheduler: React.FC<Props> = ({
           <span>Disponible</span>
         </div>
         <div className="flex items-center gap-1">
-          <span className="w-4 h-4 rounded bg-slate-300 inline-block"></span>
-          <span>Bloqueado (48h)</span>
-        </div>
-        <div className="flex items-center gap-1">
           <span className="w-4 h-4 rounded bg-slate-500 inline-block"></span>
           <span>Ocupado</span>
         </div>
