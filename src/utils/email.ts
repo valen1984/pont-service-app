@@ -21,7 +21,7 @@ export const sendConfirmationEmail = async ({
   estado,
 }: {
   recipient: string;
-  cc?: string;
+  cc?: string; // 👈 copia opcional (para tu amigo/técnico)
   fullName?: string;
   phone?: string;
   appointment?: string;
@@ -52,49 +52,49 @@ export const sendConfirmationEmail = async ({
       : `<span style="color:#64748b;">No adjuntadas</span>`;
 
   // 🚀 Enviar con SendGrid
-const msg = {
-  to: recipient,
-  cc: cc ? [{ email: cc, name: "Pont Refrigeración" }] : undefined, 
-  from: {
-    email: "pontserviciosderefrigeracion@gmail.com", // remitente verificado
-    name: "Pont Refrigeración",
-  },
-  subject: estado ?? "📩 Actualización de tu servicio",
-  html: `
-    <h2 style="font-family:sans-serif;">Estado de tu orden</h2>
-    <p><strong>${estado ?? "📩 Estado no especificado"}</strong></p>
+  const msg = {
+    to: recipient,
+    cc: cc ? [{ email: cc, name: "Pont Refrigeración" }] : undefined,
+    from: {
+      email: "pontserviciosderefrigeracion@gmail.com", // ✅ remitente verificado en SendGrid
+      name: "Pont Refrigeración",                      // opcional, nombre visible
+    },
+    subject: estado ?? "📩 Actualización de tu servicio",
+    html: `
+      <h2 style="font-family:sans-serif;">Estado de tu orden</h2>
+      <p><strong>${estado ?? "📩 Estado no especificado"}</strong></p>
 
-    <h3>👤 Cliente</h3>
-    <p><b>Nombre:</b> ${fullName ?? "No informado"}</p>
-    <p><b>Teléfono:</b> ${phone ?? "No informado"}</p>
-    <p><b>Email:</b> ${recipient}</p>
-    <p><b>Dirección:</b> ${address ?? "No informado"}</p>
-    <p><b>Localidad:</b> ${location ?? "No informado"}</p>
+      <h3>👤 Cliente</h3>
+      <p><b>Nombre:</b> ${fullName ?? "No informado"}</p>
+      <p><b>Teléfono:</b> ${phone ?? "No informado"}</p>
+      <p><b>Email:</b> ${recipient}</p>
+      <p><b>Dirección:</b> ${address ?? "No informado"}</p>
+      <p><b>Localidad:</b> ${location ?? "No informado"}</p>
 
-    <h3>📍 Ubicación</h3>
-    <p>${coordsText} ${mapsLink ? `(<a href="${mapsLink}">Ver en Maps</a>)` : ""}</p>
+      <h3>📍 Ubicación</h3>
+      <p>${coordsText} ${mapsLink ? `(<a href="${mapsLink}">Ver en Maps</a>)` : ""}</p>
 
-    <h3>💰 Presupuesto</h3>
-    <p>Base: $${quote?.baseCost ?? "-"}</p>
-    <p>Traslado: $${quote?.travelCost ?? "-"}</p>
-    <p>Subtotal: $${quote?.subtotal ?? "-"}</p>
-    <p>IVA: $${quote?.iva ?? "-"}</p>
-    <p><b>Total: $${quote?.total ?? "-"}</b></p>
+      <h3>💰 Presupuesto</h3>
+      <p>Base: $${quote?.baseCost ?? "-"}</p>
+      <p>Traslado: $${quote?.travelCost ?? "-"}</p>
+      <p>Subtotal: $${quote?.subtotal ?? "-"}</p>
+      <p>IVA: $${quote?.iva ?? "-"}</p>
+      <p><b>Total: $${quote?.total ?? "-"}</b></p>
 
-    <h3>📸 Fotos</h3>
-    <div>${photos_block}</div>
+      <h3>📸 Fotos</h3>
+      <div>${photos_block}</div>
 
-    <hr/>
-    <p style="font-size:12px;color:#555;">
-      Este correo es automático.<br/>
-      Cliente: ${recipient}<br/>
-      Copia: ${cc ?? "No enviada"}
-    </p>
-  `,
-};
+      <hr/>
+      <p style="font-size:12px;color:#555;">
+        Este correo es automático.<br/>
+        Cliente: ${recipient}<br/>
+        Copia: ${cc ?? "No enviada"}
+      </p>
+    `,
+  };
 
   try {
-    await sgMail.send(msg);
+    await sgMail.send(msg as any);
     console.log(`📩 Email enviado a ${recipient} ${cc ? `+ CC ${cc}` : ""}`);
     return { success: true };
   } catch (err: any) {
