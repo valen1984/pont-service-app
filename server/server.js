@@ -400,49 +400,52 @@ app.listen(PORT, () => {
 });
 
 // ======================
-// 📌 Confirmación manual de pago
+// 📌 Confirmación manual de pago (con logs detallados)
 // ======================
 app.post("/api/confirm-payment", async (req, res) => {
   try {
     const { formData, quote, paymentId } = req.body;
 
-    console.log("🔎 Confirmación manual recibida:", { paymentId, formData });
+    console.log("🔎 Confirmación manual recibida:", { paymentId });
+    console.log("📥 formData recibido:", JSON.stringify(formData, null, 2));
+    console.log("📥 quote recibido:", JSON.stringify(quote, null, 2));
 
     if (paymentId) {
       const paymentClient = new Payment(client);
       const payment = await paymentClient.get({ id: paymentId });
+
+      console.log("💳 Estado real de pago en MP:", payment.status);
 
       if (payment.status !== "approved") {
         return res.status(400).json({ ok: false, error: "El pago no está aprobado" });
       }
     }
 
-    if (quote?.paymentStatus === "confirmed") {
-      console.log("⚠️ Pago ya confirmado, no se duplica evento.");
-      return res.json({
-        ok: true,
-        message: "Pago ya confirmado previamente",
-        formData, // ✅ devolvemos igual
-        quote,
-      });
-    }
+    // 🔎 Logs específicos
+    console.log("🛠️ Debug fields:");
+    console.log("   ➡️ Servicio:", formData?.serviceType);
+    console.log("   ➡️ Dirección:", formData?.address);
+    console.log("   ➡️ Fecha:", formData?.appointmentSlot?.date);
+    console.log("   ➡️ Hora:", formData?.appointmentSlot?.time);
 
-    await sendConfirmationEmail({
+    // 🔹 Reutilizamos la misma lógica de onsite
+    await sendOnSiteReservationEmail({
       recipient: formData.email,
       ...formData,
       quote,
-      paymentStatus: "confirmed",
     });
-    await sendConfirmationEmail({
+    await sendOnSiteReservationEmail({
       recipient: TECHNICIAN_EMAIL,
       ...formData,
       quote,
-      paymentStatus: "confirmed",
     });
 
-    await createCalendarEvent(formData, quote);
+    if (formData.appointmentSlot) {
+      await createCalendarEvent(formData, quote);
+    } else {
+      console.warn("⚠️ Confirmación recibida sin appointmentSlot");
+    }
 
-    // ✅ devolvemos los datos completos para el frontend
     res.json({
       ok: true,
       message: "Confirmación procesada",
