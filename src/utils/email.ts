@@ -51,15 +51,30 @@ export const sendConfirmationEmail = async ({
           .join("")
       : `<span style="color:#64748b;">No adjuntadas</span>`;
 
+  // 🎨 Color dinámico para el estado
+  let estadoColor = "#555";
+  if (estado?.includes("aprobado") || estado?.includes("CONFIRMADA")) {
+    estadoColor = "#16a34a"; // verde
+  } else if (estado?.includes("pendiente")) {
+    estadoColor = "#ca8a04"; // amarillo
+  } else if (estado?.includes("rechazado")) {
+    estadoColor = "#dc2626"; // rojo
+  }
+
   // 🚀 Enviar con SendGrid
   const msg = {
     to: recipient,
-    cc: cc, // 👈 copia para el técnico si la pasás
-    from: "pontrefrigeracion@gmail.com", // 📌 remitente validado en SendGrid
+    cc,
+    from: {
+      email: "pontrefrigeracion@gmail.com", // 📌 remitente validado en SendGrid
+      name: "Pont Refrigeración",
+    },
     subject: estado ? estado : "📩 Actualización de tu servicio",
     html: `
       <h2 style="font-family:sans-serif;">Estado de tu orden</h2>
-      <p><strong>${estado ?? "📩 Estado no especificado"}</strong></p>
+      <p style="color:${estadoColor};font-weight:bold;">
+        ${estado ?? "📩 Estado no especificado"}
+      </p>
 
       <h3>👤 Cliente</h3>
       <p><b>Nombre:</b> ${fullName ?? "No informado"}</p>
