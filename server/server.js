@@ -376,3 +376,30 @@ const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
 });
+
+app.post("/api/confirm-payment", async (req, res) => {
+  try {
+    const { formData, quote } = req.body;
+
+    await sendConfirmationEmail({
+      recipient: formData.email,
+      ...formData,
+      quote,
+      paymentStatus: "confirmed",
+    });
+    await sendConfirmationEmail({
+      recipient: TECHNICIAN_EMAIL,
+      ...formData,
+      quote,
+      paymentStatus: "confirmed",
+    });
+
+    await createCalendarEvent(formData, quote);
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("❌ Error en confirm-payment:", err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
