@@ -16,7 +16,7 @@ import Snowfall from "react-snowfall";
 import { motion } from "framer-motion";
 
 // 👇 Crear imágenes a partir de emojis
-function createEmojiImage(emoji: string) {
+function createEmojiImage(emoji: string): HTMLImageElement {
   const canvas = document.createElement("canvas");
   canvas.width = 32;
   canvas.height = 32;
@@ -28,12 +28,14 @@ function createEmojiImage(emoji: string) {
   return img;
 }
 
-const snowflakeImages = [
+// ❄️ Copos de nieve personalizados
+const snowflakeImages: HTMLImageElement[] = [
   createEmojiImage("❄️"),
   createEmojiImage("✦"),
   createEmojiImage("✧"),
 ];
 
+// 📋 Estado inicial del formulario
 const initialFormData: FormData = {
   fullName: "",
   phone: "",
@@ -47,6 +49,9 @@ const initialFormData: FormData = {
   appointmentSlot: null,
 };
 
+// 🔎 Debug inicial
+console.log("🔎 STEPS en runtime:", STEPS);
+
 function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [currentStep, setCurrentStep] = useState(1);
@@ -54,7 +59,7 @@ function App() {
   const [quote, setQuote] = useState<Quote | null>(null);
   const [wind, setWind] = useState(0);
 
-  // 🎐 Viento oscilante para los copos
+  // 🎐 Viento oscilante
   useEffect(() => {
     let direction = 1;
     const interval = setInterval(() => {
@@ -75,14 +80,14 @@ function App() {
     if (cachedQuote) setQuote(JSON.parse(cachedQuote));
   }, []);
 
-  // Guardar cambios en quote en localStorage
+  // Guardar cambios en quote
   useEffect(() => {
     if (quote) {
       localStorage.setItem("quote", JSON.stringify(quote));
     }
   }, [quote]);
 
-  // ✅ Guardia: si el currentStep queda fuera de rango
+  // ✅ Guardia de rango
   useEffect(() => {
     if (currentStep < 1) {
       setCurrentStep(1);
@@ -91,7 +96,7 @@ function App() {
     }
   }, [currentStep]);
 
-  // 🔁 Retorno desde Mercado Pago → confirmación automática
+  // 🔁 Retorno desde Mercado Pago
   useEffect(() => {
     const url = new URL(window.location.href);
     const paymentId = url.searchParams.get("payment_id");
@@ -99,22 +104,20 @@ function App() {
       url.searchParams.get("collection_status") || url.searchParams.get("status");
 
     if (paymentId && collectionStatus) {
-      console.log("🔎 Detectado retorno de Mercado Pago:", {
-        paymentId,
-        collectionStatus,
-      });
+      console.log("🔎 Retorno de MP detectado:", { paymentId, collectionStatus });
 
-      // Consultar backend para traer formData + quote del pago
       fetch(`/api/payment-status/${paymentId}`)
         .then((res) => res.json())
         .then(async (data) => {
+          console.log("📩 Respuesta de /api/payment-status:", data);
+
           if (data?.quote) {
             setFormData(data.formData);
             setQuote(data.quote);
 
             if (data.status === "approved") {
               try {
-                await fetch("/api/confirm-payment", {
+                const confirmRes = await fetch("/api/confirm-payment", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
@@ -123,20 +126,18 @@ function App() {
                     quote: { ...data.quote, paymentStatus: "confirmed" },
                   }),
                 });
+                console.log("📤 Respuesta /api/confirm-payment:", await confirmRes.json());
               } catch (err) {
                 console.error("❌ Error confirmando pago:", err);
               }
 
               setCurrentStep(7);
             } else if (["pending", "rejected"].includes(data.status)) {
-              setQuote((prev) => ({
-                ...prev!,
-                paymentStatus: data.status,
-              }));
+              setQuote((prev) => ({ ...prev!, paymentStatus: data.status }));
               setCurrentStep(8);
             }
           } else {
-            console.warn("⚠️ No se encontró quote en /api/payment-status");
+            console.warn("⚠️ /api/payment-status no devolvió quote");
           }
         })
         .catch((err) => {
@@ -145,7 +146,7 @@ function App() {
     }
   }, []);
 
-  // ⏳ Timer de splash (6s)
+  // ⏳ Timer splash
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowSplash(false);

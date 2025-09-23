@@ -130,27 +130,42 @@ app.post("/create_preference", async (req, res) => {
 // ======================
 app.post("/webhook", async (req, res) => {
   try {
+    console.log("📩 Webhook recibido:", JSON.stringify(req.body, null, 2));
+
     const { type, data } = req.body;
     if (type === "payment") {
       const paymentId = data.id;
+      console.log("🔎 Procesando pago:", paymentId);
+
       const paymentClient = new Payment(client);
       const payment = await paymentClient.get({ id: paymentId });
 
       const status = payment.status;
       const metadata = payment.metadata || {};
 
+      console.log("📊 Datos de pago:", {
+        status,
+        metadataKeys: Object.keys(metadata),
+      });
+
       let formData = {};
       let quote = {};
+
       try {
         formData = metadata.formData ? JSON.parse(metadata.formData) : {};
       } catch (e) {
         console.error("⚠️ No se pudo parsear formData:", metadata.formData);
       }
+
       try {
         quote = metadata.quote ? JSON.parse(metadata.quote) : {};
       } catch (e) {
         console.error("⚠️ No se pudo parsear quote:", metadata.quote);
       }
+
+      // ✅ Logs extra para debug
+      console.log("📝 formData parseado:", formData);
+      console.log("📝 quote parseado:", quote);
 
       if (status === "approved") {
         console.log("✅ Pago aprobado:", paymentId);
@@ -168,7 +183,11 @@ app.post("/webhook", async (req, res) => {
           paymentStatus: "confirmed",
         });
 
-        await createCalendarEvent(formData, quote);
+        if (formData.appointmentSlot) {
+          await createCalendarEvent(formData, quote);
+        } else {
+          console.warn("⚠️ Pago aprobado pero sin appointmentSlot, no se crea evento");
+        }
       }
 
       if (status === "pending") {
@@ -185,12 +204,17 @@ app.post("/webhook", async (req, res) => {
           quote,
         });
 
-        // ✅ Igual bloqueamos el turno en Google Calendar
-        await createCalendarEvent(formData, quote);
+        if (formData.appointmentSlot) {
+          // ✅ bloquea turno en Calendar aunque esté pendiente
+          await createCalendarEvent(formData, quote);
+        } else {
+          console.warn("⚠️ Pago pendiente pero sin appointmentSlot");
+        }
       }
 
       if (status === "rejected") {
         console.log("❌ Pago rechazado:", paymentId);
+
         await sendPaymentRejectedEmail({
           recipient: formData.email,
           ...formData,
@@ -198,6 +222,7 @@ app.post("/webhook", async (req, res) => {
         });
       }
     }
+
     res.sendStatus(200);
   } catch (err) {
     console.error("❌ Error en webhook:", err);
