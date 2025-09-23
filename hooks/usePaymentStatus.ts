@@ -25,7 +25,23 @@ export function usePaymentStatus(paymentId: string | null) {
         if (!res.ok) throw new Error("No se pudo consultar el pago");
 
         const json = await res.json();
-        setData(json);
+
+        // 👇 Transformamos el status crudo de MP a tu enum interno
+        let mapped: PaymentStatusData = {
+          status: json.status,
+          paymentStatus:
+            json.status === "approved"
+              ? "confirmed"
+              : json.status === "pending"
+              ? "pending"
+              : json.status === "rejected"
+              ? "rejected"
+              : "-",
+          formData: json.formData,
+          quote: json.quote,
+        };
+
+        setData(mapped);
       } catch (err: any) {
         console.error("❌ Error en usePaymentStatus:", err);
         setError(err.message || "Error desconocido");
