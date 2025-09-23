@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { FormData, Quote } from "./types";
-import { STEPS } from "./constants.ts";
+import { STEPS } from "./constants";
 import LogoHeader from "@/components/LogoHeader";
 import ProgressBar from "@/components/ProgressBar";
 import Card from "@/components/Card";
@@ -298,13 +298,12 @@ function App() {
             <>
               <LogoHeader />
               <h1 className="text-2xl font-bold text-center text-slate-800 mb-2">
-                {STEPS[currentStep - 1]}
+              {STEPS?.[currentStep - 1] ?? ""}
               </h1>
               <ProgressBar
                 currentStep={currentStep}
                 totalSteps={STEPS.length}
               />
-
               {renderStep()}
 
               {!isFinalStep && currentStep <= 6 && (

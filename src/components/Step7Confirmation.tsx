@@ -5,11 +5,11 @@ interface Props {
   formData: FormData;
   quote: Quote | null;
   restart: () => void;
-  loading?: boolean; // 👈 nuevo
+  loading?: boolean;
 }
 
 const Step7Confirmation: React.FC<Props> = ({ formData, quote, restart, loading }) => {
-  const paymentStatus = quote?.paymentStatus;
+  const paymentStatus = quote?.paymentStatus ?? "-"; // ✅ fallback seguro
 
   if (loading) {
     return (
@@ -70,29 +70,29 @@ const Step7Confirmation: React.FC<Props> = ({ formData, quote, restart, loading 
         {isError ? "Hubo un problema con tu pago" : "¡Servicio Confirmado!"}
       </h2>
       <p className="text-slate-600">
-        Gracias, <strong>{formData?.fullName || "usuario"}</strong>.{" "}
+        Gracias, <strong>{formData.fullName || "usuario"}</strong>.{" "}
         {renderStatusText()}
       </p>
 
       <div className="p-4 border rounded-lg bg-slate-50 text-left space-y-2">
         <p>
-          <strong>Servicio:</strong> {formData?.serviceType || "-"}
+          <strong>Servicio:</strong> {formData.serviceType || "-"}
         </p>
         <p>
           <strong>Fecha:</strong>{" "}
-          {formData?.appointmentSlot
+          {formData.appointmentSlot
             ? `${formData.appointmentSlot.date}, ${formData.appointmentSlot.time} hs`
             : "-"}
         </p>
         <p>
-          <strong>Dirección:</strong> {formData?.address || "-"}
+          <strong>Dirección:</strong> {formData.address || "-"}
         </p>
         <p>
           <strong>Total:</strong>{" "}
           {new Intl.NumberFormat("es-AR", {
             style: "currency",
             currency: "ARS",
-          }).format(quote?.total || 0)}
+          }).format(quote?.total ?? 0)}
         </p>
         <p>
           <strong>Estado:</strong> {renderStatusLabel()}
