@@ -38,7 +38,7 @@ const calendar = google.calendar({ version: "v3", auth });
 const CALENDAR_ID = process.env.CALENDAR_ID; // ID del calendario compartido
 
 // ======================
-// 📌 Crear evento en Google Calendar (ISO + TZ explícito)
+// 📌 Crear evento en Google Calendar (con TZ Buenos Aires)
 // ======================
 async function createCalendarEvent(formData, quote) {
   try {
@@ -47,35 +47,32 @@ async function createCalendarEvent(formData, quote) {
       return;
     }
 
-    const dateStr = formData.appointmentSlot.date; // p.ej. "2025-09-24"
-    const timeStr = formData.appointmentSlot.time; // p.ej. "15:00"
+    const dateStr = formData.appointmentSlot.date; // ej: "2025-09-24"
+    const timeStr = formData.appointmentSlot.time; // ej: "15:00"
 
-    // Construimos Date con offset -03:00 para fijar la hora local AR.
-    // Luego enviamos .toISOString() y además declaramos el timeZone en el request.
-    const slotStart = new Date(`${dateStr}T${timeStr}:00-03:00`);
-    const slotEnd   = new Date(slotStart.getTime() + 2 * 60 * 60 * 1000); // +2hs
+    // ⏱️ Split de hora
+    const [hStr, mStr = "00"] = timeStr.split(":");
+    const h = parseInt(hStr, 10);
+    const endH = h + 2; // intervalo 2h
 
-    // Logs de depuración (te muestran exactamente lo que se mandará)
-    console.log("🗓️ Creando evento para:", {
-      dateStr, timeStr,
-      slotStart_local: slotStart.toString(),
-      slotStart_iso: slotStart.toISOString(),
-      slotEnd_local: slotEnd.toString(),
-      slotEnd_iso: slotEnd.toISOString()
-    });
+    const pad2 = (n) => String(n).padStart(2, "0");
+    const endTimeStr = `${pad2(endH)}:${pad2(mStr)}`;
 
+    // 👉 Construcción del evento con TZ explícita
     const event = {
       summary: `Servicio: ${formData.serviceType || "Turno"} - ${formData.fullName}`,
       description: `Cliente: ${formData.fullName}\nTel: ${formData.phone}\nDirección: ${formData.address}\nServicio: ${formData.serviceType}\nTotal: $${quote?.total}`,
       start: {
-        dateTime: slotStart.toISOString(),
+        dateTime: `${dateStr}T${timeStr}:00`,
         timeZone: "America/Argentina/Buenos_Aires",
       },
       end: {
-        dateTime: slotEnd.toISOString(),
+        dateTime: `${dateStr}T${endTimeStr}:00`,
         timeZone: "America/Argentina/Buenos_Aires",
       },
     };
+
+    console.log("🗓️ Creando evento con TZ Buenos Aires:", event);
 
     const response = await calendar.events.insert({
       calendarId: CALENDAR_ID,
@@ -199,11 +196,20 @@ app.get("/api/payment-status/:paymentId", async (req, res) => {
 });
 
 // ======================
-// 📌 Agenda con Google Calendar (fix: sin domingos)
+// 📌 Agenda con Google Calendar (fix TZ Buenos Aires, sin domingos)
 // ======================
 async function generateSchedule() {
   const today = new Date();
   const result = [];
+
+  // 👉 Función auxiliar para obtener fecha en Buenos Aires
+  function getDateInBuenosAires(baseDate, offsetDays) {
+    const tz = "America/Argentina/Buenos_Aires";
+    const localStr = new Date(baseDate).toLocaleString("en-US", { timeZone: tz });
+    const local = new Date(localStr);
+    local.setDate(local.getDate() + offsetDays);
+    return local;
+  }
 
   try {
     const eventsRes = await calendar.events.list({
@@ -216,24 +222,21 @@ async function generateSchedule() {
 
     const events = eventsRes.data.items || [];
 
+    const WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // lunes (1) a sábado (6). Domingo = 0
     const START_HOUR = 9;
     const END_HOUR = 17;
     const INTERVAL = 2;
 
     for (let i = 1; i <= 14; i++) {
-      // 📅 Fecha base
-      const base = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-      const date = new Date(base);
-      date.setDate(base.getDate() + i);
+      const date = getDateInBuenosAires(today, i);
+      const dayOfWeek = date.getDay(); // ya corregido en TZ Argentina
+
+      if (!WORKING_DAYS.includes(dayOfWeek)) continue; // salta domingos
 
       const yyyy = date.getFullYear();
       const mm = String(date.getMonth() + 1).padStart(2, "0");
       const dd = String(date.getDate()).padStart(2, "0");
       const formattedDate = `${yyyy}-${mm}-${dd}`;
-
-      // 🚫 saltar domingos
-      const localDay = new Date(`${formattedDate}T00:00:00-03:00`).getDay();
-      if (localDay === 0) continue;
 
       const slots = [];
       for (let hour = START_HOUR; hour < END_HOUR; hour += INTERVAL) {
@@ -285,6 +288,7 @@ async function generateSchedule() {
 
   return result;
 }
+
 
 app.get("/api/schedule", async (req, res) => {
   try {
