@@ -6,6 +6,7 @@ import {
   sendConfirmationEmail,
   sendPaymentRejectedEmail,
   sendOnSiteReservationEmail,
+  sendPaymentPendingEmail,
 } from "./email.js";
 import { TECHNICIAN_EMAIL } from "./constants.js";
 
