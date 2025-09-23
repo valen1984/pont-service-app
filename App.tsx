@@ -14,26 +14,53 @@ import Step6Payment from "@/components/Step6Payment";
 import Step7Confirmation from "@/components/Step7Confirmation";
 import StepPaymentError from "@/components/StepPaymentError";
 import Snowfall from "react-snowfall";
+import { motion } from "framer-motion";
 
-// 👇 Copo hexagonal
-const HexFlake = (
-  <svg width="8" height="8" viewBox="0 0 100 100" fill="white">
-    <polygon points="50,5 95,27 95,72 50,95 5,72 5,27" />
-  </svg>
-);
+// 👇 Crear imágenes a partir de emojis
+function createEmojiImage(emoji: string) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 32;
+  canvas.height = 32;
+  const ctx = canvas.getContext("2d")!;
+  ctx.font = "28px serif";
+  ctx.fillText(emoji, 0, 24);
+  const img = new Image();
+  img.src = canvas.toDataURL();
+  return img;
+}
 
-// 👇 Hojas secas (dos variantes)
-const LeafBrown = (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="#8B4513">
-    <path d="M12 2C8 4 6 8 6 12s2 8 6 10c4-2 6-6 6-10s-2-8-6-10z" />
-  </svg>
-);
+const snowflakeImages = [
+  createEmojiImage("❄️"),
+  createEmojiImage("✦"),
+  createEmojiImage("✧"),
+];
 
-const LeafOrange = (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="#D2691E">
-    <path d="M12 2C9 4 8 7 8 11s1 7 4 9c3-2 4-5 4-9s-1-7-4-9z" />
-  </svg>
-);
+// 🌬️ Viento polar azulado con blur
+function ColdWind() {
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {[...Array(3)].map((_, i) => (
+        <motion.div
+          key={i}
+          className="absolute top-0 left-0 w-full h-1/3 
+                     bg-gradient-to-r from-cyan-200/20 to-transparent 
+                     backdrop-blur-sm rounded-full"
+          style={{ top: `${i * 30}%` }}
+          animate={{
+            x: ["-100%", "100%"],
+            opacity: [0.05, 0.25, 0.05],
+          }}
+          transition={{
+            duration: 8 + i * 2,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: i * 3,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
 
 const initialFormData: FormData = {
   fullName: "",
@@ -55,20 +82,20 @@ function App() {
   const [quote, setQuote] = useState<Quote | null>(null);
   const [wind, setWind] = useState(0);
 
-  // 🎐 Oscilación del viento (izq-der suave)
+  // 🎐 Oscilación del viento de copos
   useEffect(() => {
     let direction = 1;
     const interval = setInterval(() => {
       setWind((w) => {
         const next = w + 0.2 * direction;
-        if (next > 1.5 || next < -1.5) direction *= -1; // cambia de dirección
+        if (next > 1.5 || next < -1.5) direction *= -1;
         return next;
       });
     }, 2000);
     return () => clearInterval(interval);
   }, []);
 
-  // Restaurar desde localStorage al cargar la app
+  // Restaurar desde localStorage
   useEffect(() => {
     const cachedForm = localStorage.getItem("formData");
     const cachedQuote = localStorage.getItem("quote");
@@ -83,7 +110,7 @@ function App() {
     }
   }, [quote]);
 
-  // Detectar resultado de Mercado Pago al volver desde la pasarela
+  // Detectar resultado de Mercado Pago
   useEffect(() => {
     const url = new URL(window.location.href);
     const paymentId = url.searchParams.get("payment_id");
@@ -232,18 +259,21 @@ function App() {
   const isFinalStep = currentStep === 7 || currentStep === 8;
 
   return (
-    <div className="bg-gradient-to-b from-slate-800 to-slate-600 min-h-screen font-sans flex items-center justify-center p-4 relative">
-      {/* 🌨️ Nieve + hojas hasta paso 6 */}
+    <div className="bg-gradient-to-b from-slate-700 to-slate-500 min-h-screen font-sans flex items-center justify-center p-4 relative">
+      {/* ❄️ Copos */}
       {!isFinalStep && currentStep <= 6 && (
         <Snowfall
           style={{ position: "absolute", width: "100%", height: "100%" }}
-          snowflakeCount={220}
-          radius={[1, 4]} // variedad de tamaños
-          speed={[0.5, 2]} // caída variada
-          wind={[wind - 0.5, wind + 0.5]} // viento oscilante
-          images={[HexFlake, LeafBrown, LeafOrange]} // ❄️ + 🍂
+          snowflakeCount={160}
+          radius={[2, 8]}
+          speed={[0.5, 2]}
+          wind={[wind - 0.5, wind + 0.5]}
+          images={snowflakeImages}
         />
       )}
+
+      {/* 🌬️ Viento polar */}
+      {!isFinalStep && currentStep <= 6 && <ColdWind />}
 
       <main className="max-w-xl w-full relative z-10">
         <Card className={showSplash ? "bg-white/80 backdrop-blur" : ""}>
@@ -265,7 +295,7 @@ function App() {
               )}
               {renderStep()}
 
-              {/* Footer "Powered by" hasta paso 6 */}
+              {/* Footer */}
               {!isFinalStep && currentStep <= 6 && (
                 <p className="mt-6 text-center text-xs text-slate-500">
                   <a
