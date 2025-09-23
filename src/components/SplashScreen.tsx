@@ -33,7 +33,7 @@ export default function SplashScreen({ onFinish }: SplashProps) {
 
   return (
     <motion.div
-      className="flex flex-col items-center justify-center min-h-[400px] sm:min-h-[500px] p-6"
+      className="flex flex-col items-center justify-center min-h-[400px] sm:min-h-[500px] p-6 bg-gradient-to-b from-sky-900 via-sky-800 to-sky-900 text-white"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}

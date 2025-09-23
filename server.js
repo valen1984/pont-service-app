@@ -50,21 +50,24 @@ async function createCalendarEvent(formData, quote) {
     const dateStr = formData.appointmentSlot.date; // ej: 2025-09-29
     const timeStr = formData.appointmentSlot.time; // ej: 15:00
 
-    const startDateTime = new Date(`${dateStr}T${timeStr}:00-03:00`);
-    const endDateTime = new Date(startDateTime.getTime() + 2 * 60 * 60 * 1000);
+    // 👉 Armamos string local, no toISOString()
+    const startDateTime = `${dateStr}T${timeStr}:00`;
+    const endDateTime = new Date(`${dateStr}T${timeStr}:00-03:00`);
+    endDateTime.setHours(endDateTime.getHours() + 2);
 
     const event = {
       summary: `Servicio: ${formData.serviceType || "Turno"} - ${formData.fullName}`,
       description: `Cliente: ${formData.fullName}\nTel: ${formData.phone}\nDirección: ${formData.address}\nServicio: ${formData.serviceType}\nTotal: $${quote?.total}`,
       start: {
-        dateTime: startDateTime.toISOString(),
+        dateTime: startDateTime,
         timeZone: "America/Argentina/Buenos_Aires",
       },
       end: {
-        dateTime: endDateTime.toISOString(),
+        dateTime: `${dateStr}T${endDateTime
+          .toTimeString()
+          .slice(0, 5)}:00`,
         timeZone: "America/Argentina/Buenos_Aires",
       },
-      // ⚠️ No incluimos attendees para evitar error de delegación
     };
 
     const response = await calendar.events.insert({
@@ -206,15 +209,6 @@ async function generateSchedule() {
 
     const events = eventsRes.data.items || [];
 
-    // 🔎 Para debug
-    console.log("📅 Eventos brutos desde Calendar:");
-    events.forEach(ev => {
-      console.log(
-        ` - ${ev.summary} | start: ${ev.start?.dateTime || ev.start?.date
-        } | end: ${ev.end?.dateTime || ev.end?.date}`
-      );
-    });
-
     const WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // lunes a sábado
     const START_HOUR = 9;
     const END_HOUR = 17;
@@ -224,7 +218,6 @@ async function generateSchedule() {
       const date = new Date(today);
       date.setDate(today.getDate() + i);
 
-      // ✅ Forzar timezone Argentina
       const localDate = new Date(
         date.toLocaleString("en-US", { timeZone: "America/Argentina/Buenos_Aires" })
       );
@@ -238,24 +231,32 @@ async function generateSchedule() {
 
       const slots = [];
       for (let hour = START_HOUR; hour < END_HOUR; hour += INTERVAL) {
-        const slotTime = `${hour.toString().padStart(2, "0")}:00`;
-        const slotStart = new Date(`${formattedDate}T${slotTime}:00-03:00`);
+        const slotStart = new Date(
+          `${formattedDate}T${hour.toString().padStart(2, "0")}:00:00-03:00`
+        );
         const slotEnd = new Date(slotStart.getTime() + INTERVAL * 60 * 60 * 1000);
 
         const now = new Date();
         const diffMs = slotStart.getTime() - now.getTime();
         const within48h = diffMs >= 0 && diffMs < 48 * 60 * 60 * 1000;
 
-        // 🔹 Chequeo de solapamiento con eventos del Calendar
-        const isBusy = events.some(ev => {
-          const evStart = ev.start?.dateTime ? new Date(ev.start.dateTime) : new Date(ev.start?.date);
-          const evEnd = ev.end?.dateTime ? new Date(ev.end.dateTime) : new Date(ev.end?.date);
+        const isBusy = events.some((ev) => {
+          const evStart = ev.start?.dateTime
+            ? new Date(ev.start.dateTime)
+            : ev.start?.date
+              ? new Date(ev.start.date)
+              : null;
+          const evEnd = ev.end?.dateTime
+            ? new Date(ev.end.dateTime)
+            : ev.end?.date
+              ? new Date(ev.end.date)
+              : null;
           if (!evStart || !evEnd) return false;
           return slotStart < evEnd && slotEnd > evStart;
         });
 
         slots.push({
-          time: slotTime,
+          time: `${hour.toString().padStart(2, "0")}:00`,
           isAvailable: !within48h && !isBusy,
           reason: within48h ? "within48h" : isBusy ? "busy" : "free",
         });
@@ -281,7 +282,6 @@ async function generateSchedule() {
 
   return result;
 }
-
 
 app.get("/api/schedule", async (req, res) => {
   try {
