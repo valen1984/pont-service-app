@@ -38,7 +38,7 @@ const calendar = google.calendar({ version: "v3", auth });
 const CALENDAR_ID = process.env.CALENDAR_ID; // ID del calendario compartido
 
 // ======================
-// 📌 Crear evento en Google Calendar (sin toISOString, sin -03:00)
+// 📌 Crear evento en Google Calendar (con timezone explícita)
 // ======================
 async function createCalendarEvent(formData, quote) {
   try {
@@ -48,17 +48,15 @@ async function createCalendarEvent(formData, quote) {
     }
 
     const dateStr = formData.appointmentSlot.date; // ej: "2025-09-24"
-    const timeStr = formData.appointmentSlot.time; // ej: "11:00"
+    const timeStr = formData.appointmentSlot.time; // ej: "15:00"
 
-    // ⏱️ Calculamos la hora de fin solo como string (evitamos objetos Date que dependen del TZ del servidor)
+    // Hora de fin = inicio + 2 horas
     const [hStr, mStr = "00"] = timeStr.split(":");
     const h = parseInt(hStr, 10);
-    const endH = h + 2; // tu intervalo es de 2h; no cruza de día en tu rango laboral
-
+    const endH = h + 2;
     const pad2 = (n) => String(n).padStart(2, "0");
     const endTimeStr = `${pad2(endH)}:${pad2(mStr)}`;
 
-    // 👉 Importante: NO usamos toISOString ni offsets; mandamos timeZone explícita
     const event = {
       summary: `Servicio: ${formData.serviceType || "Turno"} - ${formData.fullName}`,
       description: `Cliente: ${formData.fullName}\nTel: ${formData.phone}\nDirección: ${formData.address}\nServicio: ${formData.serviceType}\nTotal: $${quote?.total}`,
@@ -70,7 +68,6 @@ async function createCalendarEvent(formData, quote) {
         dateTime: `${dateStr}T${endTimeStr}:00`,
         timeZone: "America/Argentina/Buenos_Aires",
       },
-      // sin attendees para evitar DWD
     };
 
     const response = await calendar.events.insert({
@@ -87,115 +84,7 @@ async function createCalendarEvent(formData, quote) {
 }
 
 // ======================
-// 📌 Crear preferencia
-// ======================
-app.post("/create_preference", async (req, res) => {
-  try {
-    const { title, quantity, unit_price, formData, quote } = req.body;
-
-    const preference = new Preference(client);
-    const result = await preference.create({
-      body: {
-        items: [{ title, quantity, unit_price }],
-        back_urls: {
-          success: `${process.env.FRONTEND_URL}/?status=success`,
-          failure: `${process.env.FRONTEND_URL}/?status=failure`,
-          pending: `${process.env.FRONTEND_URL}/?status=pending`,
-        },
-        auto_return: "approved",
-        metadata: { formData, quote },
-      },
-    });
-
-    console.log("✅ Preference creada:", result.id);
-    res.json({ id: result.id });
-  } catch (error) {
-    console.error("❌ Error creando preferencia:", error);
-    res.status(500).send("Error creando preferencia");
-  }
-});
-
-// ======================
-// 📌 Webhook de Mercado Pago
-// ======================
-app.post("/webhook", async (req, res) => {
-  try {
-    const { type, data } = req.body;
-    if (type === "payment") {
-      const paymentId = data.id;
-      const paymentClient = new Payment(client);
-      const payment = await paymentClient.get({ id: paymentId });
-
-      const status = payment.status;
-      const metadata = payment.metadata || {};
-      const formData = metadata.formData || {};
-      const quote = metadata.quote || {};
-
-      if (status === "approved") {
-        console.log("✅ Pago aprobado:", paymentId);
-
-        await sendConfirmationEmail({ recipient: formData.email, ...formData, quote, paymentStatus: "confirmed" });
-        await sendConfirmationEmail({ recipient: TECHNICIAN_EMAIL, ...formData, quote, paymentStatus: "confirmed" });
-
-        // 👉 Guardar evento en Google Calendar
-        await createCalendarEvent(formData, quote);
-      }
-
-      if (status === "rejected") {
-        console.log("❌ Pago rechazado:", paymentId);
-        await sendPaymentRejectedEmail({ recipient: formData.email, ...formData, quote });
-      }
-    }
-    res.sendStatus(200);
-  } catch (err) {
-    console.error("❌ Error en webhook:", err);
-    res.sendStatus(500);
-  }
-});
-
-// ======================
-// 📌 Pago presencial (sin Mercado Pago)
-// ======================
-app.post("/reservation/onsite", async (req, res) => {
-  try {
-    const { formData, quote } = req.body;
-
-    await sendOnSiteReservationEmail({ recipient: formData.email, ...formData, quote });
-    await sendOnSiteReservationEmail({ recipient: TECHNICIAN_EMAIL, ...formData, quote });
-
-    // 👉 Guardar evento en Google Calendar
-    await createCalendarEvent(formData, quote);
-
-    res.json({ ok: true, message: "📧 Correo de pago presencial enviado" });
-  } catch (err) {
-    console.error("❌ Error en /reservation/onsite:", err);
-    res.status(500).json({ ok: false, error: err.message });
-  }
-});
-
-// ======================
-// 📌 Consultar estado de un pago (para Step7)
-// ======================
-app.get("/api/payment-status/:paymentId", async (req, res) => {
-  try {
-    const { paymentId } = req.params;
-    const paymentClient = new Payment(client);
-    const payment = await paymentClient.get({ id: paymentId });
-
-    const status = payment.status;
-    const metadata = payment.metadata || {};
-    const formData = metadata.formData || {};
-    const quote = metadata.quote || {};
-
-    res.json({ status, formData, quote });
-  } catch (err) {
-    console.error("❌ Error consultando pago:", err.message || err);
-    res.status(404).json({ status: "error", message: "Pago no encontrado" });
-  }
-});
-
-// ======================
-// 📌 Agenda con Google Calendar (fix local time, sin UTC)
+// 📌 Agenda con Google Calendar (sin domingos, sin corrimientos)
 // ======================
 async function generateSchedule() {
   const today = new Date();
@@ -212,17 +101,18 @@ async function generateSchedule() {
 
     const events = eventsRes.data.items || [];
 
-    const WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // lunes (1) a sábado (6). Domingo = 0
+    const WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // lunes a sábado
     const START_HOUR = 9;
     const END_HOUR = 17;
     const INTERVAL = 2;
 
     for (let i = 1; i <= 14; i++) {
-      const date = new Date();
+      const date = new Date(today);
       date.setDate(today.getDate() + i);
 
-      const dayOfWeek = date.getDay(); // 👉 Local, no UTC
-      if (!WORKING_DAYS.includes(dayOfWeek)) continue;
+      // Día de la semana en hora local de Buenos Aires
+      const dayOfWeek = date.getDay();
+      if (!WORKING_DAYS.includes(dayOfWeek)) continue; // excluir domingos
 
       const yyyy = date.getFullYear();
       const mm = String(date.getMonth() + 1).padStart(2, "0");
@@ -238,18 +128,17 @@ async function generateSchedule() {
         const diffMs = slotStart.getTime() - now.getTime();
         const within48h = diffMs >= 0 && diffMs < 48 * 60 * 60 * 1000;
 
-        // Chequeo de solapamiento con eventos del Calendar
         const isBusy = events.some((ev) => {
           const evStart = ev.start?.dateTime
             ? new Date(ev.start.dateTime)
             : ev.start?.date
-              ? new Date(ev.start.date)
-              : null;
+            ? new Date(ev.start.date)
+            : null;
           const evEnd = ev.end?.dateTime
             ? new Date(ev.end.dateTime)
             : ev.end?.date
-              ? new Date(ev.end.date)
-              : null;
+            ? new Date(ev.end.date)
+            : null;
           if (!evStart || !evEnd) return false;
           return slotStart < evEnd && slotEnd > evStart;
         });
