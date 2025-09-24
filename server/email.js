@@ -1,5 +1,6 @@
 import sgMail from "@sendgrid/mail";
-import { TECHNICIAN_EMAIL } from "../constants.js";
+import { TECHNICIAN_EMAIL } from "./constants.js";
+
 
 // ⚡ Configuración de API Key (desde Railway envs)
 const SENDGRID_KEY = process.env.SENDGRID_API_KEY ?? "";
