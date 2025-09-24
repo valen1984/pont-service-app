@@ -55,9 +55,10 @@ const Step6Payment: React.FC<Props> = ({
       const data = await response.json();
       console.log("📦 Respuesta backend:", data);
 
-      if (!data.id) throw new Error("No se recibió un preferenceId válido");
+      const prefId = data.id || data.preferenceId; // 👈 soporta ambas keys
+      if (!prefId) throw new Error("No se recibió un preferenceId válido");
 
-      setPreferenceId(data.id);
+      setPreferenceId(prefId);
     } catch (error) {
       console.error("❌ Error creando preferencia:", error);
       onPaymentFailure();
@@ -117,9 +118,13 @@ const Step6Payment: React.FC<Props> = ({
             <Wallet
               initialization={initialization}
               onSubmit={async (paramData) => {
-                console.log("🟢 Pago procesado, data:", paramData);
+                console.log("🟢 Pago procesado, data completa:", paramData);
 
-                const paymentId = paramData.id || paramData.response?.id;
+                const paymentId =
+                  paramData.id ||
+                  paramData.response?.id ||
+                  paramData.response?.payment?.id;
+
                 if (!paymentId) {
                   console.error("❌ No se encontró paymentId en la respuesta:", paramData);
                   onPaymentFailure();
@@ -146,6 +151,10 @@ const Step6Payment: React.FC<Props> = ({
                   console.error("❌ Error confirmando pago:", err);
                   onPaymentFailure();
                 }
+              }}
+              onError={(err) => {
+                console.error("❌ Error desde Wallet Brick:", err);
+                onPaymentFailure();
               }}
             />
           </div>

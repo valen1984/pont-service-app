@@ -1,10 +1,13 @@
 import { ORDER_STATES } from "./constants.js";
 
-// 🔄 Normaliza cualquier estado (de MP, manual o legacy) a tu objeto ORDER_STATES
+/**
+ * Normaliza cualquier estado (de Mercado Pago, manual o legacy)
+ * y lo convierte en un objeto { code, label } de ORDER_STATES
+ */
 export function mapStatus(input) {
   if (!input) return ORDER_STATES.unknown;
 
-  // 🔎 Pasamos todo a minúscula por seguridad
+  // 🔎 Convertimos a string y lo pasamos a minúsculas
   const status = String(input).toLowerCase();
 
   // 🟢 Mercado Pago
@@ -28,7 +31,7 @@ export function mapStatus(input) {
   }
 
   // 💵 Manuales
-  if (["cash_home", "home", "domicilio"].includes(status)) {
+  if (["cash_home", "home", "domicilio", "onsite"].includes(status)) {
     return ORDER_STATES.cash_home;
   }
   if (["cash_workshop", "workshop", "taller"].includes(status)) {

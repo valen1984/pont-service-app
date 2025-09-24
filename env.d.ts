@@ -17,3 +17,21 @@ declare namespace NodeJS {
     VITE_EMAILJS_PUBLIC_KEY: string;
   }
 }
+
+
+/// <reference types="vite/client" />
+
+interface ImportMetaEnv {
+  readonly VITE_MERCADOPAGO_PUBLIC_KEY: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
+
+declare namespace NodeJS {
+  interface ProcessEnv {
+    MERCADOPAGO_ACCESS_TOKEN: string;
+    FRONTEND_URL: string;
+  }
+}
