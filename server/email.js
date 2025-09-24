@@ -46,7 +46,10 @@ export const sendConfirmationEmail = async ({
     coords: coordsText,
     mapsLink,
     baseCost: quote?.baseCost ? `$${quote.baseCost}` : "-",
-    travelCost: quote?.travelCost ? `$${quote.travelCost}` : "-",
+    travelCost:
+    quote?.travelCost && !isNaN(Number(quote.travelCost))
+      ? `$${quote.travelCost}`
+      : quote?.travelCost ?? "-",
     subtotal: quote?.subtotal ? `$${quote.subtotal}` : "-",
     iva: quote?.iva ? `$${quote.iva}` : "-",
     total: quote?.total ? `$${quote.total}` : "-",
