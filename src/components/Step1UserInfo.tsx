@@ -256,6 +256,7 @@ const Step1UserInfo: React.FC<Props> = ({
           id="location"
           value={formData.location}
           onChange={handleChange}
+          disabled={!!formData.coords}   // 👈 bloquea si se obtuvo GPS
           className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-sky-500 focus:border-sky-500"
           required
         >
