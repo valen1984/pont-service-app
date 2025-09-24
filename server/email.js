@@ -28,11 +28,11 @@ export const sendConfirmationEmail = async ({
     ? `https://www.google.com/maps?q=${coords.lat},${coords.lon}`
     : "";
 
-  // ⚡ Normalizar estado a texto con emoji
   let estadoMsg = "📩 Estado no especificado";
   if (estado === "approved") estadoMsg = "✅ CONFIRMADA";
   if (estado === "pending") estadoMsg = "⏳ PENDIENTE";
   if (estado === "rejected") estadoMsg = "❌ RECHAZADA";
+  if (estado === "offline") estadoMsg = "💵 PRESENCIAL";
 
   // ⚡ Armamos datos dinámicos para el template
   const dynamicTemplateData = {

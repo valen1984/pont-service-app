@@ -162,7 +162,7 @@ app.post("/webhook", async (req, res) => {
         cc: TECHNICIAN_EMAIL,
         ...formData,
         quote,
-        estado: estadoMsg,
+        estado, // 👈 pasa el crudo, NO el amigable
       });
 
       // 📅 Calendar si corresponde
