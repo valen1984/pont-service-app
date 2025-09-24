@@ -113,18 +113,6 @@ app.post("/create_preference", async (req, res) => {
 });
 
 // ======================
-// 📌 Definir estados de orden (centralizado)
-// ======================
-const ORDER_STATES = {
-  approved: "✅ Pago aprobado - orden CONFIRMADA",
-  pending: "⏳ Pago pendiente - en espera de confirmación",
-  rejected: "❌ Pago rechazado - por favor intentá nuevamente",
-  onsite: "💵 Pago presencial confirmado",
-  manual: "✍️ Confirmación manual procesada",
-  unknown: "📩 Estado desconocido",
-};
-
-// ======================
 // 📌 Webhook de Mercado Pago
 // ======================
 app.post("/webhook", async (req, res) => {
