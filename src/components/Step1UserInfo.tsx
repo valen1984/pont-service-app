@@ -7,19 +7,33 @@ interface Props {
   nextStep: () => void;
 }
 
-const localidades = [ /* ... las que ya tenías ... */ ];
+const localidades = [
+  "General Villegas",
+  "Piedritas",
+  "Cañada Seca",
+  "Emilio V. Bunge",
+  "Coronel Charlone",
+  "Santa Regina",
+  "Villa Sauze",
+  "Elordi",
+  "Ameghino",
+  "Carlos Tejedor",
+  "Trenque Lauquen",
+  "America (Rivadavia)",
+  "Eduardo Castex",
+  "General Pico",
+  "Intendente Alvear",
+  "Villa Huidobro",
+  "Rufino",
+];
 
 const Step1UserInfo: React.FC<Props> = ({ formData, updateFormData, nextStep }) => {
   const [gettingLocation, setGettingLocation] = useState(false);
-
-  // 👉 estados extra para email
   const [emailTouched, setEmailTouched] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const commonDomains = ["gmail.com", "hotmail.com", "icloud.com"];
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
 
     if (name === "phone") {
@@ -91,7 +105,7 @@ const Step1UserInfo: React.FC<Props> = ({ formData, updateFormData, nextStep }) 
             address: address.slice(0, 20),
             location: city || "Ubicación GPS",
             coords: { lat: latitude, lon: longitude },
-            locationFromGPS: true, // 👈 para bloquear el select
+            locationFromGPS: true,
           });
 
           setGettingLocation(false);
@@ -150,7 +164,7 @@ const Step1UserInfo: React.FC<Props> = ({ formData, updateFormData, nextStep }) 
           name="email"
           value={formData.email}
           onChange={handleChange}
-          onBlur={() => setEmailTouched(true)} // 👈 valida recién al salir
+          onBlur={() => setEmailTouched(true)}
           placeholder="tuemail@ejemplo.com"
           className="w-full px-4 py-2 border rounded-lg"
         />
@@ -187,7 +201,7 @@ const Step1UserInfo: React.FC<Props> = ({ formData, updateFormData, nextStep }) 
         name="location"
         value={formData.location}
         onChange={handleChange}
-        disabled={!!formData.locationFromGPS} // 👈 bloqueado si vino del GPS
+        disabled={!!formData.locationFromGPS}
         className="w-full px-4 py-2 border rounded-lg"
       >
         <option value="">Seleccioná una localidad</option>
