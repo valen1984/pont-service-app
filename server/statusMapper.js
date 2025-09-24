@@ -1,10 +1,10 @@
-import { ORDER_STATES } from "../dist/server/constants.js";
+import { ORDER_STATES, Estado } from "./constants.js";
 
 /**
  * Normaliza cualquier estado (de Mercado Pago, manual o legacy)
  * y lo convierte en un objeto { code, label } de ORDER_STATES
  */
-export function mapStatus(input) {
+export function mapStatus(input?: string): Estado {
   if (!input) return ORDER_STATES.unknown;
 
   // 🔎 Convertimos a string y lo pasamos a minúsculas

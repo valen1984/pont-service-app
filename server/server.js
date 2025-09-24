@@ -4,6 +4,7 @@ import bodyParser from "body-parser";
 import { MercadoPagoConfig, Preference, Payment } from "mercadopago";
 import { sendConfirmationEmail } from "./email.js";
 import { TECHNICIAN_EMAIL } from "./constants.js";
+import { ORDER_STATES } from "./constants.js";
 
 import path from "path";
 import { fileURLToPath } from "url";
