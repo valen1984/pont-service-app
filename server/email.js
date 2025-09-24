@@ -38,11 +38,11 @@ export const sendConfirmationEmail = async ({
     location: location ?? "No informado",
     coords: coordsText,
     mapsLink,
-    baseCost: quote?.baseCost ?? "-",
-    travelCost: quote?.travelCost ?? "-",
-    subtotal: quote?.subtotal ?? "-",
-    iva: quote?.iva ?? "-",
-    total: quote?.total ?? "-",
+    baseCost: quote?.baseCost ? `$${quote.baseCost}` : "-",
+    travelCost: quote?.travelCost ? `$${quote.travelCost}` : "-",
+    subtotal: quote?.subtotal ? `$${quote.subtotal}` : "-",
+    iva: quote?.iva ? `$${quote.iva}` : "-",
+    total: quote?.total ? `$${quote.total}` : "-",
     photos: photos ?? [],
   };
 
@@ -59,7 +59,7 @@ export const sendConfirmationEmail = async ({
 
   try {
     await sgMail.send(msg);
-    console.log(`📩 Email enviado a ${recipient} ${bcc ? `+ BCC ${bcc}` : ""}`);
+    console.log(`📩 Email enviado a ${recipient} ${cc ? `+ CC ${cc}` : ""}`);
     return { success: true };
   } catch (err) {
     console.error("❌ Error enviando email:", err.response?.body || err.message);
