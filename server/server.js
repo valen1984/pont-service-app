@@ -210,37 +210,55 @@ app.post("/api/confirm-payment", async (req, res) => {
   try {
     let { formData, quote, paymentId } = req.body;
 
+    // 🔹 Defaults: pago presencial
+    let estadoCrudo = "offline";
+    let estadoAmigable = "💵 Pago presencial - orden CONFIRMADA";
+
     if (paymentId) {
       const paymentClient = new Payment(client);
       const payment = await paymentClient.get({ id: paymentId });
+
       if (payment.status !== "approved") {
-        return res.status(400).json({ ok: false, error: "El pago no está aprobado" });
+        return res
+          .status(400)
+          .json({ ok: false, error: `El pago no está aprobado (estado: ${payment.status})` });
       }
+
+      estadoCrudo = payment.status; // approved
+      estadoAmigable = "✅ Pago aprobado - orden CONFIRMADA";
     }
 
+    // 📩 Mandar mail con estado amigable
     await sendConfirmationEmail({
       recipient: formData.email || "pontserviciosderefrigeracion@gmail.com",
       cc: TECHNICIAN_EMAIL,
       ...formData,
       quote,
-      estado: "✅ Pago aprobado - orden CONFIRMADA",
+      estado: estadoAmigable,
     });
 
+    // 📅 Crear evento si hay turno
     if (formData.appointmentSlot) {
       await createCalendarEvent(formData, quote);
     }
 
+    // 🔹 Respuesta final con ambos estados
     res.json({
       ok: true,
       message: "Confirmación procesada",
       formData,
-      quote: { ...quote, paymentStatus: "confirmed" },
+      quote: {
+        ...quote,
+        paymentStatus: estadoCrudo,    // 👈 crudo (offline / approved)
+        paymentStatusLabel: estadoAmigable, // 👈 amigable para UI
+      },
     });
   } catch (err) {
     console.error("❌ Error en confirm-payment:", err);
     res.status(500).json({ ok: false, error: err.message });
   }
 });
+
 
 // ======================
 // 📌 Agenda con Google Calendar
