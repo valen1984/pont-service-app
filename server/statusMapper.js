@@ -1,4 +1,4 @@
-import { ORDER_STATES } from "./constants.js";
+import { ORDER_STATES } from "../dist/server/constants.js";
 
 /**
  * Normaliza cualquier estado (de Mercado Pago, manual o legacy)

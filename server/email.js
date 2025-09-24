@@ -1,5 +1,5 @@
 import sgMail from "@sendgrid/mail";
-import { TECHNICIAN_EMAIL } from "./constants.js";
+import { TECHNICIAN_EMAIL } from "../dist/server/constants.js";
 
 
 // ⚡ Configuración de API Key (desde Railway envs)

@@ -4,15 +4,16 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "npm run dev:all",
-    "dev:frontend": "vite",
-    "dev:backend": "node server/server.js",
-    "dev:ngrok": "ngrok http 4000",
-    "dev:all": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "build": "npm run build:server && vite build",
-    "build:server": "tsc -p tsconfig.server.json",
-    "preview": "vite preview",
-    "start": "node dist/server/server.js"
+  "dev": "npm run dev:all",
+  "dev:frontend": "vite",
+  "dev:backend": "node server/server.js",
+  "dev:ngrok": "ngrok http 4000",
+  "dev:all": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+  "build": "npm run build:server && vite build",
+  "build:server": "tsc -p tsconfig.server.json",
+  "postinstall": "npm run build:server", 
+  "preview": "vite preview",
+  "start": "node dist/server/server.js"
   },
   "dependencies": {
     "@mercadopago/sdk-react": "^1.0.6",

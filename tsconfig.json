@@ -19,6 +19,6 @@
     "allowImportingTsExtensions": true,
     "noEmit": true
   },
-  "include": ["src", "server", "env.d.ts"]
+  "include": ["src", "server", "env.d.ts", "dist/server/constants.js", "tsconfig.server.json", "dist/server/email.ts", "dist/server/server.js", "dist/server/mecadopago.js"]
   }
 

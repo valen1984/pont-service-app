@@ -3,9 +3,9 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "node",
-    "outDir": "dist",
+    "outDir": "./dist/server",
     "esModuleInterop": true,
     "skipLibCheck": true
   },
-  "include": ["server"]
+  "include": ["server/**/*.ts"]
 }
