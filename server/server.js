@@ -210,7 +210,7 @@ app.post("/api/confirm-payment", async (req, res) => {
   try {
     let { formData, quote, paymentId } = req.body;
 
-    // 🔹 Defaults: pago presencial
+    // 🔹 Defaults para pago presencial
     let estadoCrudo = "offline";
     let estadoAmigable = "💵 Pago presencial - orden CONFIRMADA";
 
@@ -224,20 +224,19 @@ app.post("/api/confirm-payment", async (req, res) => {
           .json({ ok: false, error: `El pago no está aprobado (estado: ${payment.status})` });
       }
 
-      estadoCrudo = payment.status; // approved
+      estadoCrudo = payment.status; // normalmente "approved"
       estadoAmigable = "✅ Pago aprobado - orden CONFIRMADA";
     }
 
-    // 📩 Mandar mail con estado amigable
+    // 📩 Llamada correcta a sendConfirmationEmail
     await sendConfirmationEmail({
-      recipient: formData.email || "pontserviciosderefrigeracion@gmail.com",
+      email: formData.email || "pontserviciosderefrigeracion@gmail.com", // 👈 usa 'email', no 'recipient'
       cc: TECHNICIAN_EMAIL,
       ...formData,
       quote,
-      estado: estadoAmigable,
+      estado: estadoAmigable, // 👈 este se imprime en el mail
     });
 
-    // 📅 Crear evento si hay turno
     if (formData.appointmentSlot) {
       await createCalendarEvent(formData, quote);
     }
@@ -249,8 +248,8 @@ app.post("/api/confirm-payment", async (req, res) => {
       formData,
       quote: {
         ...quote,
-        paymentStatus: estadoCrudo,    // 👈 crudo (offline / approved)
-        paymentStatusLabel: estadoAmigable, // 👈 amigable para UI
+        paymentStatus: estadoCrudo,         // crudo (approved/offline/etc.)
+        paymentStatusLabel: estadoAmigable, // amigable para UI o logs
       },
     });
   } catch (err) {
@@ -258,7 +257,6 @@ app.post("/api/confirm-payment", async (req, res) => {
     res.status(500).json({ ok: false, error: err.message });
   }
 });
-
 
 // ======================
 // 📌 Agenda con Google Calendar
