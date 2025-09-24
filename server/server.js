@@ -232,7 +232,7 @@ app.post("/api/confirm-payment", async (req, res) => {
             .json({ ok: false, error: `El pago no está aprobado (estado: ${payment.status})` });
         }
 
-        estadoNormalizado = "confirmed"; // 👈 aprobado
+        estadoNormalizado = "confirmed";
       } catch (err) {
         console.error("❌ Error consultando MP:", err.message || err);
         return res
@@ -246,7 +246,8 @@ app.post("/api/confirm-payment", async (req, res) => {
       cc: TECHNICIAN_EMAIL,
       ...formData,
       quote,
-      estado: estadoNormalizado,
+      estado: ORDER_STATES[estadoNormalizado].code,
+      estadoLabel: ORDER_STATES[estadoNormalizado].label,
     });
 
     if (formData.appointmentSlot) {
@@ -259,7 +260,8 @@ app.post("/api/confirm-payment", async (req, res) => {
       formData,
       quote: {
         ...quote,
-        paymentStatus: estadoNormalizado, // 👈 onSite | confirmed | rejected | pending
+        paymentStatus: ORDER_STATES[estadoNormalizado].code,
+        paymentStatusLabel: ORDER_STATES[estadoNormalizado].label,
       },
     });
   } catch (err) {
