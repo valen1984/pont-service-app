@@ -70,11 +70,11 @@ const Step3EquipmentDetails: React.FC<Props> = ({
         }
       }
 
-      // Guardamos solo las URLs en formData
-      updateFormData({ photos: uploadedUrls });
+      // ✅ Merge con lo que ya había en formData y limitamos a 2
+      const newPhotos = [...(formData.photos || []), ...uploadedUrls].slice(0, 2);
 
-      // Usamos las URLs también para preview
-      setPhotoPreviews(uploadedUrls);
+      updateFormData({ photos: newPhotos });
+      setPhotoPreviews(newPhotos);
     }
   };
 
