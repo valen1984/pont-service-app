@@ -135,16 +135,29 @@ const Wizard: React.FC<Props> = ({ setFormData, setQuote }) => {
     }
   };
 
-  return (
-    <Card>
-      <LogoHeader />
-      <h1 className="text-2xl font-bold text-center text-slate-800 mb-2">
-        {STEPS[currentStep - 1]}
-      </h1>
-      <ProgressBar currentStep={currentStep} totalSteps={STEPS.length} />
-      {renderStep()}
-    </Card>
-  );
+return (
+  <Card>
+    <LogoHeader />
+    <h1 className="text-2xl font-bold text-center text-slate-800 mb-2">
+      {STEPS[currentStep - 1]}
+    </h1>
+
+    <ProgressBar
+      currentStep={currentStep}
+      totalSteps={STEPS.length}
+      labels={[
+        "Tus datos",
+        "Servicio",
+        "Equipo",
+        "Presupuesto",
+        "Agenda",
+        "Pago",
+      ]}
+    />
+
+    {renderStep()}
+  </Card>
+);
 };
 
 export default Wizard;
