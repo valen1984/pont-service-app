@@ -1,4 +1,5 @@
 import sgMail from "@sendgrid/mail";
+import { TECHNICIAN_EMAIL } from "../constants.js";
 
 // ⚡ Configuración de API Key (desde Railway envs)
 const SENDGRID_KEY = process.env.SENDGRID_API_KEY ?? "";
@@ -7,9 +8,24 @@ if (!SENDGRID_KEY) {
 }
 sgMail.setApiKey(SENDGRID_KEY);
 
+/**
+ * Envía un mail de confirmación usando SendGrid
+ * @param {Object} params
+ * @param {string} params.recipient - email del cliente
+ * @param {string} [params.cc] - copia opcional
+ * @param {string} params.fullName
+ * @param {string} params.phone
+ * @param {string} params.appointment
+ * @param {string} params.address
+ * @param {string} params.location
+ * @param {Object} params.coords { lat, lon }
+ * @param {Object} params.quote - costos de la orden
+ * @param {Array} params.photos - fotos adjuntas
+ * @param {{ code: string, label: string }} params.estado - objeto normalizado de mapStatus
+ */
 export const sendConfirmationEmail = async ({
   recipient,
-  cc,
+  cc = TECHNICIAN_EMAIL,
   fullName,
   phone,
   appointment,
@@ -18,8 +34,9 @@ export const sendConfirmationEmail = async ({
   coords,
   quote,
   photos,
-  estado, // viene de server.js como "approved" | "pending" | "rejected"
+  estado,
 }) => {
+  // 🌍 Ubicación y link a Google Maps
   const coordsText = coords
     ? `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}`
     : "No disponible";
@@ -28,15 +45,9 @@ export const sendConfirmationEmail = async ({
     ? `https://www.google.com/maps?q=${coords.lat},${coords.lon}`
     : "";
 
-  let estadoMsg = "📩 Estado no especificado";
-  if (estado === "approved") estadoMsg = "✅ CONFIRMADA";
-  if (estado === "pending") estadoMsg = "⏳ PENDIENTE";
-  if (estado === "rejected") estadoMsg = "❌ RECHAZADA";
-  if (estado === "offline") estadoMsg = "💵 PRESENCIAL";
-
   // ⚡ Armamos datos dinámicos para el template
   const dynamicTemplateData = {
-    estado: estadoMsg,
+    estado: estado?.label ?? "📩 Estado no especificado", // 👈 usamos label directo
     fullName: fullName ?? "No informado",
     phone: phone ?? "No informado",
     email: recipient,
@@ -47,9 +58,9 @@ export const sendConfirmationEmail = async ({
     mapsLink,
     baseCost: quote?.baseCost ? `$${quote.baseCost}` : "-",
     travelCost:
-    quote?.travelCost && !isNaN(Number(quote.travelCost))
-      ? `$${quote.travelCost}`
-      : quote?.travelCost ?? "-",
+      quote?.travelCost && !isNaN(Number(quote.travelCost))
+        ? `$${quote.travelCost}`
+        : quote?.travelCost ?? "-",
     subtotal: quote?.subtotal ? `$${quote.subtotal}` : "-",
     iva: quote?.iva ? `$${quote.iva}` : "-",
     total: quote?.total ? `$${quote.total}` : "-",
@@ -60,10 +71,10 @@ export const sendConfirmationEmail = async ({
     to: recipient,
     cc,
     from: {
-      email: "pontserviciosderefrigeracion@gmail.com", // 👈 remitente validado en SendGrid
+      email: "pontserviciosderefrigeracion@gmail.com", // remitente validado en SendGrid
       name: "Pont Refrigeración",
     },
-    templateId: process.env.SENDGRID_TEMPLATE_UNICO, // 👈 tu template ID en Railway
+    templateId: process.env.SENDGRID_TEMPLATE_UNICO, // ID de template dinámico
     dynamicTemplateData,
   };
 

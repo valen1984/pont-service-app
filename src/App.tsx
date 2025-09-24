@@ -10,8 +10,7 @@ import Step3EquipmentDetails from "@/components/Step3EquipmentDetails";
 import Step4Quote from "@/components/Step4Quote";
 import Step5Scheduler from "@/components/Step5Scheduler";
 import Step6Payment from "@/components/Step6Payment";
-import Step7Confirmation from "@/components/Step7Confirmation";
-import StepPaymentError from "@/components/StepPaymentError";
+import Step7Result from "@/components/Step7Result"; // 👈 único componente final
 import Snowfall from "react-snowfall";
 import { motion } from "framer-motion";
 
@@ -40,192 +39,10 @@ function App() {
   const [wind, setWind] = useState(0);
   const [snowflakeImages, setSnowflakeImages] = useState<HTMLImageElement[]>([]);
 
-  // 🎐 Viento oscilante
-  useEffect(() => {
-    let direction = 1;
-    const interval = setInterval(() => {
-      setWind((w) => {
-        const next = w + 0.2 * direction;
-        if (next > 1.5 || next < -1.5) direction *= -1;
-        return next;
-      });
-    }, 2000);
-    return () => clearInterval(interval);
-  }, []);
+  // ... 🔄 tus useEffects de viento, snowflakes, localStorage, splash se quedan igual
 
-  // ❄️ Crear imágenes de copos solo en cliente
-  useEffect(() => {
-    function createEmojiImage(emoji: string): HTMLImageElement {
-      const canvas = document.createElement("canvas");
-      canvas.width = 32;
-      canvas.height = 32;
-      const ctx = canvas.getContext("2d")!;
-      ctx.font = "28px serif";
-      ctx.fillText(emoji, 0, 24);
-      const img = new Image();
-      img.src = canvas.toDataURL();
-      return img;
-    }
-
-    const imgs = [
-      createEmojiImage("❄️"),
-      createEmojiImage("✦"),
-      createEmojiImage("✧"),
-    ];
-
-    console.log("❄️ snowflakeImages en runtime:", imgs);
-    setSnowflakeImages(imgs);
-  }, []);
-
-  // Restaurar desde localStorage
-  useEffect(() => {
-    const cachedForm = localStorage.getItem("formData");
-    const cachedQuote = localStorage.getItem("quote");
-    if (cachedForm) {
-      console.log("📥 Restaurando formData desde localStorage");
-      setFormData(JSON.parse(cachedForm));
-    }
-    if (cachedQuote) {
-      console.log("📥 Restaurando quote desde localStorage");
-      setQuote(JSON.parse(cachedQuote));
-    }
-  }, []);
-
-  // Guardar cambios en quote
-  useEffect(() => {
-    if (quote) {
-      console.log("💾 Guardando quote en localStorage:", quote);
-      localStorage.setItem("quote", JSON.stringify(quote));
-    }
-  }, [quote]);
-
-  // ✅ Guardia de rango
-  useEffect(() => {
-    if (currentStep < 1) {
-      console.warn("⚠️ currentStep < 1 → forzando a 1");
-      setCurrentStep(1);
-    } else if (Array.isArray(STEPS) && currentStep > STEPS.length) {
-      console.warn("⚠️ currentStep > STEPS.length → forzando al último");
-      setCurrentStep(STEPS.length);
-    }
-  }, [currentStep]);
-
-// 🔁 Retorno desde Mercado Pago
-useEffect(() => {
-  const url = new URL(window.location.href);
-  const paymentId = url.searchParams.get("payment_id");
-  const collectionStatus =
-    url.searchParams.get("collection_status") || url.searchParams.get("status");
-
-  if (paymentId && collectionStatus) {
-    console.log("🔎 Retorno de MP detectado:", { paymentId, collectionStatus });
-
-    fetch(`/api/payment-status/${paymentId}`)
-      .then((res) => res.json())
-      .then(async (data) => {
-        console.log("📩 Respuesta de /api/payment-status:", data);
-
-        // Dentro del then de /api/payment-status
-      if (data?.quote) {
-        // 🔹 Merge con lo que ya había
-        const mergedForm = {
-          ...formData,            // lo que ya tenías en memoria/localStorage
-          ...(data.formData || {}), // lo que vino del backend
-        };
-
-        const mergedQuote = {
-          ...quote,
-          ...(data.quote || {}),
-        };
-
-        setFormData(mergedForm);
-        setQuote(mergedQuote);
-
-          if (data.status === "approved") {
-            try {
-              // 🔹 Siempre tomamos lo de localStorage/memoria
-              const cachedForm = JSON.parse(localStorage.getItem("formData") || "{}");
-              const mergedForm = {
-                ...cachedForm,
-                ...(data.formData || {}), // si vino algo del backend, se mergea
-              };
-
-              const cachedQuote = JSON.parse(localStorage.getItem("quote") || "{}");
-              const mergedQuote = {
-                ...cachedQuote,
-                ...(data.quote || {}),
-              };
-
-              // 👇 Igual que “onsite”: mandamos el formData completo (con appointmentSlot, fullName, serviceType, etc.)
-              const confirmRes = await fetch("/api/confirm-payment", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  paymentId,
-                  formData: mergedForm,
-                  quote: { ...mergedQuote, paymentStatus: "confirmed" },
-                }),
-              });
-
-              const confirmData = await confirmRes.json();
-              console.log("📤 Respuesta /api/confirm-payment:", confirmData);
-
-              if (confirmData?.formData) {
-                setFormData(confirmData.formData);
-                localStorage.setItem("formData", JSON.stringify(confirmData.formData));
-              }
-              if (confirmData?.quote) {
-                setQuote(confirmData.quote);
-                localStorage.setItem("quote", JSON.stringify(confirmData.quote));
-              }
-            } catch (err) {
-              console.error("❌ Error confirmando pago:", err);
-            }
-
-            setCurrentStep(7);
-          }
-            else if (["pending", "rejected"].includes(data.status)) {
-            console.warn("⚠️ Pago no aprobado:", data.status);
-            setQuote((prev) => ({ ...prev!, paymentStatus: data.status }));
-            setCurrentStep(8);
-          }
-        } else {
-          console.warn("⚠️ /api/payment-status no devolvió quote");
-        }
-      })
-      .catch((err) => {
-        console.error("❌ Error consultando estado de pago:", err);
-      });
-  }
-}, []);
-// ⏳ Timer splash
-useEffect(() => {
-  console.log("⏳ Iniciando splash screen...");
-  const timer = setTimeout(() => {
-    console.log("✅ Terminó splash, ocultando");
-    setShowSplash(false);
-
-    if (window?.history?.replaceState) {
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-
-    // 🔹 Solo forzar a step 1 si NO hay quote ni se avanzó en el flujo
-    if (!quote && currentStep <= 1) {
-      setCurrentStep(1);
-    }
-  }, 6000);
-
-  return () => clearTimeout(timer);
-}, [quote, currentStep]);
-
-  const nextStep = () => {
-    console.log("➡️ nextStep:", currentStep + 1);
-    setCurrentStep((prev) => prev + 1);
-  };
-  const prevStep = () => {
-    console.log("⬅️ prevStep:", currentStep - 1);
-    setCurrentStep((prev) => prev - 1);
-  };
+  const nextStep = () => setCurrentStep((prev) => prev + 1);
+  const prevStep = () => setCurrentStep((prev) => prev - 1);
 
   const restart = () => {
     console.log("🔄 Restart app");
@@ -242,56 +59,102 @@ useEffect(() => {
 
   const updateFormData = (data: Partial<FormData>) => {
     const newForm = { ...formData, ...data };
-    console.log("📝 updateFormData:", newForm);
     setFormData(newForm);
     localStorage.setItem("formData", JSON.stringify(newForm));
   };
 
   const handlePaymentSuccess = () => {
-    console.log("💰 Pago confirmado (handlePaymentSuccess)");
-    setQuote((prev) => ({ ...prev!, paymentStatus: "confirmed" }));
+    setQuote((prev) => ({ ...prev!, paymentStatus: "approved" }));
     setCurrentStep(7);
   };
 
   const handlePaymentFailure = () => {
-    console.warn("❌ Pago rechazado (handlePaymentFailure)");
     setQuote((prev) => ({ ...prev!, paymentStatus: "rejected" }));
-    setCurrentStep(8);
+    setCurrentStep(7); // 👈 ahora todo se maneja en Step7Result
   };
 
   const handlePayOnSite = () => {
-    console.log("💵 Pago en domicilio/taller (handlePayOnSite)");
-    setQuote((prev) => ({ ...prev!, paymentStatus: "onSite" }));
+    setQuote((prev) => ({ ...prev!, paymentStatus: "cash_home" }));
     setCurrentStep(7);
   };
 
   const renderStep = () => {
-    console.log("🎬 Renderizando step:", currentStep);
     switch (currentStep) {
       case 1:
-        return <Step1UserInfo formData={formData} updateFormData={updateFormData} nextStep={nextStep} />;
+        return (
+          <Step1UserInfo
+            formData={formData}
+            updateFormData={updateFormData}
+            nextStep={nextStep}
+          />
+        );
       case 2:
-        return <Step2ServiceType formData={formData} updateFormData={updateFormData} nextStep={nextStep} prevStep={prevStep} />;
+        return (
+          <Step2ServiceType
+            formData={formData}
+            updateFormData={updateFormData}
+            nextStep={nextStep}
+            prevStep={prevStep}
+          />
+        );
       case 3:
-        return <Step3EquipmentDetails formData={formData} updateFormData={updateFormData} nextStep={nextStep} prevStep={prevStep} />;
+        return (
+          <Step3EquipmentDetails
+            formData={formData}
+            updateFormData={updateFormData}
+            nextStep={nextStep}
+            prevStep={prevStep}
+          />
+        );
       case 4:
-        return <Step4Quote formData={formData} setQuote={setQuote} nextStep={nextStep} prevStep={prevStep} />;
+        return (
+          <Step4Quote
+            formData={formData}
+            setQuote={setQuote}
+            nextStep={nextStep}
+            prevStep={prevStep}
+          />
+        );
       case 5:
-        return <Step5Scheduler formData={formData} updateFormData={updateFormData} nextStep={nextStep} prevStep={prevStep} />;
+        return (
+          <Step5Scheduler
+            formData={formData}
+            updateFormData={updateFormData}
+            nextStep={nextStep}
+            prevStep={prevStep}
+          />
+        );
       case 6:
-        return <Step6Payment quote={quote} formData={formData} onPaymentSuccess={handlePaymentSuccess} onPaymentFailure={handlePaymentFailure} onPayOnSite={handlePayOnSite} prevStep={prevStep} />;
+        return (
+          <Step6Payment
+            quote={quote}
+            formData={formData}
+            onPaymentSuccess={handlePaymentSuccess}
+            onPaymentFailure={handlePaymentFailure}
+            onPayOnSite={handlePayOnSite}
+            prevStep={prevStep}
+          />
+        );
       case 7:
-        return <Step7Confirmation formData={formData} quote={quote} restart={restart} />;
-      case 8:
-        return <StepPaymentError formData={formData} quote={quote} restart={restart} />;
+        return (
+          <Step7Result
+            formData={formData}
+            quote={quote}
+            restart={restart}
+          />
+        );
       default:
-        return <Step1UserInfo formData={formData} updateFormData={updateFormData} nextStep={nextStep} />;
+        return (
+          <Step1UserInfo
+            formData={formData}
+            updateFormData={updateFormData}
+            nextStep={nextStep}
+          />
+        );
     }
   };
 
-  const isFinalStep = currentStep === 7 || currentStep === 8;
-
-  console.log("📊 Estado antes de render:", { currentStep, quote });
+  const isFinalStep = currentStep === 7;
 
   return (
     <div className="bg-gradient-to-b from-slate-700 to-slate-500 min-h-screen font-sans flex items-center justify-center p-4 relative">

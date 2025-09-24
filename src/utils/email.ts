@@ -1,5 +1,10 @@
 import sgMail from "@sendgrid/mail";
 
+interface Estado {
+  code: string;
+  label: string;
+}
+
 // ⚡ Configuración de API Key (desde Railway envs)
 const SENDGRID_KEY = process.env.SENDGRID_API_KEY ?? "";
 if (!SENDGRID_KEY) {
@@ -8,7 +13,7 @@ if (!SENDGRID_KEY) {
 sgMail.setApiKey(SENDGRID_KEY);
 
 export const sendConfirmationEmail = async ({
-  email,
+  recipient,
   cc,
   fullName,
   phone,
@@ -20,17 +25,23 @@ export const sendConfirmationEmail = async ({
   photos,
   estado,
 }: {
-  email: string;
-  cc?: string; // 👈 copia opcional (para tu amigo/técnico)
+  recipient: string;
+  cc?: string;
   fullName?: string;
   phone?: string;
   appointment?: string;
   address?: string;
   location?: string;
   coords?: { lat: number; lon: number };
-  quote?: { baseCost: string; travelCost: string; subtotal: string; iva: string; total: string };
+  quote?: {
+    baseCost: string;
+    travelCost: string;
+    subtotal: string;
+    iva: string;
+    total: string;
+  };
   photos?: string[];
-  estado?: string;
+  estado?: Estado; // 👈 ahora { code, label }
 }) => {
   const coordsText = coords
     ? `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}`
@@ -40,62 +51,43 @@ export const sendConfirmationEmail = async ({
     ? `https://www.google.com/maps?q=${coords.lat},${coords.lon}`
     : "";
 
-  const photos_block =
-    photos && photos.length > 0
-      ? photos
-          .slice(0, 2)
-          .map(
-            (url) =>
-              `<img src="${url}" width="200" style="margin-right:8px;border-radius:8px;"/>`
-          )
-          .join("")
-      : `<span style="color:#64748b;">No adjuntadas</span>`;
+  // 🚀 Datos dinámicos que recibe el template de SendGrid
+  const dynamicTemplateData = {
+    estado: estado?.label ?? "📩 Estado no especificado",
+    estadoCode: estado?.code ?? "unknown",
+    fullName: fullName ?? "No informado",
+    phone: phone ?? "No informado",
+    email: recipient,
+    appointment: appointment ?? "No especificado",
+    address: address ?? "No informado",
+    location: location ?? "No informado",
+    coords: coordsText,
+    mapsLink,
+    baseCost: quote?.baseCost ? `$${quote.baseCost}` : "-",
+    travelCost:
+      quote?.travelCost && !isNaN(Number(quote.travelCost))
+        ? `$${quote.travelCost}`
+        : quote?.travelCost ?? "-",
+    subtotal: quote?.subtotal ? `$${quote.subtotal}` : "-",
+    iva: quote?.iva ? `$${quote.iva}` : "-",
+    total: quote?.total ? `$${quote.total}` : "-",
+    photos: photos && photos.length > 0 ? photos.slice(0, 3) : [],
+  };
 
-  // 🚀 Enviar con SendGrid
   const msg = {
-    to: email,
-    cc: cc ? [{ email: cc, name: "Pont Refrigeración" }] : undefined,
+    to: recipient,
+    cc,
     from: {
-      email: "pontserviciosderefrigeracion@gmail.com", // ✅ remitente verificado en SendGrid
-      name: "Pont Refrigeración",                      // opcional, nombre visible
+      email: "pontserviciosderefrigeracion@gmail.com",
+      name: "Pont Refrigeración",
     },
-    subject: estado ?? "📩 Actualización de tu servicio",
-    html: `
-      <h2 style="font-family:sans-serif;">Estado de tu orden</h2>
-      <p><strong>${estado ?? "📩 Estado no especificado"}</strong></p>
-
-      <h3>👤 Cliente</h3>
-      <p><b>Nombre:</b> ${fullName ?? "No informado"}</p>
-      <p><b>Teléfono:</b> ${phone ?? "No informado"}</p>
-      <p><b>Email:</b> ${email}</p>
-      <p><b>Dirección:</b> ${address ?? "No informado"}</p>
-      <p><b>Localidad:</b> ${location ?? "No informado"}</p>
-
-      <h3>📍 Ubicación</h3>
-      <p>${coordsText} ${mapsLink ? `(<a href="${mapsLink}">Ver en Maps</a>)` : ""}</p>
-
-      <h3>💰 Presupuesto</h3>
-      <p>Base: $${quote?.baseCost ?? "-"}</p>
-      <p>Traslado: $${quote?.travelCost ?? "-"}</p>
-      <p>Subtotal: $${quote?.subtotal ?? "-"}</p>
-      <p>IVA: $${quote?.iva ?? "-"}</p>
-      <p><b>Total: $${quote?.total ?? "-"}</b></p>
-
-      <h3>📸 Fotos</h3>
-      <div>${photos_block}</div>
-
-      <hr/>
-      <p style="font-size:12px;color:#555;">
-        Este correo es automático.<br/>
-        Cliente: ${email}<br/>
-        Copia: ${cc ?? "No enviada"}
-      </p>
-    `,
+    templateId: process.env.SENDGRID_TEMPLATE_UNICO ?? "", // 👈 tu template dinámico
+    dynamicTemplateData,
   };
 
   try {
     await sgMail.send(msg as any);
-    console.log(`📩 Email enviado a ${email} ${cc ? `+ CC ${cc}` : ""}`);
+    console.log(`📩 Email dinámico enviado a ${recipient} ${cc ? `+ CC ${cc}` : ""}`);
     return { success: true };
   } catch (err: any) {
     console.error("❌ Error enviando email:", err.response?.body || err.message);

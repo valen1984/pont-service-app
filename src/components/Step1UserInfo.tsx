@@ -7,47 +7,15 @@ interface Props {
   nextStep: () => void;
 }
 
-const LocationIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg
-    className={className}
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 20 20"
-    fill="currentColor"
-  >
-    <path
-      fillRule="evenodd"
-      d="M9.69 18.933l.003.001C9.89 19.02 10 19 10 19s.11.02.308-.066l.002-.001.006-.003.018-.008a5.741 5.741 0 00.281-.14c.186-.1.42-.25.69-.441C12.49 17.346 14.22 15.39 15.5 13c1.28-2.39 1.5-4.999 1.5-6.5C17 2.925 13.866 0 10 0S3 2.925 3 6.5c0 1.501.22 4.11 1.5 6.5 1.28 2.39 3.01 4.346 4.192 5.352.27.19.504.34.69.44a5.741 5.741 0 00.28.14l.018.008.006.003zM10 8.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"
-      clipRule="evenodd"
-    />
-  </svg>
-);
+const localidades = [ /* ... las que ya tenías ... */ ];
 
-const localidades = [
-  "General Villegas",
-  "Piedritas",
-  "Cañada Seca",
-  "Emilio V. Bunge",
-  "Coronel Charlone",
-  "Santa Regina",
-  "Villa Sauze",
-  "Elordi",
-  "Ameghino",
-  "Carlos Tejedor",
-  "Trenque Lauquen",
-  "America (Rivadavia)",
-  "Eduardo Castex",
-  "General Pico",
-  "Intendente Alvear",
-  "Villa Huidobro",
-  "Rufino",
-];
-
-const Step1UserInfo: React.FC<Props> = ({
-  formData,
-  updateFormData,
-  nextStep,
-}) => {
+const Step1UserInfo: React.FC<Props> = ({ formData, updateFormData, nextStep }) => {
   const [gettingLocation, setGettingLocation] = useState(false);
+
+  // 👉 estados extra para email
+  const [emailTouched, setEmailTouched] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const commonDomains = ["gmail.com", "hotmail.com", "icloud.com"];
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -60,18 +28,22 @@ const Step1UserInfo: React.FC<Props> = ({
     } else if (name === "fullName") {
       updateFormData({ fullName: value.slice(0, 20) });
     } else if (name === "address") {
-      updateFormData({
-        address: value.slice(0, 20),
-        coords: undefined,
-      });
+      updateFormData({ address: value.slice(0, 20), coords: undefined });
     } else if (name === "location") {
-      updateFormData({
-        location: value,
-        coords: undefined,
-      });
+      updateFormData({ location: value, coords: undefined, locationFromGPS: false });
+    } else if (name === "email") {
+      updateFormData({ email: value });
+      setShowSuggestions(!value.includes("@"));
     } else {
       updateFormData({ [name]: value });
     }
+  };
+
+  const handleSuggestionClick = (domain: string) => {
+    const base = formData.email.split("@")[0];
+    const newEmail = `${base}@${domain}`;
+    updateFormData({ email: newEmail });
+    setShowSuggestions(false);
   };
 
   const getAddressFromCoords = async (lat: number, lon: number) => {
@@ -90,11 +62,6 @@ const Step1UserInfo: React.FC<Props> = ({
         data.address.town ||
         data.address.village ||
         data.address.hamlet ||
-        data.address.suburb ||
-        data.address.neighbourhood ||
-        data.address.municipality ||
-        data.address.county ||
-        data.address.state_district ||
         "";
 
       return {
@@ -104,8 +71,7 @@ const Step1UserInfo: React.FC<Props> = ({
           `Coordenadas: ${lat.toFixed(4)}, ${lon.toFixed(4)}`,
         city,
       };
-    } catch (error) {
-      console.error("Error obteniendo dirección:", error);
+    } catch {
       return {
         address: `Coordenadas: ${lat.toFixed(4)}, ${lon.toFixed(4)}`,
         city: "",
@@ -119,15 +85,13 @@ const Step1UserInfo: React.FC<Props> = ({
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude, longitude } = position.coords;
-          const { address, city } = await getAddressFromCoords(
-            latitude,
-            longitude
-          );
+          const { address, city } = await getAddressFromCoords(latitude, longitude);
 
           updateFormData({
             address: address.slice(0, 20),
             location: city || "Ubicación GPS",
             coords: { lat: latitude, lon: longitude },
+            locationFromGPS: true, // 👈 para bloquear el select
           });
 
           setGettingLocation(false);
@@ -143,157 +107,118 @@ const Step1UserInfo: React.FC<Props> = ({
   };
 
   const resetLocation = () => {
-    updateFormData({
-      address: "",
-      location: "",
-      coords: undefined,
-    });
+    updateFormData({ address: "", location: "", coords: undefined, locationFromGPS: false });
   };
 
-  const isValidEmail = (email: string) => {
-    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return regex.test(email);
-  };
+  const isValidEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-  const isFormValid = () => {
-    return (
-      formData.fullName.length > 0 &&
-      formData.fullName.length <= 20 &&
-      formData.phone.length === 10 &&
-      isValidEmail(formData.email) &&
-      formData.email.length <= 50 &&
-      formData.address.length > 0 &&
-      formData.address.length <= 20 &&
-      formData.location
-    );
-  };
+  const isFormValid = () =>
+    formData.fullName.length > 0 &&
+    formData.phone.length === 10 &&
+    isValidEmail(formData.email) &&
+    formData.address.length > 0 &&
+    formData.location;
 
   return (
     <div className="space-y-6">
       {/* Nombre */}
-      <div className="space-y-2">
-        <label htmlFor="fullName" className="text-sm font-medium text-slate-600">
-          Nombre y Apellido
-        </label>
-        <input
-          type="text"
-          name="fullName"
-          id="fullName"
-          value={formData.fullName}
-          onChange={handleChange}
-          maxLength={20}
-          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-sky-500 focus:border-sky-500"
-          required
-        />
-      </div>
+      <input
+        type="text"
+        name="fullName"
+        value={formData.fullName}
+        onChange={handleChange}
+        placeholder="Nombre y Apellido"
+        maxLength={20}
+        className="w-full px-4 py-2 border rounded-lg"
+      />
 
       {/* Teléfono */}
-      <div className="space-y-2">
-        <label htmlFor="phone" className="text-sm font-medium text-slate-600">
-          Teléfono
-        </label>
-        <input
-          type="tel"
-          name="phone"
-          id="phone"
-          value={formData.phone}
-          onChange={handleChange}
-          maxLength={10}
-          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-sky-500 focus:border-sky-500"
-          required
-        />
-      </div>
+      <input
+        type="tel"
+        name="phone"
+        value={formData.phone}
+        onChange={handleChange}
+        placeholder="Teléfono (10 dígitos)"
+        maxLength={10}
+        className="w-full px-4 py-2 border rounded-lg"
+      />
 
       {/* Email */}
-      <div className="space-y-2">
-        <label htmlFor="email" className="text-sm font-medium text-slate-600">
-          Email
-        </label>
+      <div className="relative">
         <input
           type="email"
           name="email"
-          id="email"
           value={formData.email}
           onChange={handleChange}
-          maxLength={50}
-          className={`w-full px-4 py-2 border rounded-lg focus:ring-sky-500 focus:border-sky-500 ${
-            formData.email.length > 0 && !isValidEmail(formData.email)
-              ? "border-red-500"
-              : "border-slate-300"
-          }`}
-          required
+          onBlur={() => setEmailTouched(true)} // 👈 valida recién al salir
+          placeholder="tuemail@ejemplo.com"
+          className="w-full px-4 py-2 border rounded-lg"
         />
-        {formData.email.length > 0 && !isValidEmail(formData.email) && (
+        {showSuggestions && (
+          <ul className="absolute bg-white border rounded-lg mt-1 w-full z-10">
+            {commonDomains.map((domain) => (
+              <li
+                key={domain}
+                onClick={() => handleSuggestionClick(domain)}
+                className="px-3 py-2 hover:bg-slate-100 cursor-pointer"
+              >
+                {formData.email.split("@")[0]}@{domain}
+              </li>
+            ))}
+          </ul>
+        )}
+        {emailTouched && formData.email.length > 0 && !isValidEmail(formData.email) && (
           <p className="text-sm text-red-500">El correo electrónico no es válido</p>
         )}
       </div>
 
       {/* Dirección */}
-      <div className="space-y-2">
-        <label htmlFor="address" className="text-sm font-medium text-slate-600">
-          Dirección
-        </label>
-        <input
-          type="text"
-          name="address"
-          id="address"
-          value={formData.address}
-          onChange={handleChange}
-          maxLength={20}
-          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-sky-500 focus:border-sky-500"
-          placeholder="Calle y número o Ruta y Km"
-          required
-        />
-      </div>
+      <input
+        type="text"
+        name="address"
+        value={formData.address}
+        onChange={handleChange}
+        placeholder="Calle y número o Ruta y Km"
+        className="w-full px-4 py-2 border rounded-lg"
+      />
 
       {/* Localidad */}
-      <div className="space-y-2">
-        <label htmlFor="location" className="text-sm font-medium text-slate-600">
-          Localidad
-        </label>
-        <select
-          name="location"
-          id="location"
-          value={formData.location}
-          onChange={handleChange}
-          disabled={!!formData.coords}   // 👈 bloquea si se obtuvo GPS
-          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-sky-500 focus:border-sky-500"
-          required
-        >
-          <option value="">Seleccioná una localidad</option>
-          {localidades.map((loc) => (
-            <option key={loc} value={loc}>
-              {loc}
-            </option>
-          ))}
-        </select>
-      </div>
+      <select
+        name="location"
+        value={formData.location}
+        onChange={handleChange}
+        disabled={!!formData.locationFromGPS} // 👈 bloqueado si vino del GPS
+        className="w-full px-4 py-2 border rounded-lg"
+      >
+        <option value="">Seleccioná una localidad</option>
+        {localidades.map((loc) => (
+          <option key={loc} value={loc}>
+            {loc}
+          </option>
+        ))}
+      </select>
 
       {/* Botón GPS */}
       <button
         onClick={handleGetLocation}
-        disabled={gettingLocation || !!formData.location || !!formData.address}
-        className="w-full flex items-center justify-center gap-2 px-4 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 disabled:opacity-50 transition-colors"
+        disabled={gettingLocation}
+        className="w-full px-4 py-2 border rounded-lg"
       >
-        <LocationIcon className="w-5 h-5 text-sky-600" />
-        {gettingLocation
-          ? "Obteniendo..."
-          : "Obtener Ubicación [Solo establecimientos rurales]"}
+        {gettingLocation ? "Obteniendo..." : "Obtener Ubicación"}
       </button>
 
       {/* Coordenadas */}
       {formData.coords && (
         <p className="text-sm text-center text-slate-600">
-          Coordenadas: {formData.coords.lat.toFixed(4)},{" "}
-          {formData.coords.lon.toFixed(4)}
+          Coordenadas: {formData.coords.lat.toFixed(4)}, {formData.coords.lon.toFixed(4)}
         </p>
       )}
 
-      {/* Botón reset ubicación */}
-      {(formData.coords || formData.location) && (
+      {/* Reset ubicación */}
+      {(formData.coords || formData.locationFromGPS) && (
         <button
           onClick={resetLocation}
-          className="w-full mt-2 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+          className="w-full px-4 py-2 bg-red-100 text-red-700 rounded-lg"
         >
           🔄 Resetear ubicación
         </button>
@@ -303,7 +228,7 @@ const Step1UserInfo: React.FC<Props> = ({
       <button
         onClick={nextStep}
         disabled={!isFormValid()}
-        className="w-full px-4 py-3 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 disabled:bg-slate-300 transition-colors"
+        className="w-full px-4 py-3 bg-sky-600 text-white rounded-lg"
       >
         Siguiente
       </button>

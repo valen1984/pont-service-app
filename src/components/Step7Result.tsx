@@ -8,36 +8,17 @@ interface Props {
   loading?: boolean;
 }
 
-const Step7Confirmation: React.FC<Props> = ({
-  formData,
-  quote,
-  restart,
-  loading,
-}) => {
-  // 🔹 Normalizar estado crudo del backend a los usados en el front
-  const normalizedStatus = (() => {
-    switch (quote?.paymentStatus) {
-      case "offline":
-        return "onSite";
-      case "approved":
-        return "confirmed";
-      case "rejected":
-        return "rejected";
-      default:
-        return quote?.paymentStatus ?? "-";
-    }
-  })();
+const Step7Result: React.FC<Props> = ({ formData, quote, restart, loading }) => {
+  const status = quote?.paymentStatus ?? "unknown";
+  const isError = status === "rejected";
 
-  const isError = normalizedStatus === "rejected";
-
-  // 📌 Debug en montaje
+  // 📌 Debug
   useEffect(() => {
-    console.log("📌 Step7Confirmation montado");
-    console.log("➡️ formData recibido:", formData);
-    console.log("➡️ quote recibido:", quote);
-    console.log("➡️ paymentStatus (crudo):", quote?.paymentStatus);
-    console.log("➡️ paymentStatus (normalizado):", normalizedStatus);
-  }, [formData, quote, normalizedStatus]);
+    console.log("📌 Step7Result montado");
+    console.log("➡️ formData:", formData);
+    console.log("➡️ quote:", quote);
+    console.log("➡️ paymentStatus:", status);
+  }, [formData, quote, status]);
 
   if (loading) {
     return (
@@ -54,28 +35,50 @@ const Step7Confirmation: React.FC<Props> = ({
   }
 
   const renderStatusText = () => {
-    switch (normalizedStatus) {
-      case "onSite":
+    switch (status) {
+      case "approved":
         return (
           <>
-            Tu reserva fue confirmada y abonás <strong>presencialmente</strong>.
+            Tu pago fue <strong>aprobado</strong> y el servicio quedó agendado.  
             Recibirás un correo con todos los detalles.
           </>
         );
-      case "confirmed":
+      case "pending":
+      case "in_process":
         return (
           <>
-            Tu pago fue <strong>aprobado</strong> y el servicio quedó agendado.
-            Recibirás un correo con todos los detalles.
+            Tu turno fue reservado correctamente, pero el pago está{" "}
+            <span className="text-amber-600 font-semibold">pendiente de acreditación</span>.  
+            El turno ya quedó ocupado en la agenda.  
+            Te notificaremos por correo apenas se confirme el pago.
           </>
         );
       case "rejected":
         return (
           <>
-            <span className="text-red-600 font-semibold">
-              Tu pago fue rechazado.
-            </span>{" "}
+            <span className="text-red-600 font-semibold">Tu pago fue rechazado.</span>  
             Te enviamos un correo con los pasos para reintentar.
+          </>
+        );
+      case "cash_home":
+        return (
+          <>
+            Tu reserva fue confirmada y abonás <strong>en domicilio</strong>.  
+            Recibirás un correo con todos los detalles.
+          </>
+        );
+      case "cash_workshop":
+        return (
+          <>
+            Tu reserva fue confirmada y abonás <strong>en el taller</strong>.  
+            Recibirás un correo con todos los detalles.
+          </>
+        );
+      case "unpaid":
+        return (
+          <>
+            Tu orden fue generada pero aún no tiene pago registrado.  
+            Recibirás instrucciones por correo para completarla.
           </>
         );
       default:
@@ -84,10 +87,23 @@ const Step7Confirmation: React.FC<Props> = ({
   };
 
   const renderStatusLabel = () => {
-    if (normalizedStatus === "onSite") return "💵 Abona presencialmente";
-    if (normalizedStatus === "confirmed") return "✅ Confirmado";
-    if (normalizedStatus === "rejected") return "❌ Rechazado";
-    return "-";
+    switch (status) {
+      case "approved":
+        return "✅ Aprobado";
+      case "pending":
+      case "in_process":
+        return "⏳ Pendiente";
+      case "rejected":
+        return "❌ Rechazado";
+      case "cash_home":
+        return "🏠 Pago en domicilio";
+      case "cash_workshop":
+        return "🔧 Pago en taller";
+      case "unpaid":
+        return "💵 Sin pagar aún";
+      default:
+        return "📩 Desconocido";
+    }
   };
 
   return (
@@ -140,4 +156,4 @@ const Step7Confirmation: React.FC<Props> = ({
   );
 };
 
-export default Step7Confirmation;
+export default Step7Result;
