@@ -40,8 +40,21 @@ export default function SplashScreen({ onFinish }: SplashProps) {
       transition={{ duration: 0.6 }}
     >
       <div className="mb-6">
-        {/* Logo centrado */}
-        <LogoHeader />
+        {/* Logo animado */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{
+            opacity: 1,
+            scale: [1, 1.05, 1], // pulso
+          }}
+          transition={{
+            duration: 2,
+            repeat: Infinity,
+            ease: "easeInOut",
+          }}
+        >
+          <LogoHeader />
+        </motion.div>
       </div>
 
       {/* Mensajes dinámicos */}
@@ -58,7 +71,6 @@ export default function SplashScreen({ onFinish }: SplashProps) {
         </motion.p>
       </AnimatePresence>
 
-      {/* Footer */}
       {/* Footer */}
       <p className="mt-6 text-center text-xs text-slate-500">
         <a
