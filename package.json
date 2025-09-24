@@ -9,9 +9,10 @@
     "dev:backend": "node server/server.js",
     "dev:ngrok": "ngrok http 4000",
     "dev:all": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "build": "vite build",
+    "build": "npm run build:server && vite build",
+    "build:server": "tsc -p tsconfig.server.json",
     "preview": "vite preview",
-    "start": "node server/server.js"
+    "start": "node dist/server/server.js"
   },
   "dependencies": {
     "@mercadopago/sdk-react": "^1.0.6",
