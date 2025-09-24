@@ -114,7 +114,40 @@ const Step6Payment: React.FC<Props> = ({
         initialization && (
           <div className="flex justify-center">
             {console.log("🟦 Renderizando Wallet con prefId:", preferenceId)}
-            <Wallet initialization={initialization} />
+            <Wallet
+              initialization={initialization}
+              onSubmit={async (paramData) => {
+                console.log("🟢 Pago procesado, data:", paramData);
+
+                const paymentId = paramData.id || paramData.response?.id;
+                if (!paymentId) {
+                  console.error("❌ No se encontró paymentId en la respuesta:", paramData);
+                  onPaymentFailure();
+                  return;
+                }
+
+                try {
+                  const res = await fetch("/api/confirm-payment", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ formData, quote, paymentId }),
+                  });
+
+                  const data = await res.json();
+                  console.log("🔁 Respuesta confirm-payment:", data);
+
+                  if (data.ok) {
+                    onPaymentSuccess(); // 👈 avanza al Step 7
+                  } else {
+                    console.error("⚠️ Error en confirmación:", data.error);
+                    onPaymentFailure();
+                  }
+                } catch (err) {
+                  console.error("❌ Error confirmando pago:", err);
+                  onPaymentFailure();
+                }
+              }}
+            />
           </div>
         )
       )}

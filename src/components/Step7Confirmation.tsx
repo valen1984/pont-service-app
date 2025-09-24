@@ -14,16 +14,30 @@ const Step7Confirmation: React.FC<Props> = ({
   restart,
   loading,
 }) => {
-  const paymentStatus = quote?.paymentStatus ?? "-"; // ✅ fallback seguro
-  const isError = paymentStatus === "rejected";
+  // 🔹 Normalizar estado crudo del backend a los usados en el front
+  const normalizedStatus = (() => {
+    switch (quote?.paymentStatus) {
+      case "offline":
+        return "onSite";
+      case "approved":
+        return "confirmed";
+      case "rejected":
+        return "rejected";
+      default:
+        return quote?.paymentStatus ?? "-";
+    }
+  })();
+
+  const isError = normalizedStatus === "rejected";
 
   // 📌 Debug en montaje
   useEffect(() => {
     console.log("📌 Step7Confirmation montado");
     console.log("➡️ formData recibido:", formData);
     console.log("➡️ quote recibido:", quote);
-    console.log("➡️ paymentStatus:", paymentStatus);
-  }, [formData, quote, paymentStatus]);
+    console.log("➡️ paymentStatus (crudo):", quote?.paymentStatus);
+    console.log("➡️ paymentStatus (normalizado):", normalizedStatus);
+  }, [formData, quote, normalizedStatus]);
 
   if (loading) {
     return (
@@ -40,7 +54,7 @@ const Step7Confirmation: React.FC<Props> = ({
   }
 
   const renderStatusText = () => {
-    switch (paymentStatus) {
+    switch (normalizedStatus) {
       case "onSite":
         return (
           <>
@@ -70,9 +84,9 @@ const Step7Confirmation: React.FC<Props> = ({
   };
 
   const renderStatusLabel = () => {
-    if (paymentStatus === "onSite") return "💵 Abona presencialmente";
-    if (paymentStatus === "confirmed") return "✅ Confirmado";
-    if (paymentStatus === "rejected") return "❌ Rechazado";
+    if (normalizedStatus === "onSite") return "💵 Abona presencialmente";
+    if (normalizedStatus === "confirmed") return "✅ Confirmado";
+    if (normalizedStatus === "rejected") return "❌ Rechazado";
     return "-";
   };
 

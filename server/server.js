@@ -3,7 +3,7 @@ import cors from "cors";
 import bodyParser from "body-parser";
 import { MercadoPagoConfig, Preference, Payment } from "mercadopago";
 import { sendConfirmationEmail } from "./email.js";
-import { ORDER_STATES, TECHNICIAN_EMAIL } from "./constants.js";
+import { TECHNICIAN_EMAIL } from "./constants.js";
 
 import path from "path";
 import { fileURLToPath } from "url";
@@ -153,8 +153,13 @@ app.post("/webhook", async (req, res) => {
         console.error("⚠️ No se pudo parsear quote:", metadata.quote);
       }
 
-      // 📌 Estado usando la constante ORDER_STATES
-      const estadoMsg = ORDER_STATES[status] || ORDER_STATES.unknown;
+      // 📌 Normalizar estado
+      const estadoNormalizado =
+        status === "approved"
+          ? "confirmed"
+          : status === "rejected"
+          ? "rejected"
+          : "pending";
 
       // 📧 Mandar mail cliente + CC técnico
       await sendConfirmationEmail({
@@ -162,11 +167,11 @@ app.post("/webhook", async (req, res) => {
         cc: TECHNICIAN_EMAIL,
         ...formData,
         quote,
-        estado, // 👈 pasa el crudo, NO el amigable
+        estado: estadoNormalizado,
       });
 
       // 📅 Calendar si corresponde
-      if ((status === "approved" || status === "pending") && formData.appointmentSlot) {
+      if (estadoNormalizado === "confirmed" && formData.appointmentSlot) {
         await createCalendarEvent(formData, quote);
       }
     }
@@ -177,6 +182,7 @@ app.post("/webhook", async (req, res) => {
     res.sendStatus(500);
   }
 });
+
 // ======================
 // 📌 Pago presencial (sin Mercado Pago)
 // ======================
@@ -189,7 +195,7 @@ app.post("/reservation/onsite", async (req, res) => {
       cc: TECHNICIAN_EMAIL,
       ...formData,
       quote,
-      estado: "💵 Pago presencial confirmado",
+      estado: "onSite", // 👈 normalizado
     });
 
     if (formData.appointmentSlot) {
@@ -210,7 +216,8 @@ app.post("/api/confirm-payment", async (req, res) => {
   try {
     let { formData, quote, paymentId } = req.body;
 
-    // 👇 ACA entra el chequeo de Mercado Pago si existe paymentId
+    let estadoNormalizado = "onSite"; // default pago presencial
+
     if (paymentId) {
       console.log("📦 paymentId recibido:", paymentId);
 
@@ -224,6 +231,8 @@ app.post("/api/confirm-payment", async (req, res) => {
             .status(400)
             .json({ ok: false, error: `El pago no está aprobado (estado: ${payment.status})` });
         }
+
+        estadoNormalizado = "confirmed"; // 👈 aprobado
       } catch (err) {
         console.error("❌ Error consultando MP:", err.message || err);
         return res
@@ -232,32 +241,33 @@ app.post("/api/confirm-payment", async (req, res) => {
       }
     }
 
-    // 📧 Mandar mail cliente + CC técnico
     await sendConfirmationEmail({
       recipient: formData.email || "pontserviciosderefrigeracion@gmail.com",
       cc: TECHNICIAN_EMAIL,
       ...formData,
       quote,
-      estado: paymentId ? "approved" : "offline", // 👈 opcional: crudo
+      estado: estadoNormalizado,
     });
 
-    // 📅 Crear evento si hay turno
     if (formData.appointmentSlot) {
       await createCalendarEvent(formData, quote);
     }
 
-    // ✅ Respuesta final
     res.json({
       ok: true,
       message: "Confirmación procesada",
       formData,
-      quote: { ...quote, paymentStatus: paymentId ? "approved" : "offline" },
+      quote: {
+        ...quote,
+        paymentStatus: estadoNormalizado, // 👈 onSite | confirmed | rejected | pending
+      },
     });
   } catch (err) {
     console.error("❌ Error en confirm-payment:", err);
     res.status(500).json({ ok: false, error: err.message });
   }
 });
+
 // ======================
 // 📌 Agenda con Google Calendar
 // ======================
