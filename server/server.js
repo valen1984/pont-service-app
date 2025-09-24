@@ -4,6 +4,7 @@ import bodyParser from "body-parser";
 import { MercadoPagoConfig, Preference, Payment } from "mercadopago";
 import { sendConfirmationEmail } from "./email.js";
 import { TECHNICIAN_EMAIL } from "./constants.js";
+import { ORDER_STATES, TECHNICIAN_EMAIL } from "./constants.js";
 
 import path from "path";
 import { fileURLToPath } from "url";
@@ -113,6 +114,18 @@ app.post("/create_preference", async (req, res) => {
 });
 
 // ======================
+// 📌 Definir estados de orden (centralizado)
+// ======================
+const ORDER_STATES = {
+  approved: "✅ Pago aprobado - orden CONFIRMADA",
+  pending: "⏳ Pago pendiente - en espera de confirmación",
+  rejected: "❌ Pago rechazado - por favor intentá nuevamente",
+  onsite: "💵 Pago presencial confirmado",
+  manual: "✍️ Confirmación manual procesada",
+  unknown: "📩 Estado desconocido",
+};
+
+// ======================
 // 📌 Webhook de Mercado Pago
 // ======================
 app.post("/webhook", async (req, res) => {
@@ -153,19 +166,10 @@ app.post("/webhook", async (req, res) => {
         console.error("⚠️ No se pudo parsear quote:", metadata.quote);
       }
 
-      // Mensaje según estado
-      let estadoMsg = "";
-      if (status === "approved") {
-        estadoMsg = "✅ Pago aprobado - orden CONFIRMADA";
-      } else if (status === "pending") {
-        estadoMsg = "⏳ Pago pendiente - en espera de confirmación";
-      } else if (status === "rejected") {
-        estadoMsg = "❌ Pago rechazado - por favor intentá nuevamente";
-      } else {
-        estadoMsg = `📩 Estado desconocido: ${status}`;
-      }
+      // 📌 Estado usando la constante ORDER_STATES
+      const estadoMsg = ORDER_STATES[status] || ORDER_STATES.unknown;
 
-      // Mandar mail cliente + CC técnico
+      // 📧 Mandar mail cliente + CC técnico
       await sendConfirmationEmail({
         recipient: formData.email || "pontserviciosderefrigeracion@gmail.com",
         cc: TECHNICIAN_EMAIL,
@@ -174,7 +178,7 @@ app.post("/webhook", async (req, res) => {
         estado: estadoMsg,
       });
 
-      // Calendar si corresponde
+      // 📅 Calendar si corresponde
       if ((status === "approved" || status === "pending") && formData.appointmentSlot) {
         await createCalendarEvent(formData, quote);
       }
@@ -186,7 +190,6 @@ app.post("/webhook", async (req, res) => {
     res.sendStatus(500);
   }
 });
-
 // ======================
 // 📌 Pago presencial (sin Mercado Pago)
 // ======================
