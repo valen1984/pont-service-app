@@ -18,7 +18,7 @@ export const sendConfirmationEmail = async ({
   coords,
   quote,
   photos,
-  estado,
+  estado, // viene de server.js como "approved" | "pending" | "rejected"
 }) => {
   const coordsText = coords
     ? `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}`
@@ -28,12 +28,19 @@ export const sendConfirmationEmail = async ({
     ? `https://www.google.com/maps?q=${coords.lat},${coords.lon}`
     : "";
 
+  // ⚡ Normalizar estado a texto con emoji
+  let estadoMsg = "📩 Estado no especificado";
+  if (estado === "approved") estadoMsg = "✅ CONFIRMADA";
+  if (estado === "pending") estadoMsg = "⏳ PENDIENTE";
+  if (estado === "rejected") estadoMsg = "❌ RECHAZADA";
+
   // ⚡ Armamos datos dinámicos para el template
   const dynamicTemplateData = {
-    estado: estado ?? "📩 Estado no especificado",
+    estado: estadoMsg,
     fullName: fullName ?? "No informado",
     phone: phone ?? "No informado",
     email: recipient,
+    appointment: appointment ?? "No especificado",
     address: address ?? "No informado",
     location: location ?? "No informado",
     coords: coordsText,
@@ -43,7 +50,7 @@ export const sendConfirmationEmail = async ({
     subtotal: quote?.subtotal ? `$${quote.subtotal}` : "-",
     iva: quote?.iva ? `$${quote.iva}` : "-",
     total: quote?.total ? `$${quote.total}` : "-",
-    photos: photos ?? [],
+    photos: photos && photos.length > 0 ? photos.slice(0, 3) : [], // 👈 array limpio
   };
 
   const msg = {
