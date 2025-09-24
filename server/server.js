@@ -210,54 +210,54 @@ app.post("/api/confirm-payment", async (req, res) => {
   try {
     let { formData, quote, paymentId } = req.body;
 
-    // 🔹 Defaults para pago presencial
-    let estadoCrudo = "offline";
-    let estadoAmigable = "💵 Pago presencial - orden CONFIRMADA";
-
+    // 👇 ACA entra el chequeo de Mercado Pago si existe paymentId
     if (paymentId) {
+      console.log("📦 paymentId recibido:", paymentId);
+
       const paymentClient = new Payment(client);
-      const payment = await paymentClient.get({ id: paymentId });
+      try {
+        const payment = await paymentClient.get({ id: paymentId });
+        console.log("🔎 Respuesta completa MP:", payment);
 
-      if (payment.status !== "approved") {
+        if (payment.status !== "approved") {
+          return res
+            .status(400)
+            .json({ ok: false, error: `El pago no está aprobado (estado: ${payment.status})` });
+        }
+      } catch (err) {
+        console.error("❌ Error consultando MP:", err.message || err);
         return res
-          .status(400)
-          .json({ ok: false, error: `El pago no está aprobado (estado: ${payment.status})` });
+          .status(500)
+          .json({ ok: false, error: "Error consultando Mercado Pago" });
       }
-
-      estadoCrudo = payment.status; // normalmente "approved"
-      estadoAmigable = "✅ Pago aprobado - orden CONFIRMADA";
     }
 
-    // 📩 Llamada correcta a sendConfirmationEmail
+    // 📧 Mandar mail cliente + CC técnico
     await sendConfirmationEmail({
-      email: formData.email || "pontserviciosderefrigeracion@gmail.com", // 👈 usa 'email', no 'recipient'
+      recipient: formData.email || "pontserviciosderefrigeracion@gmail.com",
       cc: TECHNICIAN_EMAIL,
       ...formData,
       quote,
-      estado: estadoAmigable, // 👈 este se imprime en el mail
+      estado: paymentId ? "approved" : "offline", // 👈 opcional: crudo
     });
 
+    // 📅 Crear evento si hay turno
     if (formData.appointmentSlot) {
       await createCalendarEvent(formData, quote);
     }
 
-    // 🔹 Respuesta final con ambos estados
+    // ✅ Respuesta final
     res.json({
       ok: true,
       message: "Confirmación procesada",
       formData,
-      quote: {
-        ...quote,
-        paymentStatus: estadoCrudo,         // crudo (approved/offline/etc.)
-        paymentStatusLabel: estadoAmigable, // amigable para UI o logs
-      },
+      quote: { ...quote, paymentStatus: paymentId ? "approved" : "offline" },
     });
   } catch (err) {
     console.error("❌ Error en confirm-payment:", err);
     res.status(500).json({ ok: false, error: err.message });
   }
 });
-
 // ======================
 // 📌 Agenda con Google Calendar
 // ======================
