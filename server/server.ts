@@ -157,17 +157,18 @@ async function generateSchedule() {
 // 📌 ENDPOINTS DE API
 // ======================
 app.get("/api/schedule", async (req, res) => {
-  console.log("📩 [API] /api/schedule recibido desde:", req.headers.origin);
+  console.log("📩 [API] /api/schedule recibido");
   try {
     const schedule = await generateSchedule();
-    console.log("✅ [API] Schedule OK:", schedule.length, "días");
+    console.log("✅ [API] Schedule generado con", schedule.length, "días");
     if (schedule.length > 0) {
       console.log("📝 [API] Primer día:", JSON.stringify(schedule[0], null, 2));
     }
+
+    // 👇 acá devolvemos JSON al cliente
     res.json(schedule);
   } catch (err: any) {
     console.error("❌ [API] Error al generar agenda:", err.message);
-    console.error(err.stack);
     res.status(500).json({ error: "Error al generar agenda" });
   }
 });
@@ -178,10 +179,9 @@ app.get("/api/schedule", async (req, res) => {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ⚠️ como server.ts está en dist-server/, el build de Vite está en ../dist
 const frontendPath = path.join(__dirname, "../dist");
-
 console.log("📂 Servir frontend desde:", frontendPath);
+
 app.use(express.static(frontendPath));
 
 // Catch-all: cualquier ruta que no sea /api/... devuelve React
@@ -189,7 +189,6 @@ app.get("*", (req, res) => {
   console.log("➡️ [REQ] Catch-all activado");
   console.log("   URL solicitada:", req.originalUrl);
   console.log("   Sirviendo:", path.join(frontendPath, "index.html"));
-
   res.sendFile(path.join(frontendPath, "index.html"));
 });
 
