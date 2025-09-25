@@ -17,38 +17,35 @@ const Step5Scheduler: React.FC<Props> = ({
   const [schedule, setSchedule] = useState<ScheduleDay[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchSchedule = async () => {
+useEffect(() => {
+  const fetchSchedule = async () => {
+    try {
+      console.log("📡 Fetching schedule...");
+
+      // 🚀 relativo: usa el mismo dominio en prod y en local
+      const res = await fetch("/api/schedule");
+
+      console.log("📡 Response status:", res.status, res.statusText);
+      const text = await res.text();
+      console.log("📡 Raw response preview:", text.substring(0, 200));
+
       try {
-        console.log("📡 Fetching schedule...");
-
-        const res = await fetch(
-          process.env.NODE_ENV === "production"
-            ? "https://TU_BACKEND.railway.app/api/schedule" // 👈 poné tu URL real del back
-            : "http://localhost:3000/api/schedule"
-        );
-
-        console.log("📡 Response status:", res.status, res.statusText);
-        const text = await res.text();
-        console.log("📡 Raw response preview:", text.substring(0, 200));
-
-        try {
-          const data = JSON.parse(text);
-          console.log("✅ Parsed JSON:", data);
-          setSchedule(data);
-        } catch (jsonErr) {
-          console.error("❌ Error parseando JSON:", jsonErr);
-          console.error("❌ Respuesta cruda fue HTML (probablemente index.html)");
-        }
-      } catch (err) {
-        console.error("❌ Error cargando agenda:", err);
-      } finally {
-        setLoading(false);
+        const data = JSON.parse(text);
+        console.log("✅ Parsed JSON:", data);
+        setSchedule(data);
+      } catch (jsonErr) {
+        console.error("❌ Error parseando JSON:", jsonErr);
+        console.error("❌ Respuesta cruda fue HTML (probablemente index.html)");
       }
-    };
+    } catch (err) {
+      console.error("❌ Error cargando agenda:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchSchedule();
-  }, []);
+  fetchSchedule();
+}, []);
 
   const handleSelectSlot = (day: ScheduleDay, time: string) => {
     updateFormData({

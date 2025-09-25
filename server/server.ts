@@ -29,11 +29,14 @@ console.log("🌍 ENV GOOGLE_PRIVATE_KEY:", process.env.GOOGLE_PRIVATE_KEY ? "OK
 
 // ⚡ Middleware para log de todas las requests
 app.use((req, res, next) => {
-  console.log("➡️ [REQ]");
+  const isApi = req.originalUrl.startsWith("/api/");
+  console.log("➡️ [REQ]", isApi ? "[API]" : "[FRONT]");
   console.log("   URL:", req.originalUrl);
   console.log("   Method:", req.method);
   console.log("   Host:", req.headers.host);
-  console.log("   Origin:", req.headers.origin);
+  if (req.headers.origin) {
+    console.log("   Origin:", req.headers.origin);
+  }
   next();
 });
 
@@ -176,11 +179,18 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // ⚠️ como server.ts está en dist-server/, el build de Vite está en ../dist
-app.use(express.static(path.join(__dirname, "../dist")));
+const frontendPath = path.join(__dirname, "../dist");
 
+console.log("📂 Servir frontend desde:", frontendPath);
+app.use(express.static(frontendPath));
+
+// Catch-all: cualquier ruta que no sea /api/... devuelve React
 app.get("*", (req, res) => {
-  console.log(`➡️ [REQ] Catch-all: ${req.originalUrl} → sirviendo index.html`);
-  res.sendFile(path.join(__dirname, "../dist", "index.html"));
+  console.log("➡️ [REQ] Catch-all activado");
+  console.log("   URL solicitada:", req.originalUrl);
+  console.log("   Sirviendo:", path.join(frontendPath, "index.html"));
+
+  res.sendFile(path.join(frontendPath, "index.html"));
 });
 
 // ======================
