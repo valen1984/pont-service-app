@@ -19,6 +19,7 @@ dist-ssr
 .env
 .env.local
 .env.*.local
+*.env
 
 # Editor directories and files
 .vscode/*
@@ -31,5 +32,6 @@ dist-ssr
 *.sln
 *.sw?
 Thumbs.db
+
 
 
