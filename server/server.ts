@@ -145,6 +145,7 @@ async function generateSchedule() {
 // 📌 Pago presencial (domicilio / taller) — cash_home
 // ======================
 app.post("/api/confirm-onsite", async (req, res) => {
+  console.log("💵 [/api/confirm-onsite] req.body crudo:", req.body);
   try {
     const { formData, quote } = req.body;
 

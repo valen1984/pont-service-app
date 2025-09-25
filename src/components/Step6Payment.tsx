@@ -66,11 +66,15 @@ const Step6Payment: React.FC<Props> = ({
     setLoading(true);
 
     try {
+      console.log("📤 Enviando confirm-onsite:", { formData, quote });
+
       const response = await fetch("/api/confirm-onsite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ formData, quote }),
       });
+
+      console.log("📡 Status confirm-onsite:", response.status);
 
       const data = await response.json();
       console.log("📦 Respuesta confirm-onsite:", data);
