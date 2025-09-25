@@ -205,12 +205,13 @@ app.listen(Number(PORT), "0.0.0.0", () => {
 app.post("/api/confirm-onsite", async (req, res) => {
   try {
     const { formData, quote } = req.body;
-
     console.log("💵 Pago presencial recibido:", formData);
 
+    const estado = ORDER_STATES.cash_home; // 👈 unificado
+
     await sendConfirmationEmail({
-      recipient: TECHNICIAN_EMAIL, // 👨‍🔧 al técnico
-      cc: formData.email,          // 📩 copia al cliente
+      recipient: TECHNICIAN_EMAIL,
+      cc: formData.email,
       fullName: formData.fullName,
       phone: formData.phone,
       appointment: `${formData.appointmentSlot?.date} ${formData.appointmentSlot?.time}`,
@@ -219,10 +220,10 @@ app.post("/api/confirm-onsite", async (req, res) => {
       coords: formData.coords,
       quote,
       photos: formData.photos,
-      estado: ORDER_STATES.cash_home, // 👈 Estado unificado en constants.ts
+      estado,
     });
 
-    res.json({ success: true, estado: ORDER_STATES.cash_home });
+    res.json({ success: true, estado });
   } catch (err: any) {
     console.error("❌ Error en confirm-onsite:", err.message);
     res.status(500).json({ success: false, error: err.message });
@@ -260,6 +261,47 @@ app.post("/api/confirm-payment", async (req, res) => {
     });
 
     res.json({ success: true, estado: payment.status });
+  } catch (err: any) {
+    console.error("❌ Error en confirm-payment:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+// ======================
+// 📌 Pago con Mercado Pago
+// ======================
+app.post("/api/confirm-payment", async (req, res) => {
+  try {
+    const { formData, quote, paymentId } = req.body;
+    console.log("🔎 Confirmación de pago recibida:", { paymentId });
+
+    // 👉 Consultar a la API de Mercado Pago
+    const payment = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+      headers: {
+        Authorization: `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}`,
+      },
+    }).then((r) => r.json());
+
+    console.log("📦 Respuesta MP:", payment);
+
+    // Estado oficial de Mercado Pago
+    const estado = ORDER_STATES[payment.status] || ORDER_STATES.unknown;
+
+    // 📧 Mail al técnico + cliente
+    await sendConfirmationEmail({
+      recipient: TECHNICIAN_EMAIL,
+      cc: formData.email,
+      fullName: formData.fullName,
+      phone: formData.phone,
+      appointment: `${formData.appointmentSlot?.date} ${formData.appointmentSlot?.time}`,
+      address: formData.address,
+      location: formData.location,
+      coords: formData.coords,
+      quote,
+      photos: formData.photos,
+      estado, // 👈 pasa estado unificado
+    });
+
+    res.json({ success: true, estado });
   } catch (err: any) {
     console.error("❌ Error en confirm-payment:", err.message);
     res.status(500).json({ success: false, error: err.message });

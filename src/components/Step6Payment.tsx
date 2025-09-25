@@ -5,16 +5,14 @@ import { Wallet } from "@mercadopago/sdk-react";
 interface Props {
   quote: Quote | null;
   formData: FormData;
-  onPayOnSite: () => void;
   prevStep: () => void;
-  onPaymentSuccess: () => void;
+  onPaymentSuccess: (status: string) => void; // 👈 ahora recibe status
   onPaymentFailure: () => void;
 }
 
 const Step6Payment: React.FC<Props> = ({
   quote,
   formData,
-  onPayOnSite,
   prevStep,
   onPaymentSuccess,
   onPaymentFailure,
@@ -22,23 +20,13 @@ const Step6Payment: React.FC<Props> = ({
   const [preferenceId, setPreferenceId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // ✅ Memorizar initialization para evitar re-montajes innecesarios
   const initialization = useMemo(() => {
-    if (preferenceId) {
-      console.log("🟦 useMemo initialization con prefId:", preferenceId);
-      return { preferenceId };
-    }
-    return null;
+    return preferenceId ? { preferenceId } : null;
   }, [preferenceId]);
 
-  // 👉 Crear preferencia en el backend (Mercado Pago)
+  // 👉 Crear preferencia en backend
   const createPreference = async () => {
     if (!quote) return;
-
-    console.log("🟢 createPreference llamado");
-    console.log("➡️ formData enviado:", formData);
-    console.log("➡️ quote enviado:", quote);
-
     try {
       const response = await fetch("/create_preference", {
         method: "POST",
@@ -47,46 +35,43 @@ const Step6Payment: React.FC<Props> = ({
           title: "Servicio técnico Pont",
           quantity: 1,
           unit_price: quote.total,
-          formData, // 🔹 Enviar formData completo
-          quote,    // 🔹 Enviar quote completo
+          formData,
+          quote,
         }),
       });
 
       const data = await response.json();
-      console.log("📦 Respuesta backend:", data);
-
-      const prefId = data.id || data.preferenceId; // 👈 soporta ambas keys
+      const prefId = data.id || data.preferenceId;
       if (!prefId) throw new Error("No se recibió un preferenceId válido");
-
       setPreferenceId(prefId);
-    } catch (error) {
-      console.error("❌ Error creando preferencia:", error);
+    } catch (err) {
+      console.error("❌ Error creando preferencia:", err);
       onPaymentFailure();
     }
   };
 
-  // 👉 Pago presencial
+  // 👉 Pago presencial (domicilio / taller)
   const handlePayOnSite = async () => {
     if (!quote) return;
     setLoading(true);
-
     try {
-      const response = await fetch("/reservation/onsite", {
+      const response = await fetch("/api/confirm-onsite", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ formData, quote }),
       });
 
       const data = await response.json();
-      if (data.ok) {
+      if (data.success) {
         console.log("📧 Correo pago presencial enviado");
-        onPayOnSite();
+        onPaymentSuccess("cash_home"); // 👈 unificado
       } else {
-        alert("Error enviando correo: " + data.error);
+        console.error("⚠️ Error en confirm-onsite:", data.error);
+        onPaymentFailure();
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("❌ Error en pago presencial:", err);
-      alert("No se pudo registrar el pago presencial");
+      onPaymentFailure();
     } finally {
       setLoading(false);
     }
@@ -114,19 +99,16 @@ const Step6Payment: React.FC<Props> = ({
       ) : (
         initialization && (
           <div className="flex justify-center">
-            {console.log("🟦 Renderizando Wallet con prefId:", preferenceId)}
             <Wallet
               initialization={initialization}
               onSubmit={async (paramData) => {
-                console.log("🟢 Pago procesado, data completa:", paramData);
-
                 const paymentId =
                   paramData.id ||
                   paramData.response?.id ||
                   paramData.response?.payment?.id;
 
                 if (!paymentId) {
-                  console.error("❌ No se encontró paymentId en la respuesta:", paramData);
+                  console.error("❌ No se encontró paymentId:", paramData);
                   onPaymentFailure();
                   return;
                 }
@@ -139,10 +121,8 @@ const Step6Payment: React.FC<Props> = ({
                   });
 
                   const data = await res.json();
-                  console.log("🔁 Respuesta confirm-payment:", data);
-
-                  if (data.ok) {
-                    onPaymentSuccess(); // 👈 avanza al Step 7
+                  if (data.success && data.estado?.code) {
+                    onPaymentSuccess(data.estado.code); // 👈 pasa status real de MP
                   } else {
                     console.error("⚠️ Error en confirmación:", data.error);
                     onPaymentFailure();
@@ -169,7 +149,7 @@ const Step6Payment: React.FC<Props> = ({
         disabled={loading}
         className="w-full px-4 py-3 bg-amber-500 text-white font-semibold rounded-lg hover:bg-amber-600 transition-colors shadow-md disabled:opacity-50"
       >
-        {loading ? "Procesando..." : "Abonar en el domicilio / taller"}
+        {loading ? "Procesando..." : "Abonar en domicilio / taller"}
       </button>
 
       <div className="pt-4">
