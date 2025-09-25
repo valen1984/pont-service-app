@@ -12,7 +12,29 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const app = express();
-app.use(cors());
+
+// ======================
+// 📌 CORS configurado
+// ======================
+const allowedOrigins = [
+  "http://localhost:5173", // dev local
+  "http://localhost:3000", // opcional, si corres el front en 3000
+  "https://pont-service-app-production.up.railway.app", // frontend deployado en Railway
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true); // permite curl/Postman sin Origin
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    } else {
+      console.warn("🚫 CORS bloqueado para origen:", origin);
+      return callback(new Error("CORS bloqueado por origen no permitido: " + origin));
+    }
+  },
+  credentials: true,
+}));
+
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
@@ -28,14 +50,7 @@ app.use((req, res, next) => {
   console.log("   URL:", req.originalUrl);
   console.log("   Method:", req.method);
   console.log("   Host:", req.headers.host);
-  console.log("   Content-Type:", req.headers["content-type"]);
-  console.log("   User-Agent:", req.headers["user-agent"]);
-  next();
-});
-
-// ⚡ Middleware para log de todas las requests
-app.use((req, res, next) => {
-  console.log(`➡️ [REQ] ${req.method} ${req.originalUrl}`);
+  console.log("   Origin:", req.headers.origin);
   next();
 });
 
@@ -156,7 +171,7 @@ async function generateSchedule() {
 // 📌 ENDPOINTS DE API
 // ======================
 app.get("/api/schedule", async (req, res) => {
-  console.log("📩 [API] /api/schedule recibido desde:", req.headers.host);
+  console.log("📩 [API] /api/schedule recibido desde:", req.headers.origin);
   try {
     const schedule = await generateSchedule();
     console.log("✅ [API] Schedule OK:", schedule.length, "días");
@@ -171,8 +186,7 @@ app.get("/api/schedule", async (req, res) => {
   }
 });
 
-// 👉 acá van también tus endpoints de Mercado Pago (/create_preference, /webhook, etc.)
-// 👉 y el de /reservation/onsite, /api/confirm-payment, etc.
+// 👉 acá irían también tus endpoints de Mercado Pago, etc.
 
 // ======================
 // 📌 Servir frontend (al final siempre)
