@@ -104,8 +104,12 @@ async function generateSchedule() {
 
       const slots = [];
       for (let hour = START_HOUR; hour < END_HOUR; hour += INTERVAL) {
-        const slotStart = new Date(`${formattedDate}T${hour.toString().padStart(2, "0")}:00:00-03:00`);
-        const slotEnd = new Date(slotStart.getTime() + INTERVAL * 60 * 60 * 1000);
+        const slotStart = new Date(
+          `${formattedDate}T${hour.toString().padStart(2, "0")}:00:00-03:00`
+        );
+        const slotEnd = new Date(
+          slotStart.getTime() + INTERVAL * 60 * 60 * 1000
+        );
 
         const now = new Date();
         const diffMs = slotStart.getTime() - now.getTime();
@@ -145,7 +149,10 @@ async function generateSchedule() {
       });
     }
   } catch (err) {
-    console.error("❌ Error al generar agenda desde Google Calendar:", (err as Error).message);
+    console.error(
+      "❌ Error al generar agenda desde Google Calendar:",
+      (err as Error).message
+    );
     throw err;
   }
 
