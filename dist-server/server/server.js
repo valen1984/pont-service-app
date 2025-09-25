@@ -21,11 +21,14 @@ console.log("🌍 ENV GOOGLE_CLIENT_EMAIL:", process.env.GOOGLE_CLIENT_EMAIL ? "
 console.log("🌍 ENV GOOGLE_PRIVATE_KEY:", process.env.GOOGLE_PRIVATE_KEY ? "OK" : "MISSING");
 // ⚡ Middleware para log de todas las requests
 app.use((req, res, next) => {
-    console.log("➡️ [REQ]");
+    const isApi = req.originalUrl.startsWith("/api/");
+    console.log("➡️ [REQ]", isApi ? "[API]" : "[FRONT]");
     console.log("   URL:", req.originalUrl);
     console.log("   Method:", req.method);
     console.log("   Host:", req.headers.host);
-    console.log("   Origin:", req.headers.origin);
+    if (req.headers.origin) {
+        console.log("   Origin:", req.headers.origin);
+    }
     next();
 });
 // ⚡ Mercado Pago
@@ -131,18 +134,18 @@ async function generateSchedule() {
 // 📌 ENDPOINTS DE API
 // ======================
 app.get("/api/schedule", async (req, res) => {
-    console.log("📩 [API] /api/schedule recibido desde:", req.headers.origin);
+    console.log("📩 [API] /api/schedule recibido");
     try {
         const schedule = await generateSchedule();
-        console.log("✅ [API] Schedule OK:", schedule.length, "días");
+        console.log("✅ [API] Schedule generado con", schedule.length, "días");
         if (schedule.length > 0) {
             console.log("📝 [API] Primer día:", JSON.stringify(schedule[0], null, 2));
         }
+        // 👇 acá devolvemos JSON al cliente
         res.json(schedule);
     }
     catch (err) {
         console.error("❌ [API] Error al generar agenda:", err.message);
-        console.error(err.stack);
         res.status(500).json({ error: "Error al generar agenda" });
     }
 });
@@ -151,17 +154,27 @@ app.get("/api/schedule", async (req, res) => {
 // ======================
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-// ⚠️ como server.ts está en dist-server/, el build de Vite está en ../dist
-app.use(express.static(path.join(__dirname, "../dist")));
+const frontendPath = path.join(__dirname, "../dist");
+console.log("📂 Servir frontend desde:", frontendPath);
+app.use(express.static(frontendPath));
+// Catch-all: cualquier ruta que no sea /api/... devuelve React
 app.get("*", (req, res) => {
-    console.log(`➡️ [REQ] Catch-all: ${req.originalUrl} → sirviendo index.html`);
-    res.sendFile(path.join(__dirname, "../dist", "index.html"));
+    if (req.originalUrl.startsWith("/api/")) {
+        console.warn("⚠️ [WARN] Ruta de API cayó en el catch-all:", req.originalUrl);
+        console.warn("⚠️ Esto significa que Express no encontró un endpoint para esta ruta.");
+        console.warn("⚠️ Revisar orden de endpoints o fetch mal escrito en el front.");
+    }
+    else {
+        console.log("➡️ [REQ] Catch-all activado (frontend)");
+        console.log("   URL solicitada:", req.originalUrl);
+    }
+    res.sendFile(path.join(frontendPath, "index.html"));
 });
 // ======================
 // 🚀 Start Server
 // ======================
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+app.listen(Number(PORT), "0.0.0.0", () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`🔗 Schedule endpoint: http://localhost:${PORT}/api/schedule`);
 });

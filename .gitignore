@@ -12,16 +12,16 @@ node_modules
 
 # Build
 dist
+dist-server
 dist-ssr
 .vite/
 
-# Variables de entorno
+# Variables de entorno (solo los reales, no los de ejemplo)
 .env
 .env.local
 .env.*.local
 *.env
-.env.example
-*.env.example
+!*.env.example   # 👈 aseguramos que los .env.example sí se versionan
 
 # Editor directories and files
 .vscode/*
@@ -34,6 +34,3 @@ dist-ssr
 *.sln
 *.sw?
 Thumbs.db
-
-
-

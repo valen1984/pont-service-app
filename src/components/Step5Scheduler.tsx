@@ -17,35 +17,32 @@ const Step5Scheduler: React.FC<Props> = ({
   const [schedule, setSchedule] = useState<ScheduleDay[]>([]);
   const [loading, setLoading] = useState(true);
 
-useEffect(() => {
-  const fetchSchedule = async () => {
-    try {
-      console.log("📡 Fetching schedule...");
-
-      // 🚀 relativo: usa el mismo dominio en prod y en local
-      const res = await fetch("/api/schedule");
-
-      console.log("📡 Response status:", res.status, res.statusText);
-      const text = await res.text();
-      console.log("📡 Raw response preview:", text.substring(0, 200));
-
+  useEffect(() => {
+    const fetchSchedule = async () => {
       try {
-        const data = JSON.parse(text);
+        console.log("📡 Fetching schedule...");
+
+        const res = await fetch(
+          process.env.NODE_ENV === "production"
+            ? "https://pont-service-app-production.up.railway.app/api/schedule"
+            : "http://localhost:3000/api/schedule"
+        );
+
+        console.log("📡 Response status:", res.status, res.statusText);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const data = await res.json();
         console.log("✅ Parsed JSON:", data);
         setSchedule(data);
-      } catch (jsonErr) {
-        console.error("❌ Error parseando JSON:", jsonErr);
-        console.error("❌ Respuesta cruda fue HTML (probablemente index.html)");
+      } catch (err) {
+        console.error("❌ Error cargando agenda:", err);
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error("❌ Error cargando agenda:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
-  fetchSchedule();
-}, []);
+    fetchSchedule();
+  }, []);
 
   const handleSelectSlot = (day: ScheduleDay, time: string) => {
     updateFormData({
