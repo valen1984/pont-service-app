@@ -2,9 +2,9 @@ import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
 import { MercadoPagoConfig } from "mercadopago";
-import { TECHNICIAN_EMAIL, ORDER_STATES } from "./constants.js";
+import { TECHNICIAN_EMAIL, ORDER_STATES } from "./constants";
 import { sendConfirmationEmail } from "./email.js";
-import { payCash } from "./cash.ts";  // 👈 importa la función
+import { payCash } from "./cash";  // 👈 importa la función
 import path from "path";
 import { fileURLToPath } from "url";
 import { google } from "googleapis";
