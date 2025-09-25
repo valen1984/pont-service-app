@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
-import { MercadoPagoConfig, Preference, Payment } from "mercadopago";
+import { MercadoPagoConfig } from "mercadopago";
 import { sendConfirmationEmail } from "./email.js";
 import { TECHNICIAN_EMAIL, ORDER_STATES } from "./constants.js";
 import path from "path";
@@ -10,7 +10,6 @@ import { google } from "googleapis";
 import dotenv from "dotenv";
 
 dotenv.config();
-
 
 const app = express();
 app.use(cors());
@@ -41,7 +40,7 @@ const calendar = google.calendar({ version: "v3", auth });
 const CALENDAR_ID = process.env.CALENDAR_ID;
 
 // ======================
-// 📌 Agenda con Google Calendar
+// 📌 Generador de agenda con Google Calendar
 // ======================
 async function generateSchedule() {
   const today = new Date();
@@ -71,7 +70,7 @@ async function generateSchedule() {
     const events = eventsRes.data.items || [];
     console.log(`📊 Eventos encontrados: ${events.length}`);
 
-    const WORKING_DAYS = [1, 2, 3, 4, 5, 6];
+    const WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // lunes a sábado
     const START_HOUR = 9;
     const END_HOUR = 17;
     const INTERVAL = 2;
@@ -138,27 +137,19 @@ async function generateSchedule() {
   return result;
 }
 
-app.get("/api/schedule", async (req, res) => {
-  try {
-    const schedule = await generateSchedule();
-    res.json(schedule);
-  } catch (err) {
-    console.error("❌ Error al generar agenda:", err);
-    res.status(500).json({ error: "Error al generar agenda" });
-  }
-});
 // ======================
 // 📌 ENDPOINTS DE API
 // ======================
 
+// Agenda
 app.get("/api/schedule", async (req, res) => {
-  console.log("📅 Request a /api/schedule");
+  console.log("📩 [API] /api/schedule recibido");
   try {
     const schedule = await generateSchedule();
-    console.log("✅ Schedule generado:", schedule.length, "días");
+    console.log("✅ [API] /api/schedule respuesta:", schedule.length, "días");
     res.json(schedule);
   } catch (err) {
-    console.error("❌ Error al generar agenda:", err);
+    console.error("❌ [API] Error al generar agenda:", err);
     res.status(500).json({ error: "Error al generar agenda" });
   }
 });
@@ -172,17 +163,16 @@ app.get("/api/schedule", async (req, res) => {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-app.get("/api/schedule", async (req, res) => {
-  console.log("📩 [API] /api/schedule recibido");
+app.use(express.static(path.join(__dirname, "../dist"))); // ajustá ruta a tu build de front
 
-  try {
-    const schedule = await generateSchedule();
-    console.log("✅ [API] /api/schedule respuesta:", JSON.stringify(schedule, null, 2));
-
-    res.json(schedule);
-  } catch (err) {
-    console.error("❌ [API] Error al generar agenda:", err);
-    res.status(500).json({ error: "Error al generar agenda" });
-  }
+app.get("*", (req, res) => {
+  res.sendFile(path.join(__dirname, "../dist", "index.html"));
 });
 
+// ======================
+// 🚀 Start Server
+// ======================
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`✅ Server running on port ${PORT}`);
+});
