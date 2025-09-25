@@ -14,26 +14,9 @@ dotenv.config();
 const app = express();
 
 // ======================
-// 📌 CORS configurado
+// 📌 CORS (ahora abierto para evitar bloqueos)
 // ======================
-const allowedOrigins = [
-  "http://localhost:5173", // dev local
-  "http://localhost:3000", // opcional, si corres el front en 3000
-  "https://pont-service-app-production.up.railway.app", // frontend deployado en Railway
-];
-
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true); // permite curl/Postman sin Origin
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    } else {
-      console.warn("🚫 CORS bloqueado para origen:", origin);
-      return callback(new Error("CORS bloqueado por origen no permitido: " + origin));
-    }
-  },
-  credentials: true,
-}));
+app.use(cors({ origin: "*" }));
 
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -186,15 +169,14 @@ app.get("/api/schedule", async (req, res) => {
   }
 });
 
-// 👉 acá irían también tus endpoints de Mercado Pago, etc.
-
 // ======================
-// 📌 Servir frontend (al final siempre)
+// 📌 Servir frontend (React build en dist)
 // ======================
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-app.use(express.static(path.join(__dirname, "../dist"))); // ajustá ruta a tu build de front
+// ⚠️ como server.ts está en dist-server/, el build de Vite está en ../dist
+app.use(express.static(path.join(__dirname, "../dist")));
 
 app.get("*", (req, res) => {
   console.log(`➡️ [REQ] Catch-all: ${req.originalUrl} → sirviendo index.html`);

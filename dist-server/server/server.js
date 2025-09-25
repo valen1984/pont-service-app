@@ -8,9 +8,26 @@ import { google } from "googleapis";
 import dotenv from "dotenv";
 dotenv.config();
 const app = express();
-app.use(cors());
+// ======================
+// 📌 CORS (ahora abierto para evitar bloqueos)
+// ======================
+app.use(cors({ origin: "*" }));
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+// 🌍 Debug envs importantes
+console.log("🌍 ENV CALENDAR_ID:", process.env.CALENDAR_ID);
+console.log("🌍 ENV GOOGLE_PROJECT_ID:", process.env.GOOGLE_PROJECT_ID);
+console.log("🌍 ENV GOOGLE_CLIENT_EMAIL:", process.env.GOOGLE_CLIENT_EMAIL ? "OK" : "MISSING");
+console.log("🌍 ENV GOOGLE_PRIVATE_KEY:", process.env.GOOGLE_PRIVATE_KEY ? "OK" : "MISSING");
+// ⚡ Middleware para log de todas las requests
+app.use((req, res, next) => {
+    console.log("➡️ [REQ]");
+    console.log("   URL:", req.originalUrl);
+    console.log("   Method:", req.method);
+    console.log("   Host:", req.headers.host);
+    console.log("   Origin:", req.headers.origin);
+    next();
+});
 // ⚡ Mercado Pago
 const client = new MercadoPagoConfig({
     accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN ?? "",
@@ -27,11 +44,12 @@ const auth = new google.auth.GoogleAuth({
 const calendar = google.calendar({ version: "v3", auth });
 const CALENDAR_ID = process.env.CALENDAR_ID;
 // ======================
-// 📌 Agenda con Google Calendar (con logs)
+// 📌 Generador de agenda con Google Calendar
 // ======================
 async function generateSchedule() {
     const today = new Date();
     const result = [];
+    console.log("🕒 Generating schedule desde:", today.toISOString());
     function getDateInBuenosAires(baseDate, offsetDays) {
         const tz = "America/Argentina/Buenos_Aires";
         const localStr = new Date(baseDate).toLocaleString("en-US", { timeZone: tz });
@@ -47,14 +65,9 @@ async function generateSchedule() {
             singleEvents: true,
             orderBy: "startTime",
         });
-        console.log("📅 Eventos traídos desde Google Calendar:", eventsRes.data.items?.length);
-        console.log("Eventos:", eventsRes.data.items?.map(ev => ({
-            summary: ev.summary,
-            start: ev.start,
-            end: ev.end,
-        })));
         const events = eventsRes.data.items || [];
-        const WORKING_DAYS = [1, 2, 3, 4, 5, 6];
+        console.log("📅 Eventos de Google Calendar recibidos:", events.length);
+        const WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // lunes a sábado
         const START_HOUR = 9;
         const END_HOUR = 17;
         const INTERVAL = 2;
@@ -108,39 +121,47 @@ async function generateSchedule() {
         }
     }
     catch (err) {
-        console.error("❌ Error al generar agenda desde Google Calendar:", err);
+        console.error("❌ Error al generar agenda desde Google Calendar:", err.message);
         throw err;
     }
+    console.log("✅ Agenda generada con", result.length, "días");
     return result;
 }
 // ======================
 // 📌 ENDPOINTS DE API
 // ======================
 app.get("/api/schedule", async (req, res) => {
+    console.log("📩 [API] /api/schedule recibido desde:", req.headers.origin);
     try {
         const schedule = await generateSchedule();
+        console.log("✅ [API] Schedule OK:", schedule.length, "días");
+        if (schedule.length > 0) {
+            console.log("📝 [API] Primer día:", JSON.stringify(schedule[0], null, 2));
+        }
         res.json(schedule);
     }
     catch (err) {
+        console.error("❌ [API] Error al generar agenda:", err.message);
+        console.error(err.stack);
         res.status(500).json({ error: "Error al generar agenda" });
     }
 });
-// 👉 acá van también tus endpoints de Mercado Pago (/create_preference, /webhook, etc.)
-// 👉 y el de /reservation/onsite, /api/confirm-payment, etc.
 // ======================
-// 📌 Servir frontend (al final siempre)
+// 📌 Servir frontend (React build en dist)
 // ======================
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-app.get("/api/schedule", async (req, res) => {
-    console.log("📩 [API] /api/schedule recibido");
-    try {
-        const schedule = await generateSchedule();
-        console.log("✅ [API] /api/schedule respuesta:", JSON.stringify(schedule, null, 2));
-        res.json(schedule);
-    }
-    catch (err) {
-        console.error("❌ [API] Error al generar agenda:", err);
-        res.status(500).json({ error: "Error al generar agenda" });
-    }
+// ⚠️ como server.ts está en dist-server/, el build de Vite está en ../dist
+app.use(express.static(path.join(__dirname, "../dist")));
+app.get("*", (req, res) => {
+    console.log(`➡️ [REQ] Catch-all: ${req.originalUrl} → sirviendo index.html`);
+    res.sendFile(path.join(__dirname, "../dist", "index.html"));
+});
+// ======================
+// 🚀 Start Server
+// ======================
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`🔗 Schedule endpoint: http://localhost:${PORT}/api/schedule`);
 });
