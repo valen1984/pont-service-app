@@ -4,13 +4,15 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-  "dev": "vite",
-  "build:front": "vite build",
-  "build:back": "tsc -p tsconfig.server.json",
-  "copy:front": "rimraf dist-server/dist && npx cpx2 \"dist/**/*\" dist-server/dist",
-  "build": "npm run build:front && npm run build:back && npm run copy:front",
-  "start": "node dist-server/server/server.js",
-  "serve": "npm run build && npm start"
+    "dev": "vite",
+    "dev:back": "nodemon",
+    "dev:all": "concurrently \"vite\" \"nodemon\"",
+    "build:front": "vite build",
+    "build:back": "tsc -p tsconfig.server.json",
+    "copy:front": "rimraf dist-server/dist && npx cpx2 \"dist/**/*\" dist-server/dist",
+    "build": "npm run build:front && npm run build:back && npm run copy:front",
+    "start": "node dist-server/server/server.js",
+    "serve": "npm run build && npm start"
   },
   "dependencies": {
     "@mercadopago/sdk-react": "^1.0.6",
@@ -35,6 +37,7 @@
     "@vitejs/plugin-react": "^5.0.0",
     "concurrently": "^8.2.2",
     "cpx2": "^8.0.0",
+    "nodemon": "^3.1.10",
     "rimraf": "^6.0.1",
     "ts-node": "^10.9.2",
     "typescript": "~5.8.2",
