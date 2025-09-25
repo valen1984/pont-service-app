@@ -45,7 +45,14 @@ app.post("/api/create_preference", async (req, res) => {
 
     const preference = await new Preference(mpClient).create({
       body: {
-        items: [{ title, quantity, unit_price }],
+        items: [
+          {
+            id: "service",        // 👈 requerido por TS
+            title,
+            quantity,
+            unit_price,
+          },
+        ],
         back_urls: {
           success: `${process.env.FRONTEND_URL}/success`,
           failure: `${process.env.FRONTEND_URL}/failure`,
@@ -62,7 +69,6 @@ app.post("/api/create_preference", async (req, res) => {
     res.status(500).json({ error: "Error creando preferencia" });
   }
 });
-
 // ======================
 // ⚡ Google Calendar
 // ======================
@@ -295,7 +301,8 @@ app.post("/api/confirm-payment", async (req, res) => {
     });
 
     const payment = await new Payment(mpClient).get({ id: paymentId });
-    const estadoCode = payment.status;
+
+    const estadoCode: string = payment.status ?? "unknown"; // 👈 fallback
     console.log("📦 Estado real de pago:", estadoCode);
 
     const estado = ORDER_STATES[estadoCode] ?? ORDER_STATES.unknown;
