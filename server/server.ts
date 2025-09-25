@@ -175,6 +175,107 @@ app.get("/api/schedule", async (req, res) => {
     res.status(500).json({ error: "Error al generar agenda" });
   }
 });
+// ======================
+// 🔨 helper: crear evento en Google Calendar
+// ======================
+async function createCalendarEvent({
+  date, time, summary, description,
+}: {
+  date: string;  // "YYYY-MM-DD"
+  time: string;  // "HH:mm"
+  summary: string;
+  description: string;
+}) {
+  try {
+    // fecha y hora BA → a ISO
+    const start = new Date(`${date}T${time}:00-03:00`);
+    const end = new Date(start.getTime() + 2 * 60 * 60 * 1000); // bloque de 2h
+
+    const event = await calendar.events.insert({
+      calendarId: CALENDAR_ID!,
+      requestBody: {
+        summary,
+        description,
+        start: { dateTime: start.toISOString(), timeZone: "America/Argentina/Buenos_Aires" },
+        end:   { dateTime: end.toISOString(),   timeZone: "America/Argentina/Buenos_Aires" },
+      },
+    });
+
+    console.log("📆 Evento creado:", event.data.id, event.data.htmlLink);
+    return { id: event.data.id, htmlLink: event.data.htmlLink };
+  } catch (err: any) {
+    console.error("❌ Error creando evento:", err.response?.data || err.message);
+    throw err;
+  }
+}
+
+// ======================
+// 📌 Pago presencial (domicilio / taller) — SIEMPRE cash_home
+// ======================
+app.post("/api/confirm-onsite", async (req, res) => {
+  try {
+    const { formData, quote } = req.body;
+
+    console.log("💵 [/api/confirm-onsite] payload recibido:", {
+      fullName: formData?.fullName,
+      email: formData?.email,
+      phone: formData?.phone,
+      date: formData?.appointmentSlot?.date,
+      time: formData?.appointmentSlot?.time,
+      total: quote?.total,
+    });
+
+    // 1) Estado manual unificado
+    const estado = ORDER_STATES.cash_home; // 💵 Pago en domicilio/taller
+
+    // 2) Crear evento
+    const date = formData?.appointmentSlot?.date;
+    const time = formData?.appointmentSlot?.time;
+    if (!date || !time) {
+      throw new Error("Falta appointmentSlot (date/time) para crear el evento");
+    }
+
+    const { id: calendarEventId, htmlLink } = await createCalendarEvent({
+      date,
+      time,
+      summary: `Servicio técnico: ${formData?.serviceType || "Visita"}`,
+      description:
+        `Cliente: ${formData?.fullName || "-"} (${formData?.phone || "-"})\n` +
+        `Dirección: ${formData?.address || "-"}\n` +
+        `Localidad: ${formData?.location || "-"}\n` +
+        `Pago: ${estado.label}\n` +
+        `Total: ${new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(quote?.total ?? 0)}`,
+    });
+
+    // 3) Enviar email
+    const mailResp = await sendConfirmationEmail({
+      recipient: TECHNICIAN_EMAIL,   // técnico en TO
+      cc: formData?.email,           // cliente en CC
+      fullName: formData?.fullName,
+      phone: formData?.phone,
+      appointment: `${date} ${time}`,
+      address: formData?.address,
+      location: formData?.location,
+      coords: formData?.coords,
+      quote,
+      photos: formData?.photos,
+      estado,                        // 👈 pasa el estado cash_home
+    });
+
+    console.log("📧 Resultado email:", mailResp);
+
+    // 4) Respuesta unificada
+    return res.json({
+      success: true,
+      estado,                 // { code: "cash_home", label: "..." }
+      calendarEventId,
+      calendarEventLink: htmlLink,
+    });
+  } catch (err: any) {
+    console.error("❌ [/api/confirm-onsite] Error:", err.message);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 // ======================
 // 📌 Servir frontend (React build en dist)
@@ -199,111 +300,4 @@ app.listen(Number(PORT), "0.0.0.0", () => {
   console.log(`🔗 Schedule endpoint: http://localhost:${PORT}/api/schedule`);
 });
 
-// ======================
-// 📌 Pago presencial (domicilio / taller)
-// ======================
-app.post("/api/confirm-onsite", async (req, res) => {
-  try {
-    const { formData, quote } = req.body;
-    console.log("💵 Pago presencial recibido:", formData);
 
-    const estado = ORDER_STATES.cash_home; // 👈 unificado
-
-    await sendConfirmationEmail({
-      recipient: TECHNICIAN_EMAIL,
-      cc: formData.email,
-      fullName: formData.fullName,
-      phone: formData.phone,
-      appointment: `${formData.appointmentSlot?.date} ${formData.appointmentSlot?.time}`,
-      address: formData.address,
-      location: formData.location,
-      coords: formData.coords,
-      quote,
-      photos: formData.photos,
-      estado,
-    });
-
-    res.json({ success: true, estado });
-  } catch (err: any) {
-    console.error("❌ Error en confirm-onsite:", err.message);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// 📩 Confirmación de pago online (MercadoPago)
-app.post("/api/confirm-payment", async (req, res) => {
-  try {
-    const { formData, quote, paymentId } = req.body;
-
-    console.log("💳 Confirmación de pago recibida:", { paymentId, formData });
-
-    // 👇 Pedimos el estado real a la API de MercadoPago
-    const payment = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
-      headers: {
-        Authorization: `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}`,
-      },
-    }).then((r) => r.json());
-
-    console.log("📡 Estado MercadoPago:", payment.status);
-
-    await sendConfirmationEmail({
-      recipient: TECHNICIAN_EMAIL,
-      cc: formData.email,
-      fullName: formData.fullName,
-      phone: formData.phone,
-      appointment: `${formData.appointmentSlot?.date} ${formData.appointmentSlot?.time}`,
-      address: formData.address,
-      location: formData.location,
-      coords: formData.coords,
-      quote,
-      photos: formData.photos,
-      estado: { code: payment.status, label: `Pago ${payment.status}` }, // 👈 Estado dinámico
-    });
-
-    res.json({ success: true, estado: payment.status });
-  } catch (err: any) {
-    console.error("❌ Error en confirm-payment:", err.message);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-// ======================
-// 📌 Pago con Mercado Pago
-// ======================
-app.post("/api/confirm-payment", async (req, res) => {
-  try {
-    const { formData, quote, paymentId } = req.body;
-    console.log("🔎 Confirmación de pago recibida:", { paymentId });
-
-    // 👉 Consultar a la API de Mercado Pago
-    const payment = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
-      headers: {
-        Authorization: `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}`,
-      },
-    }).then((r) => r.json());
-
-    console.log("📦 Respuesta MP:", payment);
-
-    // Estado oficial de Mercado Pago
-    const estado = ORDER_STATES[payment.status] || ORDER_STATES.unknown;
-
-    // 📧 Mail al técnico + cliente
-    await sendConfirmationEmail({
-      recipient: TECHNICIAN_EMAIL,
-      cc: formData.email,
-      fullName: formData.fullName,
-      phone: formData.phone,
-      appointment: `${formData.appointmentSlot?.date} ${formData.appointmentSlot?.time}`,
-      address: formData.address,
-      location: formData.location,
-      coords: formData.coords,
-      quote,
-      photos: formData.photos,
-      estado, // 👈 pasa estado unificado
-    });
-
-    res.json({ success: true, estado });
-  } catch (err: any) {
-    console.error("❌ Error en confirm-payment:", err.message);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});

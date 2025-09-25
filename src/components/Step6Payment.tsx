@@ -52,30 +52,33 @@ const Step6Payment: React.FC<Props> = ({
 
   // 👉 Pago presencial (domicilio / taller)
   const handlePayOnSite = async () => {
-    if (!quote) return;
-    setLoading(true);
-    try {
-      const response = await fetch("/api/confirm-onsite", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ formData, quote }),
-      });
+  if (!quote) return;
 
-      const data = await response.json();
-      if (data.success) {
-        console.log("📧 Correo pago presencial enviado");
-        onPaymentSuccess("cash_home"); // 👈 unificado
-      } else {
-        console.error("⚠️ Error en confirm-onsite:", data.error);
-        onPaymentFailure();
-      }
-    } catch (err) {
-      console.error("❌ Error en pago presencial:", err);
-      onPaymentFailure();
-    } finally {
-      setLoading(false);
+  setLoading(true);
+  try {
+    const response = await fetch("/api/confirm-onsite", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ formData, quote }),
+    });
+
+    const data = await response.json();
+    console.log("📦 confirm-onsite ->", data);
+
+    if (response.ok && data?.success) {
+      // data.estado.code === "cash_home"
+      // data.calendarEventId disponible
+      quote.paymentStatus = data.estado.code; 
+    } else {
+      throw new Error(data?.error || "Fallo confirm-onsite");
     }
-  };
+  } catch (err: any) {
+    console.error("❌ Error en pago presencial:", err);
+    alert("No se pudo registrar el pago presencial");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="space-y-6 text-center">
