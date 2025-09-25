@@ -1,6 +1,5 @@
 import sgMail from "@sendgrid/mail";
 
-
 interface Estado {
   code: string;
   label: string;
@@ -13,6 +12,9 @@ if (!SENDGRID_KEY) {
 }
 sgMail.setApiKey(SENDGRID_KEY);
 
+//
+// 1️⃣ Con template dinámico de SendGrid
+//
 export const sendConfirmationEmail = async ({
   recipient,
   cc,
@@ -42,7 +44,7 @@ export const sendConfirmationEmail = async ({
     total: string;
   };
   photos?: string[];
-  estado?: Estado; // 👈 ahora { code, label }
+  estado?: Estado; // 👈 { code, label }
 }) => {
   const coordsText = coords
     ? `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}`
@@ -52,7 +54,6 @@ export const sendConfirmationEmail = async ({
     ? `https://www.google.com/maps?q=${coords.lat},${coords.lon}`
     : "";
 
-  // 🚀 Datos dinámicos que recibe el template de SendGrid
   const dynamicTemplateData = {
     estado: estado?.label ?? "📩 Estado no especificado",
     estadoCode: estado?.code ?? "unknown",
@@ -82,7 +83,7 @@ export const sendConfirmationEmail = async ({
       email: "pontserviciosderefrigeracion@gmail.com",
       name: "Pont Refrigeración",
     },
-    templateId: process.env.SENDGRID_TEMPLATE_UNICO ?? "", // 👈 tu template dinámico
+    templateId: process.env.SENDGRID_TEMPLATE_UNICO ?? "",
     dynamicTemplateData,
   };
 
@@ -91,7 +92,42 @@ export const sendConfirmationEmail = async ({
     console.log(`📩 Email dinámico enviado a ${recipient} ${cc ? `+ CC ${cc}` : ""}`);
     return { success: true };
   } catch (err: any) {
-    console.error("❌ Error enviando email:", err.response?.body || err.message);
+    console.error("❌ Error enviando email dinámico:", err.response?.body || err.message);
+    return { success: false, error: err.message };
+  }
+};
+
+//
+// 2️⃣ Envío de email RAW (sin template, con subject/text/html)
+//
+export const sendRawEmail = async ({
+  to,
+  subject,
+  text,
+  html,
+}: {
+  to: string;
+  subject: string;
+  text: string;
+  html?: string;
+}) => {
+  const msg = {
+    to,
+    from: {
+      email: "pontserviciosderefrigeracion@gmail.com",
+      name: "Pont Refrigeración",
+    },
+    subject,
+    text,
+    html: html || `<p>${text}</p>`,
+  };
+
+  try {
+    await sgMail.send(msg as any);
+    console.log(`📩 Email RAW enviado a ${to}`);
+    return { success: true };
+  } catch (err: any) {
+    console.error("❌ Error enviando email RAW:", err.response?.body || err.message);
     return { success: false, error: err.message };
   }
 };

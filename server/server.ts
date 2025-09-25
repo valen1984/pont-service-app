@@ -194,3 +194,34 @@ app.listen(Number(PORT), "0.0.0.0", () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`🔗 Schedule endpoint: http://localhost:${PORT}/api/schedule`);
 });
+
+// ======================
+// 📌 Pago presencial (domicilio / taller)
+// ======================
+// 📩 Confirmación de pago presencial o en domicilio
+app.post("/api/confirm-reservation", async (req, res) => {
+  try {
+    const { formData, quote } = req.body;
+
+    console.log("📩 Nueva reserva recibida:", formData);
+
+    await sendConfirmationEmail({
+      recipient: TECHNICIAN_EMAIL, // 👈 antes era `to`, ahora usa `recipient`
+      cc: formData.email, // 👈 opcional, copia al cliente
+      fullName: formData.fullName,
+      phone: formData.phone,
+      appointment: `${formData.appointmentSlot?.date} ${formData.appointmentSlot?.time}`,
+      address: formData.address,
+      location: formData.location,
+      coords: formData.coords,
+      quote,
+      photos: formData.photos,
+      estado: { code: "NEW", label: "Nuevo turno reservado" },
+    });
+
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error("❌ Error en confirm-reservation:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
