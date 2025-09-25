@@ -2,16 +2,20 @@ import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
 import { MercadoPagoConfig } from "mercadopago";
-import { sendConfirmationEmail } from "./email.js";
 import { TECHNICIAN_EMAIL, ORDER_STATES } from "./constants.js";
+import { sendConfirmationEmail } from "./email.js";
+import { payCash } from "./cash.ts";  // 👈 importa la función
 import path from "path";
 import { fileURLToPath } from "url";
 import { google } from "googleapis";
 import dotenv from "dotenv";
 
 dotenv.config();
-
 const app = express();
+app.use(cors({ origin: "*" }));
+app.use(express.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+
 
 // ======================
 // 📌 CORS (abierto para evitar bloqueos)
@@ -198,16 +202,15 @@ app.listen(Number(PORT), "0.0.0.0", () => {
 // ======================
 // 📌 Pago presencial (domicilio / taller)
 // ======================
-// 📩 Confirmación de pago presencial o en domicilio
-app.post("/api/confirm-reservation", async (req, res) => {
+app.post("/api/confirm-onsite", async (req, res) => {
   try {
     const { formData, quote } = req.body;
 
-    console.log("📩 Nueva reserva recibida:", formData);
+    console.log("💵 Pago presencial recibido:", formData);
 
     await sendConfirmationEmail({
-      recipient: TECHNICIAN_EMAIL, // 👈 antes era `to`, ahora usa `recipient`
-      cc: formData.email, // 👈 opcional, copia al cliente
+      recipient: TECHNICIAN_EMAIL, // 👨‍🔧 al técnico
+      cc: formData.email,          // 📩 copia al cliente
       fullName: formData.fullName,
       phone: formData.phone,
       appointment: `${formData.appointmentSlot?.date} ${formData.appointmentSlot?.time}`,
@@ -216,12 +219,49 @@ app.post("/api/confirm-reservation", async (req, res) => {
       coords: formData.coords,
       quote,
       photos: formData.photos,
-      estado: { code: "NEW", label: "Nuevo turno reservado" },
+      estado: ORDER_STATES.cash_home, // 👈 Estado unificado en constants.ts
     });
 
-    res.json({ success: true });
+    res.json({ success: true, estado: ORDER_STATES.cash_home });
   } catch (err: any) {
-    console.error("❌ Error en confirm-reservation:", err.message);
+    console.error("❌ Error en confirm-onsite:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 📩 Confirmación de pago online (MercadoPago)
+app.post("/api/confirm-payment", async (req, res) => {
+  try {
+    const { formData, quote, paymentId } = req.body;
+
+    console.log("💳 Confirmación de pago recibida:", { paymentId, formData });
+
+    // 👇 Pedimos el estado real a la API de MercadoPago
+    const payment = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+      headers: {
+        Authorization: `Bearer ${process.env.MERCADOPAGO_ACCESS_TOKEN}`,
+      },
+    }).then((r) => r.json());
+
+    console.log("📡 Estado MercadoPago:", payment.status);
+
+    await sendConfirmationEmail({
+      recipient: TECHNICIAN_EMAIL,
+      cc: formData.email,
+      fullName: formData.fullName,
+      phone: formData.phone,
+      appointment: `${formData.appointmentSlot?.date} ${formData.appointmentSlot?.time}`,
+      address: formData.address,
+      location: formData.location,
+      coords: formData.coords,
+      quote,
+      photos: formData.photos,
+      estado: { code: payment.status, label: `Pago ${payment.status}` }, // 👈 Estado dinámico
+    });
+
+    res.json({ success: true, estado: payment.status });
+  } catch (err: any) {
+    console.error("❌ Error en confirm-payment:", err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });

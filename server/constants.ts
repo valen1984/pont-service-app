@@ -14,11 +14,10 @@ export const MP_STATES = {
   charged_back: { code: "charged_back", label: "⚡ Desconocido por el cliente (chargeback)" },
 };
 
-// 👉 Estados manuales (efectivo / fuera de MP)
+// 👉 Estado manual (efectivo en domicilio/taller)
 export const CASH_STATES = {
-  cash_home: { code: "cash_home", label: "🏠 Pago en domicilio confirmado" },
-  cash_workshop: { code: "cash_workshop", label: "🔧 Pago en taller confirmado" },
-  unpaid: { code: "unpaid", label: "💵 Orden generada, aún sin pagar" },
+  cash: { code: "cash", label: "💵 Pago en efectivo (domicilio/taller)" },
+  unpaid: { code: "unpaid", label: "📝 Orden generada, aún sin pagar" },
 };
 
 // 👉 Fallback
