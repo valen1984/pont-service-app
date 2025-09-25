@@ -152,10 +152,13 @@ app.get("/api/schedule", async (req, res) => {
 // ======================
 
 app.get("/api/schedule", async (req, res) => {
+  console.log("📅 Request a /api/schedule");
   try {
     const schedule = await generateSchedule();
+    console.log("✅ Schedule generado:", schedule.length, "días");
     res.json(schedule);
   } catch (err) {
+    console.error("❌ Error al generar agenda:", err);
     res.status(500).json({ error: "Error al generar agenda" });
   }
 });
@@ -182,3 +185,4 @@ app.get("/api/schedule", async (req, res) => {
     res.status(500).json({ error: "Error al generar agenda" });
   }
 });
+
