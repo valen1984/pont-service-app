@@ -49,6 +49,46 @@ const client = new MercadoPagoConfig({
   accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN ?? "",
 });
 
+// ======================
+// 📌 Crear preferencia de Mercado Pago
+// ======================
+app.post("/api/create_preference", async (req, res) => {
+  try {
+    const { title, quantity, unit_price, formData, quote } = req.body;
+
+    console.log("🟦 Crear preferencia:", { title, quantity, unit_price });
+
+    const mp = new MercadoPagoConfig({
+      accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN ?? "",
+    });
+
+    const preference = await mp.post("/checkout/preferences", {
+      body: {
+        items: [
+          {
+            title,
+            quantity,
+            unit_price,
+          },
+        ],
+        back_urls: {
+          success: process.env.FRONTEND_URL + "/success",
+          failure: process.env.FRONTEND_URL + "/failure",
+          pending: process.env.FRONTEND_URL + "/pending",
+        },
+        auto_return: "approved",
+      },
+    });
+
+    console.log("✅ Preferencia creada:", preference);
+
+    res.json({ id: preference.id, preferenceId: preference.id });
+  } catch (err: any) {
+    console.error("❌ Error creando preferencia:", err.message);
+    res.status(500).json({ error: "Error creando preferencia" });
+  }
+});
+
 // ⚡ Google Calendar
 let rawCreds = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON || "{}");
 if (rawCreds.private_key) {
@@ -276,7 +316,49 @@ app.post("/api/confirm-onsite", async (req, res) => {
     return res.status(500).json({ success: false, error: err.message });
   }
 });
+// ======================
+// 📌 Confirmar pago de Mercado Pago
+// ======================
+app.post("/api/confirm-payment", async (req, res) => {
+  try {
+    const { formData, quote, paymentId } = req.body;
 
+    console.log("🔎 Confirmación de pago recibida:", { paymentId });
+
+    // 1. Verificar estado real en la API de MP
+    const mp = new MercadoPagoConfig({
+      accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN ?? "",
+    });
+
+    const paymentRes = await mp.get(`/v1/payments/${paymentId}`);
+    const estadoCode = paymentRes.status; // ej: approved, pending, rejected
+    console.log("📦 Estado real de pago:", estadoCode);
+
+    // 2. Buscar label de estado desde tus constantes
+    const estado = ORDER_STATES[estadoCode] ?? ORDER_STATES.unknown;
+
+    // 3. Enviar correo de confirmación
+    await sendConfirmationEmail({
+      recipient: TECHNICIAN_EMAIL,
+      cc: formData.email,
+      fullName: formData.fullName,
+      phone: formData.phone,
+      appointment: `${formData.appointmentSlot?.date} ${formData.appointmentSlot?.time}`,
+      address: formData.address,
+      location: formData.location,
+      coords: formData.coords,
+      quote,
+      photos: formData.photos,
+      estado,
+    });
+
+    // 4. Devolver respuesta unificada
+    res.json({ success: true, estado });
+  } catch (err: any) {
+    console.error("❌ Error confirmando pago:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
 // ======================
 // 📌 Servir frontend (React build en dist)
 // ======================

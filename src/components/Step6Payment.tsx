@@ -5,14 +5,16 @@ import { Wallet } from "@mercadopago/sdk-react";
 interface Props {
   quote: Quote | null;
   formData: FormData;
+  onPayOnSite: () => void;
   prevStep: () => void;
-  onPaymentSuccess: (status: string) => void; // 👈 ahora recibe status
+  onPaymentSuccess: (estado?: string) => void;
   onPaymentFailure: () => void;
 }
 
 const Step6Payment: React.FC<Props> = ({
   quote,
   formData,
+  onPayOnSite,
   prevStep,
   onPaymentSuccess,
   onPaymentFailure,
@@ -20,65 +22,71 @@ const Step6Payment: React.FC<Props> = ({
   const [preferenceId, setPreferenceId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // ✅ Memorizar initialization para evitar re-montajes innecesarios
   const initialization = useMemo(() => {
     return preferenceId ? { preferenceId } : null;
   }, [preferenceId]);
 
-  // 👉 Crear preferencia en backend
+  // 👉 Crear preferencia en el backend (Mercado Pago)
   const createPreference = async () => {
     if (!quote) return;
+
+    setLoading(true);
     try {
-      const response = await fetch("/create_preference", {
+      const response = await fetch("/api/create_preference", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: "Servicio técnico Pont",
           quantity: 1,
           unit_price: quote.total,
-          formData,
-          quote,
+          formData, // 🔹 Enviar formData completo
+          quote,    // 🔹 Enviar quote completo
         }),
       });
 
       const data = await response.json();
+      console.log("📦 Respuesta create_preference:", data);
+
       const prefId = data.id || data.preferenceId;
       if (!prefId) throw new Error("No se recibió un preferenceId válido");
+
       setPreferenceId(prefId);
-    } catch (err) {
-      console.error("❌ Error creando preferencia:", err);
+    } catch (error) {
+      console.error("❌ Error creando preferencia:", error);
       onPaymentFailure();
+    } finally {
+      setLoading(false);
     }
   };
 
-  // 👉 Pago presencial (domicilio / taller)
+  // 👉 Pago presencial
   const handlePayOnSite = async () => {
-  if (!quote) return;
+    if (!quote) return;
+    setLoading(true);
 
-  setLoading(true);
-  try {
-    const response = await fetch("/api/confirm-onsite", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ formData, quote }),
-    });
+    try {
+      const response = await fetch("/api/confirm-onsite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ formData, quote }),
+      });
 
-    const data = await response.json();
-    console.log("📦 confirm-onsite ->", data);
+      const data = await response.json();
+      console.log("📦 Respuesta confirm-onsite:", data);
 
-    if (response.ok && data?.success) {
-      // data.estado.code === "cash_home"
-      // data.calendarEventId disponible
-      quote.paymentStatus = data.estado.code; 
-    } else {
-      throw new Error(data?.error || "Fallo confirm-onsite");
+      if (data.success) {
+        onPayOnSite();
+      } else {
+        alert("Error enviando correo: " + data.error);
+      }
+    } catch (err: any) {
+      console.error("❌ Error en pago presencial:", err);
+      alert("No se pudo registrar el pago presencial");
+    } finally {
+      setLoading(false);
     }
-  } catch (err: any) {
-    console.error("❌ Error en pago presencial:", err);
-    alert("No se pudo registrar el pago presencial");
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   return (
     <div className="space-y-6 text-center">
@@ -95,23 +103,27 @@ const Step6Payment: React.FC<Props> = ({
       {!preferenceId ? (
         <button
           onClick={createPreference}
-          className="w-full px-4 py-3 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition-colors shadow-md"
+          disabled={loading}
+          className="w-full px-4 py-3 bg-sky-600 text-white font-semibold rounded-lg hover:bg-sky-700 transition-colors shadow-md disabled:opacity-50"
         >
-          Pagar con Mercado Pago
+          {loading ? "Procesando..." : "Pagar con Mercado Pago"}
         </button>
       ) : (
         initialization && (
           <div className="flex justify-center">
+            {console.log("🟦 Renderizando Wallet con prefId:", preferenceId)}
             <Wallet
               initialization={initialization}
               onSubmit={async (paramData) => {
+                console.log("🟢 Pago procesado:", paramData);
+
                 const paymentId =
                   paramData.id ||
                   paramData.response?.id ||
                   paramData.response?.payment?.id;
 
                 if (!paymentId) {
-                  console.error("❌ No se encontró paymentId:", paramData);
+                  console.error("❌ No se encontró paymentId en la respuesta");
                   onPaymentFailure();
                   return;
                 }
@@ -124,10 +136,11 @@ const Step6Payment: React.FC<Props> = ({
                   });
 
                   const data = await res.json();
-                  if (data.success && data.estado?.code) {
-                    onPaymentSuccess(data.estado.code); // 👈 pasa status real de MP
+                  console.log("🔁 Respuesta confirm-payment:", data);
+
+                  if (data.success) {
+                    onPaymentSuccess(data.estado?.code || "approved");
                   } else {
-                    console.error("⚠️ Error en confirmación:", data.error);
                     onPaymentFailure();
                   }
                 } catch (err) {
@@ -152,7 +165,7 @@ const Step6Payment: React.FC<Props> = ({
         disabled={loading}
         className="w-full px-4 py-3 bg-amber-500 text-white font-semibold rounded-lg hover:bg-amber-600 transition-colors shadow-md disabled:opacity-50"
       >
-        {loading ? "Procesando..." : "Abonar en domicilio / taller"}
+        {loading ? "Procesando..." : "Abonar en el domicilio / taller"}
       </button>
 
       <div className="pt-4">
