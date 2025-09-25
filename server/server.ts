@@ -24,6 +24,17 @@ console.log("🌍 ENV GOOGLE_PRIVATE_KEY:", process.env.GOOGLE_PRIVATE_KEY ? "OK
 
 // ⚡ Middleware para log de todas las requests
 app.use((req, res, next) => {
+  console.log("➡️ [REQ]");
+  console.log("   URL:", req.originalUrl);
+  console.log("   Method:", req.method);
+  console.log("   Host:", req.headers.host);
+  console.log("   Content-Type:", req.headers["content-type"]);
+  console.log("   User-Agent:", req.headers["user-agent"]);
+  next();
+});
+
+// ⚡ Middleware para log de todas las requests
+app.use((req, res, next) => {
   console.log(`➡️ [REQ] ${req.method} ${req.originalUrl}`);
   next();
 });
@@ -145,7 +156,7 @@ async function generateSchedule() {
 // 📌 ENDPOINTS DE API
 // ======================
 app.get("/api/schedule", async (req, res) => {
-  console.log("📩 [API] /api/schedule recibido");
+  console.log("📩 [API] /api/schedule recibido desde:", req.headers.host);
   try {
     const schedule = await generateSchedule();
     console.log("✅ [API] Schedule OK:", schedule.length, "días");

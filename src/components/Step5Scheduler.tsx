@@ -20,9 +20,26 @@ const Step5Scheduler: React.FC<Props> = ({
   useEffect(() => {
     const fetchSchedule = async () => {
       try {
-        const res = await fetch("/api/schedule");
-        const data = await res.json();
-        setSchedule(data);
+        console.log("📡 Fetching schedule...");
+
+        const res = await fetch(
+          process.env.NODE_ENV === "production"
+            ? "https://TU_BACKEND.railway.app/api/schedule" // 👈 poné tu URL real del back
+            : "http://localhost:3000/api/schedule"
+        );
+
+        console.log("📡 Response status:", res.status, res.statusText);
+        const text = await res.text();
+        console.log("📡 Raw response preview:", text.substring(0, 200));
+
+        try {
+          const data = JSON.parse(text);
+          console.log("✅ Parsed JSON:", data);
+          setSchedule(data);
+        } catch (jsonErr) {
+          console.error("❌ Error parseando JSON:", jsonErr);
+          console.error("❌ Respuesta cruda fue HTML (probablemente index.html)");
+        }
       } catch (err) {
         console.error("❌ Error cargando agenda:", err);
       } finally {
@@ -44,19 +61,11 @@ const Step5Scheduler: React.FC<Props> = ({
   };
 
   if (loading) {
-    return (
-      <p className="text-center text-slate-500">
-        Cargando disponibilidad...
-      </p>
-    );
+    return <p className="text-center text-slate-500">Cargando disponibilidad...</p>;
   }
 
   if (schedule.length === 0) {
-    return (
-      <p className="text-center text-slate-500">
-        No hay turnos disponibles en este momento.
-      </p>
-    );
+    return <p className="text-center text-slate-500">No hay turnos disponibles en este momento.</p>;
   }
 
   return (
@@ -77,10 +86,7 @@ const Step5Scheduler: React.FC<Props> = ({
 
       <div className="grid gap-4">
         {schedule.map((day) => (
-          <div
-            key={day.date}
-            className="p-4 border rounded-lg bg-slate-50"
-          >
+          <div key={day.date} className="p-4 border rounded-lg bg-slate-50">
             <h3 className="font-semibold mb-2">
               {new Intl.DateTimeFormat("es-AR", {
                 weekday: "short",
@@ -91,26 +97,21 @@ const Step5Scheduler: React.FC<Props> = ({
               }).format(new Date(`${day.date}T00:00:00`))}
             </h3>
 
-            {/* 🎯 Slots autoajustados */}
             <div className="grid grid-cols-[repeat(auto-fit,minmax(100px,1fr))] gap-2 w-full">
               {day.slots.map((slot) => {
                 const isSelected =
                   formData.appointmentSlot?.date === day.date &&
                   formData.appointmentSlot?.time === slot.time;
 
-                // 🎨 Colores según estado
                 let slotClasses = "";
                 if (!slot.isAvailable && slot.reason === "within48h") {
-                  slotClasses =
-                    "bg-slate-300 text-slate-600 cursor-not-allowed";
+                  slotClasses = "bg-slate-300 text-slate-600 cursor-not-allowed";
                 } else if (!slot.isAvailable && slot.reason === "busy") {
-                  slotClasses =
-                    "bg-slate-500 text-white cursor-not-allowed";
+                  slotClasses = "bg-slate-500 text-white cursor-not-allowed";
                 } else if (isSelected) {
                   slotClasses = "bg-green-600 text-white";
                 } else {
-                  slotClasses =
-                    "bg-green-500 text-white hover:bg-green-600";
+                  slotClasses = "bg-green-500 text-white hover:bg-green-600";
                 }
 
                 return (
