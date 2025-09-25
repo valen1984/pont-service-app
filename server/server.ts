@@ -31,44 +31,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// ======================
-// 📌 Crear preferencia de Mercado Pago
-// ======================
-app.post("/api/create_preference", async (req, res) => {
-  try {
-    const { title, quantity, unit_price } = req.body;
-    console.log("🟦 Crear preferencia:", { title, quantity, unit_price });
 
-    const mpClient = new MercadoPagoConfig({
-      accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN ?? "",
-    });
-
-    const preference = await new Preference(mpClient).create({
-      body: {
-        items: [
-          {
-            id: "service",        // 👈 requerido por TS
-            title,
-            quantity,
-            unit_price,
-          },
-        ],
-        back_urls: {
-          success: `${process.env.FRONTEND_URL}/success`,
-          failure: `${process.env.FRONTEND_URL}/failure`,
-          pending: `${process.env.FRONTEND_URL}/pending`,
-        },
-        auto_return: "approved",
-      },
-    });
-
-    console.log("✅ Preferencia creada:", preference.id);
-    res.json({ id: preference.id, preferenceId: preference.id });
-  } catch (err: any) {
-    console.error("❌ Error creando preferencia:", err.message);
-    res.status(500).json({ error: "Error creando preferencia" });
-  }
-});
 // ======================
 // ⚡ Google Calendar
 // ======================
@@ -178,6 +141,108 @@ async function generateSchedule() {
   console.log("✅ Agenda generada con", result.length, "días");
   return result;
 }
+// ======================
+// 📌 Pago presencial (domicilio / taller) — cash_home
+// ======================
+app.post("/api/confirm-onsite", async (req, res) => {
+  try {
+    const { formData, quote } = req.body;
+
+    console.log("💵 [/api/confirm-onsite] payload recibido:", {
+      fullName: formData?.fullName,
+      email: formData?.email,
+      phone: formData?.phone,
+      date: formData?.appointmentSlot?.date,
+      time: formData?.appointmentSlot?.time,
+      total: quote?.total,
+    });
+
+    const estado = ORDER_STATES.cash_home;
+
+    const date = formData?.appointmentSlot?.date;
+    const time = formData?.appointmentSlot?.time;
+    if (!date || !time) {
+      throw new Error("Falta appointmentSlot (date/time)");
+    }
+
+// ======================
+// 📌 Confirmar pago de Mercado Pago
+// ======================
+app.post("/api/confirm-payment", async (req, res) => {
+  try {
+    const { formData, quote, paymentId } = req.body;
+    console.log("🔎 Confirmación de pago recibida:", { paymentId });
+
+    const mpClient = new MercadoPagoConfig({
+      accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN ?? "",
+    });
+
+    const payment = await new Payment(mpClient).get({ id: paymentId });
+
+    const estadoCode: string = payment.status ?? "unknown"; // 👈 fallback
+    console.log("📦 Estado real de pago:", estadoCode);
+
+    const estado = ORDER_STATES[estadoCode] ?? ORDER_STATES.unknown;
+
+    await sendConfirmationEmail({
+      recipient: TECHNICIAN_EMAIL,
+      cc: formData.email,
+      fullName: formData.fullName,
+      phone: formData.phone,
+      appointment: `${formData.appointmentSlot?.date} ${formData.appointmentSlot?.time}`,
+      address: formData.address,
+      location: formData.location,
+      coords: formData.coords,
+      quote,
+      photos: formData.photos,
+      estado,
+    });
+
+    res.json({ success: true, estado });
+  } catch (err: any) {
+    console.error("❌ Error confirmando pago:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ======================
+// 📌 Crear preferencia de Mercado Pago
+// ======================
+app.post("/api/create_preference", async (req, res) => {
+  try {
+    const { title, quantity, unit_price } = req.body;
+    console.log("🟦 Crear preferencia:", { title, quantity, unit_price });
+
+    const mpClient = new MercadoPagoConfig({
+      accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN ?? "",
+    });
+
+    const preference = await new Preference(mpClient).create({
+      body: {
+        items: [
+          {
+            id: "service",        // 👈 requerido por TS
+            title,
+            quantity,
+            unit_price,
+          },
+        ],
+        back_urls: {
+          success: `${process.env.FRONTEND_URL}/success`,
+          failure: `${process.env.FRONTEND_URL}/failure`,
+          pending: `${process.env.FRONTEND_URL}/pending`,
+        },
+        auto_return: "approved",
+      },
+    });
+
+    console.log("✅ Preferencia creada:", preference.id);
+    res.json({ id: preference.id, preferenceId: preference.id });
+  } catch (err: any) {
+    console.error("❌ Error creando preferencia:", err.message);
+    res.status(500).json({ error: "Error creando preferencia" });
+  }
+});
 
 // ======================
 // 📌 ENDPOINTS DE API
@@ -224,29 +289,7 @@ async function createCalendarEvent({
   }
 }
 
-// ======================
-// 📌 Pago presencial (domicilio / taller) — cash_home
-// ======================
-app.post("/api/confirm-onsite", async (req, res) => {
-  try {
-    const { formData, quote } = req.body;
 
-    console.log("💵 [/api/confirm-onsite] payload recibido:", {
-      fullName: formData?.fullName,
-      email: formData?.email,
-      phone: formData?.phone,
-      date: formData?.appointmentSlot?.date,
-      time: formData?.appointmentSlot?.time,
-      total: quote?.total,
-    });
-
-    const estado = ORDER_STATES.cash_home;
-
-    const date = formData?.appointmentSlot?.date;
-    const time = formData?.appointmentSlot?.time;
-    if (!date || !time) {
-      throw new Error("Falta appointmentSlot (date/time)");
-    }
 
     // Crear evento en Calendar
     const { id: calendarEventId, htmlLink } = await createCalendarEvent({
@@ -284,45 +327,6 @@ app.post("/api/confirm-onsite", async (req, res) => {
     });
   } catch (err: any) {
     console.error("❌ [/api/confirm-onsite] Error:", err.message);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-// ======================
-// 📌 Confirmar pago de Mercado Pago
-// ======================
-app.post("/api/confirm-payment", async (req, res) => {
-  try {
-    const { formData, quote, paymentId } = req.body;
-    console.log("🔎 Confirmación de pago recibida:", { paymentId });
-
-    const mpClient = new MercadoPagoConfig({
-      accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN ?? "",
-    });
-
-    const payment = await new Payment(mpClient).get({ id: paymentId });
-
-    const estadoCode: string = payment.status ?? "unknown"; // 👈 fallback
-    console.log("📦 Estado real de pago:", estadoCode);
-
-    const estado = ORDER_STATES[estadoCode] ?? ORDER_STATES.unknown;
-
-    await sendConfirmationEmail({
-      recipient: TECHNICIAN_EMAIL,
-      cc: formData.email,
-      fullName: formData.fullName,
-      phone: formData.phone,
-      appointment: `${formData.appointmentSlot?.date} ${formData.appointmentSlot?.time}`,
-      address: formData.address,
-      location: formData.location,
-      coords: formData.coords,
-      quote,
-      photos: formData.photos,
-      estado,
-    });
-
-    res.json({ success: true, estado });
-  } catch (err: any) {
-    console.error("❌ Error confirmando pago:", err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });
