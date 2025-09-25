@@ -7,7 +7,7 @@
     "dev": "vite",
     "build:front": "vite build",
     "build:back": "tsc -p tsconfig.server.json",
-    "copy:front": "rimraf dist-server/dist && cpx dist/** dist-server/dist",
+    "copy:front": "rimraf dist-server/dist && npx cpx2 \"dist/**/*\" dist-server/dist",
     "build": "npm run build:front && npm run build:back && npm run copy:front",
     "start": "node dist-server/server/server.js"
   },
