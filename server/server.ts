@@ -225,7 +225,7 @@ async function createCalendarEvent({
 }
 
 // ======================
-// 📌 Pago presencial (domicilio / taller)
+// 📌 Pago presencial (domicilio / taller) — SIEMPRE cash_home
 // ======================
 app.post("/api/confirm-onsite", async (req, res) => {
   try {
@@ -240,8 +240,10 @@ app.post("/api/confirm-onsite", async (req, res) => {
       total: quote?.total,
     });
 
-    const estado = ORDER_STATES.cash_home; // 🏠/🔧 unificado
+    // 1) Estado manual unificado
+    const estado = ORDER_STATES.cash_home; // 💵 Pago en domicilio/taller
 
+    // 2) Crear evento en Calendar
     const date = formData?.appointmentSlot?.date;
     const time = formData?.appointmentSlot?.time;
     if (!date || !time) {
@@ -257,12 +259,16 @@ app.post("/api/confirm-onsite", async (req, res) => {
         `Dirección: ${formData?.address || "-"}\n` +
         `Localidad: ${formData?.location || "-"}\n` +
         `Pago: ${estado.label}\n` +
-        `Total: ${new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(quote?.total ?? 0)}`,
+        `Total: ${new Intl.NumberFormat("es-AR", {
+          style: "currency",
+          currency: "ARS",
+        }).format(quote?.total ?? 0)}`,
     });
 
+    // 3) Enviar email
     const mailResp = await sendConfirmationEmail({
-      recipient: TECHNICIAN_EMAIL,
-      cc: formData?.email,
+      recipient: TECHNICIAN_EMAIL,   // técnico en TO
+      cc: formData?.email,           // cliente en CC
       fullName: formData?.fullName,
       phone: formData?.phone,
       appointment: `${date} ${time}`,
@@ -276,6 +282,7 @@ app.post("/api/confirm-onsite", async (req, res) => {
 
     console.log("📧 Resultado email:", mailResp);
 
+    // 4) Responder al front
     return res.json({
       success: true,
       estado,
@@ -287,7 +294,6 @@ app.post("/api/confirm-onsite", async (req, res) => {
     return res.status(500).json({ success: false, error: err.message });
   }
 });
-
 // ======================
 // 📌 Confirmar pago de Mercado Pago
 // ======================
