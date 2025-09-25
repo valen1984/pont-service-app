@@ -3,8 +3,8 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "Node",
-    "outDir": "dist-server",   // 👈 ahora afuera de dist
-    "rootDir": ".",
+    "outDir": "dist-server",
+    "rootDir": ".",                  
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
