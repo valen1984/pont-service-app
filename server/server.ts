@@ -225,7 +225,7 @@ async function createCalendarEvent({
 }
 
 // ======================
-// 📌 Pago presencial (domicilio / taller) — SIEMPRE cash_home
+// 📌 Pago presencial (domicilio / taller) — cash_home
 // ======================
 app.post("/api/confirm-onsite", async (req, res) => {
   try {
@@ -240,16 +240,15 @@ app.post("/api/confirm-onsite", async (req, res) => {
       total: quote?.total,
     });
 
-    // 1) Estado manual unificado
-    const estado = ORDER_STATES.cash_home; // 💵 Pago en domicilio/taller
+    const estado = ORDER_STATES.cash_home;
 
-    // 2) Crear evento en Calendar
     const date = formData?.appointmentSlot?.date;
     const time = formData?.appointmentSlot?.time;
     if (!date || !time) {
-      throw new Error("Falta appointmentSlot (date/time) para crear el evento");
+      throw new Error("Falta appointmentSlot (date/time)");
     }
 
+    // Crear evento en Calendar
     const { id: calendarEventId, htmlLink } = await createCalendarEvent({
       date,
       time,
@@ -259,16 +258,13 @@ app.post("/api/confirm-onsite", async (req, res) => {
         `Dirección: ${formData?.address || "-"}\n` +
         `Localidad: ${formData?.location || "-"}\n` +
         `Pago: ${estado.label}\n` +
-        `Total: ${new Intl.NumberFormat("es-AR", {
-          style: "currency",
-          currency: "ARS",
-        }).format(quote?.total ?? 0)}`,
+        `Total: ${new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(quote?.total ?? 0)}`,
     });
 
-    // 3) Enviar email
-    const mailResp = await sendConfirmationEmail({
-      recipient: TECHNICIAN_EMAIL,   // técnico en TO
-      cc: formData?.email,           // cliente en CC
+    // Enviar email
+    await sendConfirmationEmail({
+      recipient: TECHNICIAN_EMAIL,
+      cc: formData?.email,
       fullName: formData?.fullName,
       phone: formData?.phone,
       appointment: `${date} ${time}`,
@@ -280,10 +276,7 @@ app.post("/api/confirm-onsite", async (req, res) => {
       estado,
     });
 
-    console.log("📧 Resultado email:", mailResp);
-
-    // 4) Responder al front
-    return res.json({
+    res.json({
       success: true,
       estado,
       calendarEventId,
@@ -291,7 +284,7 @@ app.post("/api/confirm-onsite", async (req, res) => {
     });
   } catch (err: any) {
     console.error("❌ [/api/confirm-onsite] Error:", err.message);
-    return res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 // ======================
