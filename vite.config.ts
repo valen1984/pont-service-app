@@ -10,5 +10,13 @@ export default defineConfig({
       "react-native": "react-native-web", // 👈 fuerza a usar RN web
     },
   },
+  server: {
+    port: 5173, // 👈 front en dev
+    proxy: {
+      "/api": {
+        target: "http://localhost:3000", // 👈 backend en dev
+        changeOrigin: true,
+      },
+    },
+  },
 });
-

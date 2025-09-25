@@ -22,14 +22,18 @@ const Step5Scheduler: React.FC<Props> = ({
       try {
         console.log("📡 Fetching schedule...");
 
-        const res = await fetch(
-          process.env.NODE_ENV === "production"
-            ? "https://pont-service-app-production.up.railway.app/api/schedule"
-            : "http://localhost:3000/api/schedule"
-        );
+        // 🚀 relativo → funciona en local y Railway
+        const res = await fetch("/api/schedule", {
+          headers: {
+            Accept: "application/json",
+          },
+        });
 
         console.log("📡 Response status:", res.status, res.statusText);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
 
         const data = await res.json();
         console.log("✅ Parsed JSON:", data);
@@ -55,11 +59,19 @@ const Step5Scheduler: React.FC<Props> = ({
   };
 
   if (loading) {
-    return <p className="text-center text-slate-500">Cargando disponibilidad...</p>;
+    return (
+      <p className="text-center text-slate-500">
+        Cargando disponibilidad...
+      </p>
+    );
   }
 
   if (schedule.length === 0) {
-    return <p className="text-center text-slate-500">No hay turnos disponibles en este momento.</p>;
+    return (
+      <p className="text-center text-slate-500">
+        No hay turnos disponibles en este momento.
+      </p>
+    );
   }
 
   return (
@@ -99,13 +111,16 @@ const Step5Scheduler: React.FC<Props> = ({
 
                 let slotClasses = "";
                 if (!slot.isAvailable && slot.reason === "within48h") {
-                  slotClasses = "bg-slate-300 text-slate-600 cursor-not-allowed";
+                  slotClasses =
+                    "bg-slate-300 text-slate-600 cursor-not-allowed";
                 } else if (!slot.isAvailable && slot.reason === "busy") {
-                  slotClasses = "bg-slate-500 text-white cursor-not-allowed";
+                  slotClasses =
+                    "bg-slate-500 text-white cursor-not-allowed";
                 } else if (isSelected) {
                   slotClasses = "bg-green-600 text-white";
                 } else {
-                  slotClasses = "bg-green-500 text-white hover:bg-green-600";
+                  slotClasses =
+                    "bg-green-500 text-white hover:bg-green-600";
                 }
 
                 return (
