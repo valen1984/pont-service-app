@@ -9,7 +9,7 @@ import dotenv from "dotenv";
 dotenv.config();
 const app = express();
 // ======================
-// 📌 CORS (ahora abierto para evitar bloqueos)
+// 📌 CORS (abierto para evitar bloqueos)
 // ======================
 app.use(cors({ origin: "*" }));
 app.use(express.json());
@@ -134,18 +134,11 @@ async function generateSchedule() {
 // 📌 ENDPOINTS DE API
 // ======================
 app.get("/api/schedule", async (req, res) => {
-    console.log("📩 [API] /api/schedule recibido");
     try {
         const schedule = await generateSchedule();
-        console.log("✅ [API] Schedule generado con", schedule.length, "días");
-        if (schedule.length > 0) {
-            console.log("📝 [API] Primer día:", JSON.stringify(schedule[0], null, 2));
-        }
-        // 👇 acá devolvemos JSON al cliente
         res.json(schedule);
     }
     catch (err) {
-        console.error("❌ [API] Error al generar agenda:", err.message);
         res.status(500).json({ error: "Error al generar agenda" });
     }
 });
@@ -154,21 +147,11 @@ app.get("/api/schedule", async (req, res) => {
 // ======================
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const frontendPath = path.join(__dirname, "../dist");
-console.log("📂 Servir frontend desde:", frontendPath);
-app.use(express.static(frontendPath));
-// Catch-all: cualquier ruta que no sea /api/... devuelve React
-app.get("*", (req, res) => {
-    if (req.originalUrl.startsWith("/api/")) {
-        console.warn("⚠️ [WARN] Ruta de API cayó en el catch-all:", req.originalUrl);
-        console.warn("⚠️ Esto significa que Express no encontró un endpoint para esta ruta.");
-        console.warn("⚠️ Revisar orden de endpoints o fetch mal escrito en el front.");
-    }
-    else {
-        console.log("➡️ [REQ] Catch-all activado (frontend)");
-        console.log("   URL solicitada:", req.originalUrl);
-    }
-    res.sendFile(path.join(frontendPath, "index.html"));
+app.use(express.static(path.join(__dirname, "../dist")));
+// ⚠️ Catch-all SOLO si no es /api/*
+app.get(/^\/(?!api).*/, (req, res) => {
+    console.log(`➡️ [REQ] Frontend route: ${req.originalUrl}`);
+    res.sendFile(path.join(__dirname, "../dist", "index.html"));
 });
 // ======================
 // 🚀 Start Server

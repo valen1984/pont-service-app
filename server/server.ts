@@ -14,7 +14,7 @@ dotenv.config();
 const app = express();
 
 // ======================
-// 📌 CORS (ahora abierto para evitar bloqueos)
+// 📌 CORS (abierto para evitar bloqueos)
 // ======================
 app.use(cors({ origin: "*" }));
 
@@ -165,7 +165,12 @@ app.get("/api/schedule", async (req, res) => {
   }
 });
 
+// ======================
 // 📌 Servir frontend (React build en dist)
+// ======================
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 app.use(express.static(path.join(__dirname, "../dist")));
 
 // ⚠️ Catch-all SOLO si no es /api/*
@@ -173,6 +178,7 @@ app.get(/^\/(?!api).*/, (req, res) => {
   console.log(`➡️ [REQ] Frontend route: ${req.originalUrl}`);
   res.sendFile(path.join(__dirname, "../dist", "index.html"));
 });
+
 // ======================
 // 🚀 Start Server
 // ======================
