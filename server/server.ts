@@ -186,12 +186,17 @@ app.use(express.static(frontendPath));
 
 // Catch-all: cualquier ruta que no sea /api/... devuelve React
 app.get("*", (req, res) => {
-  console.log("➡️ [REQ] Catch-all activado");
-  console.log("   URL solicitada:", req.originalUrl);
-  console.log("   Sirviendo:", path.join(frontendPath, "index.html"));
+  if (req.originalUrl.startsWith("/api/")) {
+    console.warn("⚠️ [WARN] Ruta de API cayó en el catch-all:", req.originalUrl);
+    console.warn("⚠️ Esto significa que Express no encontró un endpoint para esta ruta.");
+    console.warn("⚠️ Revisar orden de endpoints o fetch mal escrito en el front.");
+  } else {
+    console.log("➡️ [REQ] Catch-all activado (frontend)");
+    console.log("   URL solicitada:", req.originalUrl);
+  }
+
   res.sendFile(path.join(frontendPath, "index.html"));
 });
-
 // ======================
 // 🚀 Start Server
 // ======================
