@@ -165,11 +165,12 @@ app.get("/api/schedule", async (req, res) => {
   }
 });
 
-// ======================
-// 📌 Servir frontend
-// ======================
+// 📌 Servir frontend (React build en dist)
 app.use(express.static(path.join(__dirname, "../dist")));
-app.get("*", (req, res) => {
+
+// ⚠️ Catch-all SOLO si no es /api/*
+app.get(/^\/(?!api).*/, (req, res) => {
+  console.log(`➡️ [REQ] Frontend route: ${req.originalUrl}`);
   res.sendFile(path.join(__dirname, "../dist", "index.html"));
 });
 // ======================
