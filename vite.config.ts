@@ -7,16 +7,12 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "src"),
-      "react-native": "react-native-web", // 👈 fuerza a usar RN web
+      "react-native": "react-native-web",
     },
   },
   server: {
-    port: 5173, // 👈 front en dev
     proxy: {
-      "/api": {
-        target: "http://localhost:3000", // 👈 backend en dev
-        changeOrigin: true,
-      },
+      "/api": "http://localhost:3000", // 👈 redirige todo /api al backend
     },
   },
 });

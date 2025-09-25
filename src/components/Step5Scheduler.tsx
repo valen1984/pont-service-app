@@ -24,10 +24,8 @@ const Step5Scheduler: React.FC<Props> = ({
 
         // 🚀 relativo → funciona en local y Railway
         const res = await fetch("/api/schedule", {
-          headers: {
-            Accept: "application/json",
-          },
-        });
+        headers: { Accept: "application/json" },
+      });
 
         console.log("📡 Response status:", res.status, res.statusText);
 
