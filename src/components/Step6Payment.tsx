@@ -42,14 +42,19 @@ const Step6Payment: React.FC<Props> = ({
   // ⚡ Inicializar Mercado Pago SOLO al entrar en Step6
   useEffect(() => {
     const publicKey = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
-    if (publicKey) {
+
+    if (!publicKey || publicKey === "undefined") {
       if (import.meta.env.MODE !== "production") {
-        console.log("🔑 Init MercadoPago con key:", publicKey);
+        console.warn("⚠️ PUBLIC_KEY ausente, no se inicializa Mercado Pago");
       }
-      initMercadoPago(publicKey, { locale: "es-AR" });
-    } else {
-      console.error("⚠️ Mercado Pago PUBLIC KEY no definida en .env");
+      return; // 👈 salí antes, no intentes inicializar
     }
+
+    if (import.meta.env.MODE !== "production") {
+      console.log("🔑 Init MercadoPago con key:", publicKey);
+    }
+
+    initMercadoPago(publicKey, { locale: "es-AR" });
   }, []);
 
   // ✅ Memorizar initialization para evitar re-montajes innecesarios
