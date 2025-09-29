@@ -13,12 +13,7 @@ import Step6Payment from "@/components/Step6Payment";
 import Step7Result from "@/components/Step7Result";
 import Snowfall from "react-snowfall";
 import { motion } from "framer-motion";
-import { initMercadoPago } from "@mercadopago/sdk-react"; // 👈 IMPORTANTE
 
-// ⚡ Inicializar Mercado Pago una sola vez
-initMercadoPago(import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY!, {
-  locale: "es-AR",
-});
 
 // 📋 Estado inicial del formulario
 const initialFormData: FormData = {
