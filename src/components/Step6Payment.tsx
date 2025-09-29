@@ -38,19 +38,16 @@ const Step6Payment: React.FC<Props> = ({
 
         const publicKey = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
         if (!publicKey || publicKey === "undefined") {
-          if (import.meta.env.MODE !== "production") {
-            console.warn("⚠️ PUBLIC_KEY ausente, no se inicializa Mercado Pago");
-            console.log("🌍 import.meta.env:", import.meta.env); // debug en dev
-          }
+          console.warn("⚠️ PUBLIC_KEY ausente, no se inicializa Mercado Pago");
+          console.log("🌍 import.meta.env:", import.meta.env); // debug
           return;
         }
 
-        if (import.meta.env.MODE !== "production") {
-          console.log("🔑 Init MercadoPago con key:", publicKey);
-        }
-
+        console.log("🔑 Init MercadoPago con key:", publicKey);
         initMercadoPago(publicKey, { locale: "es-AR" });
+
         setWalletComponent(() => Wallet);
+        console.log("✅ SDK de Mercado Pago listo para usar Wallet");
       } catch (err) {
         console.error("❌ Error cargando SDK MercadoPago:", err);
       }
@@ -81,9 +78,7 @@ const Step6Payment: React.FC<Props> = ({
       });
 
       const data = await response.json();
-      if (import.meta.env.MODE !== "production") {
-        console.log("📦 Respuesta create_preference:", data);
-      }
+      console.log("📦 Respuesta create_preference:", data);
 
       const prefId = data.id || data.preferenceId;
       if (!prefId) throw new Error("No se recibió un preferenceId válido");
@@ -103,9 +98,7 @@ const Step6Payment: React.FC<Props> = ({
     setLoading(true);
 
     try {
-      if (import.meta.env.MODE !== "production") {
-        console.log("📤 Enviando confirm-onsite:", { formData, quote });
-      }
+      console.log("📤 Enviando confirm-onsite:", { formData, quote });
 
       const response = await fetch("/api/confirm-onsite", {
         method: "POST",
@@ -114,10 +107,8 @@ const Step6Payment: React.FC<Props> = ({
       });
 
       const data = await response.json();
-      if (import.meta.env.MODE !== "production") {
-        console.log("📡 Status confirm-onsite:", response.status);
-        console.log("📦 Respuesta confirm-onsite:", data);
-      }
+      console.log("📡 Status confirm-onsite:", response.status);
+      console.log("📦 Respuesta confirm-onsite:", data);
 
       if (data.success) {
         onPayOnSite();
@@ -155,55 +146,51 @@ const Step6Payment: React.FC<Props> = ({
       ) : (
         initialization &&
         WalletComponent && (
-          <div className="flex justify-center">
-            {import.meta.env.MODE !== "production" &&
-              console.log("🟦 Renderizando Wallet con prefId:", preferenceId)}
-
-            <WalletComponent
-              initialization={initialization}
-              onSubmit={async (paramData: WalletSubmitData) => {
-                if (import.meta.env.MODE !== "production") {
+          <div className="flex justify-center w-full mt-4">
+            <div className="w-[300px]">
+              {console.log("🟦 Renderizando Wallet con prefId:", preferenceId)}
+              <WalletComponent
+                initialization={initialization}
+                onSubmit={async (paramData: WalletSubmitData) => {
                   console.log("🟢 Pago procesado:", paramData);
-                }
 
-                const paymentId =
-                  paramData.id ||
-                  paramData.response?.id ||
-                  paramData.response?.payment?.id;
+                  const paymentId =
+                    paramData.id ||
+                    paramData.response?.id ||
+                    paramData.response?.payment?.id;
 
-                if (!paymentId) {
-                  console.error("❌ No se encontró paymentId en la respuesta");
-                  onPaymentFailure();
-                  return;
-                }
-
-                try {
-                  const res = await fetch("/api/confirm-payment", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ formData, quote, paymentId }),
-                  });
-
-                  const data = await res.json();
-                  if (import.meta.env.MODE !== "production") {
-                    console.log("🔁 Respuesta confirm-payment:", data);
+                  if (!paymentId) {
+                    console.error("❌ No se encontró paymentId en la respuesta");
+                    onPaymentFailure();
+                    return;
                   }
 
-                  if (data.success) {
-                    onPaymentSuccess(data.estado?.code || "approved");
-                  } else {
+                  try {
+                    const res = await fetch("/api/confirm-payment", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ formData, quote, paymentId }),
+                    });
+
+                    const data = await res.json();
+                    console.log("🔁 Respuesta confirm-payment:", data);
+
+                    if (data.success) {
+                      onPaymentSuccess(data.estado?.code || "approved");
+                    } else {
+                      onPaymentFailure();
+                    }
+                  } catch (err) {
+                    console.error("❌ Error confirmando pago:", err);
                     onPaymentFailure();
                   }
-                } catch (err) {
-                  console.error("❌ Error confirmando pago:", err);
+                }}
+                onError={(err: any) => {
+                  console.error("❌ Error desde Wallet Brick:", err);
                   onPaymentFailure();
-                }
-              }}
-              onError={(err: any) => {
-                console.error("❌ Error desde Wallet Brick:", err);
-                onPaymentFailure();
-              }}
-            />
+                }}
+              />
+            </div>
           </div>
         )
       )}
