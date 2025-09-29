@@ -145,16 +145,19 @@ async function generateSchedule() {
 }
 
 // ======================
-// 🔨 helper: crear evento en Google Calendar
+// 🔨 helper: crear evento en Google Calendar (normaliza null → undefined)
 // ======================
 async function createCalendarEvent({
-  date, time, summary, description,
+  date,
+  time,
+  summary,
+  description,
 }: {
   date: string;
   time: string;
   summary: string;
   description: string;
-}) {
+}): Promise<{ id?: string; htmlLink?: string }> {
   try {
     const start = new Date(`${date}T${time}:00-03:00`);
     const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
@@ -169,8 +172,12 @@ async function createCalendarEvent({
       },
     });
 
-    console.log("📆 Evento creado:", event.data.id, event.data.htmlLink);
-    return { id: event.data.id, htmlLink: event.data.htmlLink };
+    // 🔧 normalizamos por si la API devuelve null
+    const id = event.data.id ?? undefined;
+    const htmlLink = event.data.htmlLink ?? undefined;
+
+    console.log("📆 Evento creado:", id, htmlLink);
+    return { id, htmlLink };
   } catch (err: any) {
     console.error("❌ Error creando evento:", err.response?.data || err.message);
     throw err;
@@ -289,14 +296,13 @@ app.post("/api/create_preference", async (req, res) => {
   }
 });
 
+// ======================
+// Confirmar pago Mercado Pago
+// ======================
 app.post("/api/confirm-payment", async (req, res) => {
   try {
     const { formData, quote, paymentId } = req.body;
     console.log("🔎 Confirmación de pago recibida:", { paymentId });
-
-    if (!paymentId) {
-      return res.status(400).json({ success: false, error: "paymentId requerido" });
-    }
 
     const mpClient = new MercadoPagoConfig({
       accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN ?? "",
@@ -307,74 +313,59 @@ app.post("/api/confirm-payment", async (req, res) => {
     const estadoCode: string = payment.status ?? "unknown";
     console.log("📦 Estado real de pago:", estadoCode);
 
-    const estado =
-      MP_STATES[estadoCode] ??
-      { code: estadoCode, label: "Estado desconocido" }; // fallback seguro
+    // Estado tipado + fallback seguro
+    const estado = MP_STATES[estadoCode] ?? { code: estadoCode, label: "Estado desconocido" };
 
-    // ---------- Opcional: datos útiles para el evento / debug ----------
-    const statusDetail = payment.status_detail ?? "-";
-    const payerEmail = payment.payer?.email ?? formData?.email ?? "-";
-    const mpOrderId = payment.order?.id ?? paymentId;
-
-    // ---------- Crear evento SOLO si el pago fue aprobado ----------
+    // 🎯 Si está APROBADO y tenemos fecha/hora, creamos el evento en Calendar
     let calendarEventId: string | undefined;
     let calendarEventLink: string | undefined;
 
-    const date = formData?.appointmentSlot?.date;
-    const time = formData?.appointmentSlot?.time;
+    const date: string | undefined = formData?.appointmentSlot?.date ?? undefined;
+    const time: string | undefined = formData?.appointmentSlot?.time ?? undefined;
 
-    if (estado.code === "approved") {
-      if (!date || !time) {
-        console.warn("⚠️ Pago aprobado pero falta appointmentSlot (date/time). No se crea evento.");
-      } else {
-        try {
-          const { id, htmlLink } = await createCalendarEvent({
-            date,
-            time,
-            summary: `Servicio técnico: ${formData?.serviceType || "Visita"} (MP Aprobado)`,
-            description:
-              `Cliente: ${formData?.fullName || "-"} (${formData?.phone || "-"})\n` +
-              `Email: ${payerEmail}\n` +
-              `Dirección: ${formData?.address || "-"}\n` +
-              `Localidad: ${formData?.location || "-"}\n` +
-              `Pago: ${estado.label}\n` +
-              `Payment ID: ${paymentId}\n` +
-              `MP Order ID: ${mpOrderId}\n` +
-              `Detalle: ${statusDetail}\n` +
-              `Total: ${new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" })
-                .format(quote?.total ?? 0)}`,
-          });
-          calendarEventId = id;
-          calendarEventLink = htmlLink;
-          console.log("📆 Evento creado por pago aprobado:", { calendarEventId, calendarEventLink });
-        } catch (e: any) {
-          console.error("❌ Error creando evento post-aprobación:", e.response?.data || e.message);
-        }
-      }
+    if (estado.code === "approved" && date && time) {
+      const { id, htmlLink } = await createCalendarEvent({
+        date,
+        time,
+        summary: `Servicio técnico: ${formData?.serviceType || "Visita"}`,
+        description:
+          `Cliente: ${formData?.fullName || "-"} (${formData?.phone || "-"})\n` +
+          `Dirección: ${formData?.address || "-"}\n` +
+          `Localidad: ${formData?.location || "-"}\n` +
+          `Pago: ${estado.label}\n` +
+          `Total: ${new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" })
+            .format(quote?.total ?? 0)}`,
+      });
+
+      calendarEventId = id;
+      calendarEventLink = htmlLink;
     } else {
-      console.log("ℹ️ Pago no aprobado; no se crea evento. Estado:", estado.code);
+      console.log("🗒️ No se crea evento (no aprobado o falta fecha/hora).");
     }
 
-    // ---------- E-mail de confirmación (con o sin evento) ----------
+    // 📧 Email de confirmación (no toco la firma existente)
     await sendConfirmationEmail({
       recipient: TECHNICIAN_EMAIL,
       cc: formData.email,
       fullName: formData.fullName,
       phone: formData.phone,
-      appointment: `${formData.appointmentSlot?.date ?? "-"} ${formData.appointmentSlot?.time ?? "-"}`,
+      appointment: `${formData.appointmentSlot?.date ?? "-"} ${formData.appointmentSlot?.time ?? ""}`.trim(),
       address: formData.address,
       location: formData.location,
       coords: formData.coords,
       quote,
       photos: formData.photos,
       estado,
+      // si tu template soporta estos opcionales, podés agregarlos allí:
+      // calendarEventId,
+      // calendarEventLink,
     });
 
     return res.json({
       success: true,
-      estado,                     // { code, label }
-      calendarEventId,            // puede venir undefined si no se creó
-      calendarEventLink,          // idem
+      estado,
+      calendarEventId,
+      calendarEventLink,
     });
   } catch (err: any) {
     console.error("❌ Error confirmando pago:", err.message);
