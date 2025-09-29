@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Quote, FormData } from "../types";
-import { Wallet } from "@mercadopago/sdk-react";
+import { Wallet, initMercadoPago } from "@mercadopago/sdk-react";
 
 interface Props {
   quote: Quote | null;
@@ -29,6 +29,17 @@ const Step6Payment: React.FC<Props> = ({
 }) => {
   const [preferenceId, setPreferenceId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  // ⚡ Inicializar Mercado Pago SOLO al entrar en Step6
+  useEffect(() => {
+    const publicKey = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
+    if (publicKey) {
+      console.log("🔑 Init MercadoPago con key:", publicKey);
+      initMercadoPago(publicKey, { locale: "es-AR" });
+    } else {
+      console.error("⚠️ Mercado Pago PUBLIC KEY no definida en .env");
+    }
+  }, []);
 
   // ✅ Memorizar initialization para evitar re-montajes innecesarios
   const initialization = useMemo(() => {
