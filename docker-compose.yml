@@ -1,0 +1,23 @@
+version: "3.9"
+
+services:
+  pont-service-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: pont-service-app
+    ports:
+      - "8080:8080"
+    environment:
+      # 🔹 Variables necesarias para backend
+      MERCADOPAGO_ACCESS_TOKEN: ${MERCADOPAGO_ACCESS_TOKEN}
+      GOOGLE_PROJECT_ID: ${GOOGLE_PROJECT_ID}
+      GOOGLE_CLIENT_EMAIL: ${GOOGLE_CLIENT_EMAIL}
+      GOOGLE_PRIVATE_KEY: ${GOOGLE_PRIVATE_KEY}
+      CALENDAR_ID: ${CALENDAR_ID}
+
+      # 🔹 Variable necesaria para frontend (se inyecta en build)
+      VITE_MERCADOPAGO_PUBLIC_KEY: ${VITE_MERCADOPAGO_PUBLIC_KEY}
+
+    # Para que Railway-style quede igual que prod
+    command: ["npm", "start"]
