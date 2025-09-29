@@ -7,7 +7,7 @@ import { ServiceType } from "./types";
 export const SERVICE_BASE_PRICES: Record<ServiceType, number> = {
   [ServiceType.NEW_INSTALLATION]: 150000,
   [ServiceType.HIGH_ALTITUDE_INSTALLATION]: 150000,
-  [ServiceType.AUTOMOTIVE_INSTALLATION]: 4000,
+  [ServiceType.AUTOMOTIVE_INSTALLATION]: 1,
   [ServiceType.HOME_DIAGNOSIS]: 25000,
   [ServiceType.AUTOMOTIVE_DIAGNOSIS]: 25000,
   [ServiceType.HOME_SERVICE]: 90000,
