@@ -10,14 +10,6 @@ interface Props {
   onPaymentFailure: () => void;
 }
 
-interface WalletSubmitData {
-  id?: string;
-  response?: {
-    id?: string;
-    payment?: { id?: string };
-  };
-}
-
 const Step6Payment: React.FC<Props> = ({
   quote,
   formData,
@@ -39,7 +31,7 @@ const Step6Payment: React.FC<Props> = ({
         const publicKey = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
         if (!publicKey || publicKey === "undefined") {
           console.warn("⚠️ PUBLIC_KEY ausente, no se inicializa Mercado Pago");
-          console.log("🌍 import.meta.env:", import.meta.env); // debug
+          console.log("🌍 import.meta.env:", import.meta.env);
           return;
         }
 
@@ -107,7 +99,6 @@ const Step6Payment: React.FC<Props> = ({
       });
 
       const data = await response.json();
-      console.log("📡 Status confirm-onsite:", response.status);
       console.log("📦 Respuesta confirm-onsite:", data);
 
       if (data.success) {
@@ -149,31 +140,21 @@ const Step6Payment: React.FC<Props> = ({
           <div className="flex justify-center w-full mt-4">
             <div className="w-[300px]">
               {console.log("🟦 Renderizando Wallet con prefId:", preferenceId)}
+
               <WalletComponent
                 initialization={initialization}
-                onSubmit={async (paramData: WalletSubmitData) => {
-                  console.log("🟢 Pago procesado:", paramData);
-
-                  const paymentId =
-                    paramData.id ||
-                    paramData.response?.id ||
-                    paramData.response?.payment?.id;
-
-                  if (!paymentId) {
-                    console.error("❌ No se encontró paymentId en la respuesta");
-                    onPaymentFailure();
-                    return;
-                  }
+                onSubmit={async (paramData: any) => {
+                  console.log("🟢 Datos recibidos del Brick:", paramData);
 
                   try {
-                    const res = await fetch("/api/confirm-payment", {
+                    const res = await fetch("/api/process-payment", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ formData, quote, paymentId }),
+                      body: JSON.stringify({ paramData, formData, quote }),
                     });
 
                     const data = await res.json();
-                    console.log("🔁 Respuesta confirm-payment:", data);
+                    console.log("🔁 Respuesta process-payment:", data);
 
                     if (data.success) {
                       onPaymentSuccess(data.estado?.code || "approved");
@@ -181,7 +162,7 @@ const Step6Payment: React.FC<Props> = ({
                       onPaymentFailure();
                     }
                   } catch (err) {
-                    console.error("❌ Error confirmando pago:", err);
+                    console.error("❌ Error en process-payment:", err);
                     onPaymentFailure();
                   }
                 }}
