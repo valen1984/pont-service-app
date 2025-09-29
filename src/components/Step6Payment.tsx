@@ -30,25 +30,30 @@ const Step6Payment: React.FC<Props> = ({
   const [loading, setLoading] = useState(false);
   const [WalletComponent, setWalletComponent] = useState<any>(null);
 
-  // ⚡ Cargar Mercado Pago dinámicamente SOLO cuando se entra a Step6
+  // ⚡ Lazy load del SDK de Mercado Pago SOLO al entrar en Step6
   useEffect(() => {
     (async () => {
-      const { Wallet, initMercadoPago } = await import("@mercadopago/sdk-react");
+      try {
+        const { Wallet, initMercadoPago } = await import("@mercadopago/sdk-react");
 
-      const publicKey = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
-      if (!publicKey || publicKey === "undefined") {
-        if (import.meta.env.MODE !== "production") {
-          console.warn("⚠️ PUBLIC_KEY ausente, no se inicializa Mercado Pago");
+        const publicKey = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
+        if (!publicKey || publicKey === "undefined") {
+          if (import.meta.env.MODE !== "production") {
+            console.warn("⚠️ PUBLIC_KEY ausente, no se inicializa Mercado Pago");
+            console.log("🌍 import.meta.env:", import.meta.env); // debug en dev
+          }
+          return;
         }
-        return;
-      }
 
-      if (import.meta.env.MODE !== "production") {
-        console.log("🔑 Init MercadoPago con key:", publicKey);
-      }
+        if (import.meta.env.MODE !== "production") {
+          console.log("🔑 Init MercadoPago con key:", publicKey);
+        }
 
-      initMercadoPago(publicKey, { locale: "es-AR" });
-      setWalletComponent(() => Wallet);
+        initMercadoPago(publicKey, { locale: "es-AR" });
+        setWalletComponent(() => Wallet);
+      } catch (err) {
+        console.error("❌ Error cargando SDK MercadoPago:", err);
+      }
     })();
   }, []);
 
