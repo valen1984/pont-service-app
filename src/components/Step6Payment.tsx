@@ -52,37 +52,42 @@ const Step6Payment: React.FC<Props> = ({
   }, [preferenceId]);
 
   // 👉 Crear preferencia en el backend
-  const createPreference = async () => {
-    if (!quote) return;
-    setLoading(true);
+  // 👉 Crear preferencia en el backend
+const createPreference = async () => {
+  if (!quote) return;
+  setLoading(true);
 
-    try {
-      const response = await fetch("/api/create_preference", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: "Servicio técnico Pont",
-          quantity: 1,
-          unit_price: quote.total,
-          formData,
-          quote,
-        }),
-      });
+  try {
+    // ✅ Guardar antes de redirigir a MP
+    localStorage.setItem("formData", JSON.stringify(formData));
+    localStorage.setItem("quote", JSON.stringify(quote));
 
-      const data = await response.json();
-      console.log("📦 Respuesta create_preference:", data);
+    const response = await fetch("/api/create_preference", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        title: "Servicio técnico Pont",
+        quantity: 1,
+        unit_price: quote.total,
+        formData,
+        quote,
+      }),
+    });
 
-      const prefId = data.id || data.preferenceId;
-      if (!prefId) throw new Error("No se recibió un preferenceId válido");
+    const data = await response.json();
+    console.log("📦 Respuesta create_preference:", data);
 
-      setPreferenceId(prefId);
-    } catch (error) {
-      console.error("❌ Error creando preferencia:", error);
-      onPaymentFailure();
-    } finally {
-      setLoading(false);
-    }
-  };
+    const prefId = data.id || data.preferenceId;
+    if (!prefId) throw new Error("No se recibió un preferenceId válido");
+
+    setPreferenceId(prefId);
+  } catch (error) {
+    console.error("❌ Error creando preferencia:", error);
+    onPaymentFailure();
+  } finally {
+    setLoading(false);
+  }
+};
 
   // 👉 Pago presencial
   const handlePayOnSite = async () => {
