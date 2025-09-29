@@ -1,33 +1,35 @@
-# Node
+# ======================
+# Node / JS
+# ======================
 node_modules
 npm-debug.log
 yarn-error.log
-pnpm-lock.yaml
-package-lock.json
+pnpm-debug.log
 
-# Build outputs
+# ======================
+# Build / Dist
+# ======================
 dist
 dist-server
-build
-.cache
-.next
-out
+*.tsbuildinfo
 
-# Local env files
+# ======================
+# Env / Secrets
+# ======================
 .env
-*.local
-*.env
+.env.*
+!.env.example
 
-# System files
-.DS_Store
-Thumbs.db
+# ======================
+# Git
+# ======================
+.git
+.gitignore
 
-# Test files
-coverage
-__tests__
-*.spec.ts
-*.test.ts
-
-# Editor
+# ======================
+# IDE / Editor
+# ======================
 .vscode
 .idea
+.DS_Store
+Thumbs.db
