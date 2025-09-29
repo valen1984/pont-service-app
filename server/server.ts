@@ -1,9 +1,9 @@
 import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
-import { TECHNICIAN_EMAIL, ORDER_STATES } from "./constants";
+import { TECHNICIAN_EMAIL, ORDER_STATES } from "./constants.js";
 import { sendConfirmationEmail } from "./email.js";
-import { payCash } from "./cash";
+import { payCash } from "./cash.js";
 import path from "path";
 import { fileURLToPath } from "url";
 import { google } from "googleapis";
