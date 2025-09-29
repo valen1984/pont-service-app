@@ -1,39 +1,39 @@
-# ---------------------------
-# Etapa de build
-# ---------------------------
+# =====================
+# Etapa 1: Build
+# =====================
 FROM node:20-alpine AS builder
-
 WORKDIR /app
 
-# Copiamos package.json y lock primero para aprovechar cache
+# Copiamos package.json + lockfiles primero (mejora cache)
 COPY package*.json ./
 
-# Instalamos dependencias (dev incluidas porque compila TS y Vite)
+# Instalamos dependencias completas
 RUN npm install
 
-# Copiamos el resto del código
+# Copiamos todo el código
 COPY . .
 
-# Compilamos front + back + copiamos front a dist-server
+# Compilamos front y back usando el script de package.json
 RUN npm run build
 
-# ---------------------------
-# Etapa final (runtime)
-# ---------------------------
-FROM node:20-alpine
-
+# =====================
+# Etapa 2: Runtime
+# =====================
+FROM node:20-alpine AS runner
 WORKDIR /app
 
-# Copiamos solo lo necesario desde el builder
-COPY --from=builder /app/package*.json ./
+# Copiamos package.json para instalar sólo prod deps
+COPY package*.json ./
+
+# Copiamos artefactos del builder
 COPY --from=builder /app/dist-server ./dist-server
 COPY --from=builder /app/dist ./dist
 
-# Instalamos solo prod deps (más liviano)
+# Instalamos sólo dependencias necesarias en runtime
 RUN npm install --omit=dev
 
-# Railway setea PORT en runtime, Express ya lo lee con process.env.PORT
-EXPOSE 3000
+# Exponemos el puerto
+EXPOSE 8080
 
-# Arrancamos la app (usa tu script "start" -> node dist-server/server/server.js)
+# Comando de arranque
 CMD ["npm", "start"]
