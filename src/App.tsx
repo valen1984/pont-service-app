@@ -104,6 +104,8 @@ function App() {
   if (paymentId) {
     console.log("🔎 Pago detectado en redirect:", { paymentId, status });
 
+    setCurrentStep(7); // ⚡ Forzamos Step7 para mostrar el loader allí
+
     fetch("/api/confirm-payment", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -114,20 +116,33 @@ function App() {
         console.log("📦 Respuesta confirm-payment redirect:", data);
 
         if (data.success) {
-          setQuote((prev) => ({ ...prev!, paymentStatus: data.estado.code || "approved" }));
-          setCurrentStep(7);
+          const estado =
+            typeof data.estado === "string"
+              ? data.estado
+              : data.estado?.code || "approved";
+
+          setQuote((prev) => ({ ...prev!, paymentStatus: estado }));
         } else {
           setQuote((prev) => ({ ...prev!, paymentStatus: "rejected" }));
-          setCurrentStep(7);
         }
       })
       .catch((err) => {
         console.error("❌ Error confirmando pago en redirect:", err);
         setQuote((prev) => ({ ...prev!, paymentStatus: "rejected" }));
-        setCurrentStep(7);
+      })
+      .finally(() => {
+        // 🚀 Limpiar los parámetros de la URL para evitar reintentos al refrescar
+        if (window?.history?.replaceState) {
+          window.history.replaceState(
+            {},
+            document.title,
+            window.location.pathname
+          );
+        }
       });
   }
 }, []);
+
 
   const isFinalStep = currentStep === 7;
 
