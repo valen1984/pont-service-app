@@ -5,6 +5,9 @@ if (!SENDGRID_KEY) {
     console.warn("⚠️ Falta SENDGRID_API_KEY en env");
 }
 sgMail.setApiKey(SENDGRID_KEY);
+//
+// 1️⃣ Con template dinámico de SendGrid
+//
 export const sendConfirmationEmail = async ({ recipient, cc, fullName, phone, appointment, address, location, coords, quote, photos, estado, }) => {
     const coordsText = coords
         ? `${coords.lat.toFixed(4)}, ${coords.lon.toFixed(4)}`
@@ -12,7 +15,6 @@ export const sendConfirmationEmail = async ({ recipient, cc, fullName, phone, ap
     const mapsLink = coords
         ? `https://www.google.com/maps?q=${coords.lat},${coords.lon}`
         : "";
-    // 🚀 Datos dinámicos que recibe el template de SendGrid
     const dynamicTemplateData = {
         estado: estado?.label ?? "📩 Estado no especificado",
         estadoCode: estado?.code ?? "unknown",
@@ -40,7 +42,7 @@ export const sendConfirmationEmail = async ({ recipient, cc, fullName, phone, ap
             email: "pontserviciosderefrigeracion@gmail.com",
             name: "Pont Refrigeración",
         },
-        templateId: process.env.SENDGRID_TEMPLATE_UNICO ?? "", // 👈 tu template dinámico
+        templateId: process.env.SENDGRID_TEMPLATE_UNICO ?? "",
         dynamicTemplateData,
     };
     try {
@@ -49,7 +51,31 @@ export const sendConfirmationEmail = async ({ recipient, cc, fullName, phone, ap
         return { success: true };
     }
     catch (err) {
-        console.error("❌ Error enviando email:", err.response?.body || err.message);
+        console.error("❌ Error enviando email dinámico:", err.response?.body || err.message);
+        return { success: false, error: err.message };
+    }
+};
+//
+// 2️⃣ Envío de email RAW (sin template, con subject/text/html)
+//
+export const sendRawEmail = async ({ to, subject, text, html, }) => {
+    const msg = {
+        to,
+        from: {
+            email: "pontserviciosderefrigeracion@gmail.com",
+            name: "Pont Refrigeración",
+        },
+        subject,
+        text,
+        html: html || `<p>${text}</p>`,
+    };
+    try {
+        await sgMail.send(msg);
+        console.log(`📩 Email RAW enviado a ${to}`);
+        return { success: true };
+    }
+    catch (err) {
+        console.error("❌ Error enviando email RAW:", err.response?.body || err.message);
         return { success: false, error: err.message };
     }
 };

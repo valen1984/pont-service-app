@@ -1,16 +1,15 @@
 import express from "express";
 import cors from "cors";
 import bodyParser from "body-parser";
-import { MercadoPagoConfig } from "mercadopago";
+import { TECHNICIAN_EMAIL, ORDER_STATES } from "./constants.js";
+import { sendConfirmationEmail } from "./email.js";
 import path from "path";
 import { fileURLToPath } from "url";
 import { google } from "googleapis";
 import dotenv from "dotenv";
+import { MercadoPagoConfig, Preference, Payment } from "mercadopago";
 dotenv.config();
 const app = express();
-// ======================
-// 📌 CORS (abierto para evitar bloqueos)
-// ======================
 app.use(cors({ origin: "*" }));
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -19,23 +18,17 @@ console.log("🌍 ENV CALENDAR_ID:", process.env.CALENDAR_ID);
 console.log("🌍 ENV GOOGLE_PROJECT_ID:", process.env.GOOGLE_PROJECT_ID);
 console.log("🌍 ENV GOOGLE_CLIENT_EMAIL:", process.env.GOOGLE_CLIENT_EMAIL ? "OK" : "MISSING");
 console.log("🌍 ENV GOOGLE_PRIVATE_KEY:", process.env.GOOGLE_PRIVATE_KEY ? "OK" : "MISSING");
-// ⚡ Middleware para log de todas las requests
+// ⚡ Middleware para log de requests
 app.use((req, res, next) => {
     const isApi = req.originalUrl.startsWith("/api/");
     console.log("➡️ [REQ]", isApi ? "[API]" : "[FRONT]");
     console.log("   URL:", req.originalUrl);
     console.log("   Method:", req.method);
-    console.log("   Host:", req.headers.host);
-    if (req.headers.origin) {
-        console.log("   Origin:", req.headers.origin);
-    }
     next();
 });
-// ⚡ Mercado Pago
-const client = new MercadoPagoConfig({
-    accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN ?? "",
-});
+// ======================
 // ⚡ Google Calendar
+// ======================
 let rawCreds = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON || "{}");
 if (rawCreds.private_key) {
     rawCreds.private_key = rawCreds.private_key.replace(/\\n/g, "\n");
@@ -131,8 +124,33 @@ async function generateSchedule() {
     return result;
 }
 // ======================
+// 🔨 helper: crear evento en Google Calendar
+// ======================
+async function createCalendarEvent({ date, time, summary, description, }) {
+    try {
+        const start = new Date(`${date}T${time}:00-03:00`);
+        const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
+        const event = await calendar.events.insert({
+            calendarId: CALENDAR_ID,
+            requestBody: {
+                summary,
+                description,
+                start: { dateTime: start.toISOString(), timeZone: "America/Argentina/Buenos_Aires" },
+                end: { dateTime: end.toISOString(), timeZone: "America/Argentina/Buenos_Aires" },
+            },
+        });
+        console.log("📆 Evento creado:", event.data.id, event.data.htmlLink);
+        return { id: event.data.id, htmlLink: event.data.htmlLink };
+    }
+    catch (err) {
+        console.error("❌ Error creando evento:", err.response?.data || err.message);
+        throw err;
+    }
+}
+// ======================
 // 📌 ENDPOINTS DE API
 // ======================
+// Agenda
 app.get("/api/schedule", async (req, res) => {
     try {
         const schedule = await generateSchedule();
@@ -142,15 +160,132 @@ app.get("/api/schedule", async (req, res) => {
         res.status(500).json({ error: "Error al generar agenda" });
     }
 });
+// Pago presencial (cash_home)
+app.post("/api/confirm-onsite", async (req, res) => {
+    console.log("💵 [/api/confirm-onsite] req.body crudo:", req.body);
+    try {
+        const { formData, quote } = req.body;
+        console.log("💵 [/api/confirm-onsite] payload recibido:", {
+            fullName: formData?.fullName,
+            email: formData?.email,
+            phone: formData?.phone,
+            date: formData?.appointmentSlot?.date,
+            time: formData?.appointmentSlot?.time,
+            total: quote?.total,
+        });
+        const estado = ORDER_STATES.cash_home;
+        const date = formData?.appointmentSlot?.date;
+        const time = formData?.appointmentSlot?.time;
+        if (!date || !time)
+            throw new Error("Falta appointmentSlot (date/time)");
+        const { id: calendarEventId, htmlLink } = await createCalendarEvent({
+            date,
+            time,
+            summary: `Servicio técnico: ${formData?.serviceType || "Visita"}`,
+            description: `Cliente: ${formData?.fullName || "-"} (${formData?.phone || "-"})\n` +
+                `Dirección: ${formData?.address || "-"}\n` +
+                `Localidad: ${formData?.location || "-"}\n` +
+                `Pago: ${estado.label}\n` +
+                `Total: ${new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" }).format(quote?.total ?? 0)}`,
+        });
+        await sendConfirmationEmail({
+            recipient: TECHNICIAN_EMAIL,
+            cc: formData?.email,
+            fullName: formData?.fullName,
+            phone: formData?.phone,
+            appointment: `${date} ${time}`,
+            address: formData?.address,
+            location: formData?.location,
+            coords: formData?.coords,
+            quote,
+            photos: formData?.photos,
+            estado,
+        });
+        res.json({
+            success: true,
+            estado,
+            calendarEventId,
+            calendarEventLink: htmlLink,
+        });
+    }
+    catch (err) {
+        console.error("❌ [/api/confirm-onsite] Error:", err.message);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
+// Crear preferencia
+app.post("/api/create_preference", async (req, res) => {
+    try {
+        const { title, quantity, unit_price } = req.body;
+        console.log("🟦 Crear preferencia:", { title, quantity, unit_price });
+        const mpClient = new MercadoPagoConfig({
+            accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN ?? "",
+        });
+        const preference = await new Preference(mpClient).create({
+            body: {
+                items: [
+                    {
+                        id: "service", // requerido por TS
+                        title,
+                        quantity,
+                        unit_price,
+                    },
+                ],
+                back_urls: {
+                    success: `${process.env.FRONTEND_URL}/success`,
+                    failure: `${process.env.FRONTEND_URL}/failure`,
+                    pending: `${process.env.FRONTEND_URL}/pending`,
+                },
+                auto_return: "approved",
+            },
+        });
+        console.log("✅ Preferencia creada:", preference.id);
+        res.json({ id: preference.id, preferenceId: preference.id });
+    }
+    catch (err) {
+        console.error("❌ Error creando preferencia:", err.message);
+        res.status(500).json({ error: "Error creando preferencia" });
+    }
+});
+// Confirmar pago Mercado Pago
+app.post("/api/confirm-payment", async (req, res) => {
+    try {
+        const { formData, quote, paymentId } = req.body;
+        console.log("🔎 Confirmación de pago recibida:", { paymentId });
+        const mpClient = new MercadoPagoConfig({
+            accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN ?? "",
+        });
+        const payment = await new Payment(mpClient).get({ id: paymentId });
+        const estadoCode = payment.status ?? "unknown";
+        console.log("📦 Estado real de pago:", estadoCode);
+        const estado = ORDER_STATES[estadoCode] ?? ORDER_STATES.unknown;
+        await sendConfirmationEmail({
+            recipient: TECHNICIAN_EMAIL,
+            cc: formData.email,
+            fullName: formData.fullName,
+            phone: formData.phone,
+            appointment: `${formData.appointmentSlot?.date} ${formData.appointmentSlot?.time}`,
+            address: formData.address,
+            location: formData.location,
+            coords: formData.coords,
+            quote,
+            photos: formData.photos,
+            estado,
+        });
+        res.json({ success: true, estado });
+    }
+    catch (err) {
+        console.error("❌ Error confirmando pago:", err.message);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
 // ======================
-// 📌 Servir frontend (React build en dist)
+// 📌 Servir frontend
 // ======================
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 app.use(express.static(path.join(__dirname, "../dist")));
-// ⚠️ Catch-all SOLO si no es /api/*
 app.get(/^\/(?!api).*/, (req, res) => {
-    console.log(`➡️ [REQ] Frontend route: ${req.originalUrl}`);
     res.sendFile(path.join(__dirname, "../dist", "index.html"));
 });
 // ======================
