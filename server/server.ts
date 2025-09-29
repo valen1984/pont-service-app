@@ -9,7 +9,7 @@ import { fileURLToPath } from "url";
 import { google } from "googleapis";
 import dotenv from "dotenv";
 import { MercadoPagoConfig, Preference, Payment } from "mercadopago";
-import { CASH_STATES, MP_STATES } from "./constants.js";
+
 
 dotenv.config();
 const app = express();
