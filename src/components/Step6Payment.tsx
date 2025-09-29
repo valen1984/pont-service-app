@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Quote, FormData } from "../types";
-import { Wallet, initMercadoPago } from "@mercadopago/sdk-react";
 
 interface Props {
   quote: Quote | null;
@@ -11,13 +10,6 @@ interface Props {
   onPaymentFailure: () => void;
 }
 
-// 🔧 Extender el tipo de Wallet para aceptar onSubmit
-interface WalletWithSubmitProps {
-  initialization: { preferenceId: string };
-  onSubmit?: (paramData: WalletSubmitData) => void;
-  onError?: (error: any) => void;
-}
-
 interface WalletSubmitData {
   id?: string;
   response?: {
@@ -25,8 +17,6 @@ interface WalletSubmitData {
     payment?: { id?: string };
   };
 }
-
-const WalletWithSubmit = Wallet as unknown as React.FC<WalletWithSubmitProps>;
 
 const Step6Payment: React.FC<Props> = ({
   quote,
@@ -38,35 +28,40 @@ const Step6Payment: React.FC<Props> = ({
 }) => {
   const [preferenceId, setPreferenceId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [WalletComponent, setWalletComponent] = useState<any>(null);
 
-  // ⚡ Inicializar Mercado Pago SOLO al entrar en Step6
+  // ⚡ Cargar Mercado Pago dinámicamente SOLO cuando se entra a Step6
   useEffect(() => {
-    const publicKey = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
+    (async () => {
+      const { Wallet, initMercadoPago } = await import("@mercadopago/sdk-react");
 
-    if (!publicKey || publicKey === "undefined") {
-      if (import.meta.env.MODE !== "production") {
-        console.warn("⚠️ PUBLIC_KEY ausente, no se inicializa Mercado Pago");
+      const publicKey = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
+      if (!publicKey || publicKey === "undefined") {
+        if (import.meta.env.MODE !== "production") {
+          console.warn("⚠️ PUBLIC_KEY ausente, no se inicializa Mercado Pago");
+        }
+        return;
       }
-      return; // 👈 salí antes, no intentes inicializar
-    }
 
-    if (import.meta.env.MODE !== "production") {
-      console.log("🔑 Init MercadoPago con key:", publicKey);
-    }
+      if (import.meta.env.MODE !== "production") {
+        console.log("🔑 Init MercadoPago con key:", publicKey);
+      }
 
-    initMercadoPago(publicKey, { locale: "es-AR" });
+      initMercadoPago(publicKey, { locale: "es-AR" });
+      setWalletComponent(() => Wallet);
+    })();
   }, []);
 
-  // ✅ Memorizar initialization para evitar re-montajes innecesarios
+  // ✅ Memorizar initialization
   const initialization = useMemo(() => {
     return preferenceId ? { preferenceId } : null;
   }, [preferenceId]);
 
-  // 👉 Crear preferencia en el backend (Mercado Pago)
+  // 👉 Crear preferencia en el backend
   const createPreference = async () => {
     if (!quote) return;
-
     setLoading(true);
+
     try {
       const response = await fetch("/api/create_preference", {
         method: "POST",
@@ -153,14 +148,15 @@ const Step6Payment: React.FC<Props> = ({
           {loading ? "Procesando..." : "Pagar con Mercado Pago"}
         </button>
       ) : (
-        initialization && (
+        initialization &&
+        WalletComponent && (
           <div className="flex justify-center">
             {import.meta.env.MODE !== "production" &&
               console.log("🟦 Renderizando Wallet con prefId:", preferenceId)}
 
-            <WalletWithSubmit
+            <WalletComponent
               initialization={initialization}
-              onSubmit={async (paramData) => {
+              onSubmit={async (paramData: WalletSubmitData) => {
                 if (import.meta.env.MODE !== "production") {
                   console.log("🟢 Pago procesado:", paramData);
                 }
@@ -198,7 +194,7 @@ const Step6Payment: React.FC<Props> = ({
                   onPaymentFailure();
                 }
               }}
-              onError={(err) => {
+              onError={(err: any) => {
                 console.error("❌ Error desde Wallet Brick:", err);
                 onPaymentFailure();
               }}
