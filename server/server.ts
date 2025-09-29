@@ -9,6 +9,8 @@ import { fileURLToPath } from "url";
 import { google } from "googleapis";
 import dotenv from "dotenv";
 import { MercadoPagoConfig, Preference, Payment } from "mercadopago";
+import { MP_STATES } from "./constants.js";
+import { CASH_STATES } from "./constants.js";
 
 
 dotenv.config();
@@ -190,8 +192,6 @@ app.get("/api/schedule", async (req, res) => {
 });
 
 // Pago presencial (cash_home)
-import { CASH_STATES } from "./constants.js";
-
 app.post("/api/confirm-onsite", async (req, res) => {
   console.log("💵 [/api/confirm-onsite] req.body crudo:", req.body);
   try {
@@ -206,7 +206,9 @@ app.post("/api/confirm-onsite", async (req, res) => {
       total: quote?.total,
     });
 
-    const estado = CASH_STATES.cash; // 👈 corregido
+    // ⚡ FIX: casteo a any igual que en MP_STATES
+    const estado = (CASH_STATES as any).cash;
+
     const date = formData?.appointmentSlot?.date;
     const time = formData?.appointmentSlot?.time;
     if (!date || !time) throw new Error("Falta appointmentSlot (date/time)");
@@ -287,8 +289,7 @@ app.post("/api/create_preference", async (req, res) => {
   }
 });
 
-// Confirmar pago Mercado Pago
-import { MP_STATES } from "./constants.js";
+
 
 app.post("/api/confirm-payment", async (req, res) => {
   try {
@@ -304,9 +305,10 @@ app.post("/api/confirm-payment", async (req, res) => {
     const estadoCode: string = payment.status ?? "unknown";
     console.log("📦 Estado real de pago:", estadoCode);
 
+    // ⚡ FIX: casteo a any para evitar error TS7053
     const estado =
-      MP_STATES[estadoCode] ??
-      { code: estadoCode, label: "Estado desconocido" }; // 👈 fallback seguro
+      (MP_STATES as any)[estadoCode] ??
+      { code: estadoCode, label: "Estado desconocido" };
 
     await sendConfirmationEmail({
       recipient: TECHNICIAN_EMAIL,
@@ -328,7 +330,6 @@ app.post("/api/confirm-payment", async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
-
 
 // ======================
 // 📌 Servir frontend
