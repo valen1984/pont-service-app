@@ -1,15 +1,10 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
+import "./index.css"; // si tenés estilos globales
 
-// 🟦 Debug: verificar que la key llega desde Railway
-console.log("🔑 VITE_MERCADOPAGO_PUBLIC_KEY:", import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY);
-
-if (!import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY) {
-  console.error("⚠️ Mercado Pago PUBLIC KEY no definida en .env (frontend)");
-}
-
-ReactDOM.createRoot(document.getElementById("root")!).render(
+// 👉 Montamos la app en el root
+ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <App />
   </React.StrictMode>

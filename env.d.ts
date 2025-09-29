@@ -1,3 +1,20 @@
+/// <reference types="vite/client" />
+
+// 👉 Variables disponibles en el frontend (Vite)
+interface ImportMetaEnv {
+  readonly MODE: string; // 👈 ahora TS acepta import.meta.env.MODE
+  readonly VITE_API_URL: string;
+  readonly VITE_MERCADOPAGO_PUBLIC_KEY: string;
+  readonly VITE_EMAILJS_SERVICE_ID: string;
+  readonly VITE_EMAILJS_TEMPLATE_ID: string;
+  readonly VITE_EMAILJS_PUBLIC_KEY: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}
+
+// 👉 Variables disponibles en el backend (Node.js)
 declare namespace NodeJS {
   interface ProcessEnv {
     // SendGrid
@@ -6,32 +23,8 @@ declare namespace NodeJS {
 
     // MercadoPago
     MERCADOPAGO_ACCESS_TOKEN: string;
-    VITE_MERCADOPAGO_PUBLIC_KEY: string;
 
-    // API
-    VITE_API_URL: string;
-
-    // EmailJS (opcional, si todavía lo usás en frontend)
-    VITE_EMAILJS_SERVICE_ID: string;
-    VITE_EMAILJS_TEMPLATE_ID: string;
-    VITE_EMAILJS_PUBLIC_KEY: string;
-  }
-}
-
-
-/// <reference types="vite/client" />
-
-interface ImportMetaEnv {
-  readonly VITE_MERCADOPAGO_PUBLIC_KEY: string;
-}
-
-interface ImportMeta {
-  readonly env: ImportMetaEnv;
-}
-
-declare namespace NodeJS {
-  interface ProcessEnv {
-    MERCADOPAGO_ACCESS_TOKEN: string;
+    // Frontend URL (si lo usás en mails/redirecciones)
     FRONTEND_URL: string;
   }
 }

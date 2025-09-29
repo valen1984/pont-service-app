@@ -14,9 +14,18 @@ interface Props {
 // 🔧 Extender el tipo de Wallet para aceptar onSubmit
 interface WalletWithSubmitProps {
   initialization: { preferenceId: string };
-  onSubmit?: (paramData: any) => void;
+  onSubmit?: (paramData: WalletSubmitData) => void;
   onError?: (error: any) => void;
 }
+
+interface WalletSubmitData {
+  id?: string;
+  response?: {
+    id?: string;
+    payment?: { id?: string };
+  };
+}
+
 const WalletWithSubmit = Wallet as unknown as React.FC<WalletWithSubmitProps>;
 
 const Step6Payment: React.FC<Props> = ({
@@ -34,7 +43,9 @@ const Step6Payment: React.FC<Props> = ({
   useEffect(() => {
     const publicKey = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
     if (publicKey) {
-      console.log("🔑 Init MercadoPago con key:", publicKey);
+      if (import.meta.env.MODE !== "production") {
+        console.log("🔑 Init MercadoPago con key:", publicKey);
+      }
       initMercadoPago(publicKey, { locale: "es-AR" });
     } else {
       console.error("⚠️ Mercado Pago PUBLIC KEY no definida en .env");
@@ -65,7 +76,9 @@ const Step6Payment: React.FC<Props> = ({
       });
 
       const data = await response.json();
-      console.log("📦 Respuesta create_preference:", data);
+      if (import.meta.env.MODE !== "production") {
+        console.log("📦 Respuesta create_preference:", data);
+      }
 
       const prefId = data.id || data.preferenceId;
       if (!prefId) throw new Error("No se recibió un preferenceId válido");
@@ -85,7 +98,9 @@ const Step6Payment: React.FC<Props> = ({
     setLoading(true);
 
     try {
-      console.log("📤 Enviando confirm-onsite:", { formData, quote });
+      if (import.meta.env.MODE !== "production") {
+        console.log("📤 Enviando confirm-onsite:", { formData, quote });
+      }
 
       const response = await fetch("/api/confirm-onsite", {
         method: "POST",
@@ -93,10 +108,11 @@ const Step6Payment: React.FC<Props> = ({
         body: JSON.stringify({ formData, quote }),
       });
 
-      console.log("📡 Status confirm-onsite:", response.status);
-
       const data = await response.json();
-      console.log("📦 Respuesta confirm-onsite:", data);
+      if (import.meta.env.MODE !== "production") {
+        console.log("📡 Status confirm-onsite:", response.status);
+        console.log("📦 Respuesta confirm-onsite:", data);
+      }
 
       if (data.success) {
         onPayOnSite();
@@ -134,11 +150,15 @@ const Step6Payment: React.FC<Props> = ({
       ) : (
         initialization && (
           <div className="flex justify-center">
-            {console.log("🟦 Renderizando Wallet con prefId:", preferenceId)}
+            {import.meta.env.MODE !== "production" &&
+              console.log("🟦 Renderizando Wallet con prefId:", preferenceId)}
+
             <WalletWithSubmit
               initialization={initialization}
               onSubmit={async (paramData) => {
-                console.log("🟢 Pago procesado:", paramData);
+                if (import.meta.env.MODE !== "production") {
+                  console.log("🟢 Pago procesado:", paramData);
+                }
 
                 const paymentId =
                   paramData.id ||
@@ -159,7 +179,9 @@ const Step6Payment: React.FC<Props> = ({
                   });
 
                   const data = await res.json();
-                  console.log("🔁 Respuesta confirm-payment:", data);
+                  if (import.meta.env.MODE !== "production") {
+                    console.log("🔁 Respuesta confirm-payment:", data);
+                  }
 
                   if (data.success) {
                     onPaymentSuccess(data.estado?.code || "approved");
