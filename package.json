@@ -10,7 +10,7 @@
   "build:front": "vite build",
   "build:back": "tsc -p tsconfig.server.json",
   "copy:front": "rimraf dist-server/dist && npx cpx2 \"dist/**/*\" dist-server/dist",
-  "build": "echo '🔑 VITE_MERCADOPAGO_PUBLIC_KEY='$VITE_MERCADOPAGO_PUBLIC_KEY && npm run build:front && npm run build:back && npm run copy:front",
+  "build": "echo \"🔑 VITE_MERCADOPAGO_PUBLIC_KEY=$VITE_MERCADOPAGO_PUBLIC_KEY\" && npm run build:front && npm run build:back && npm run copy:front",
   "start": "node dist-server/server/server.js",
   "serve": "npm run build && npm start"
   },
