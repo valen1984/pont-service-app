@@ -289,12 +289,14 @@ app.post("/api/create_preference", async (req, res) => {
   }
 });
 
-
-
 app.post("/api/confirm-payment", async (req, res) => {
   try {
     const { formData, quote, paymentId } = req.body;
     console.log("🔎 Confirmación de pago recibida:", { paymentId });
+
+    if (!paymentId) {
+      return res.status(400).json({ success: false, error: "paymentId requerido" });
+    }
 
     const mpClient = new MercadoPagoConfig({
       accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN ?? "",
@@ -305,17 +307,61 @@ app.post("/api/confirm-payment", async (req, res) => {
     const estadoCode: string = payment.status ?? "unknown";
     console.log("📦 Estado real de pago:", estadoCode);
 
-    // ⚡ FIX: casteo a any para evitar error TS7053
     const estado =
-      (MP_STATES as any)[estadoCode] ??
-      { code: estadoCode, label: "Estado desconocido" };
+      MP_STATES[estadoCode] ??
+      { code: estadoCode, label: "Estado desconocido" }; // fallback seguro
 
+    // ---------- Opcional: datos útiles para el evento / debug ----------
+    const statusDetail = payment.status_detail ?? "-";
+    const payerEmail = payment.payer?.email ?? formData?.email ?? "-";
+    const mpOrderId = payment.order?.id ?? paymentId;
+
+    // ---------- Crear evento SOLO si el pago fue aprobado ----------
+    let calendarEventId: string | undefined;
+    let calendarEventLink: string | undefined;
+
+    const date = formData?.appointmentSlot?.date;
+    const time = formData?.appointmentSlot?.time;
+
+    if (estado.code === "approved") {
+      if (!date || !time) {
+        console.warn("⚠️ Pago aprobado pero falta appointmentSlot (date/time). No se crea evento.");
+      } else {
+        try {
+          const { id, htmlLink } = await createCalendarEvent({
+            date,
+            time,
+            summary: `Servicio técnico: ${formData?.serviceType || "Visita"} (MP Aprobado)`,
+            description:
+              `Cliente: ${formData?.fullName || "-"} (${formData?.phone || "-"})\n` +
+              `Email: ${payerEmail}\n` +
+              `Dirección: ${formData?.address || "-"}\n` +
+              `Localidad: ${formData?.location || "-"}\n` +
+              `Pago: ${estado.label}\n` +
+              `Payment ID: ${paymentId}\n` +
+              `MP Order ID: ${mpOrderId}\n` +
+              `Detalle: ${statusDetail}\n` +
+              `Total: ${new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS" })
+                .format(quote?.total ?? 0)}`,
+          });
+          calendarEventId = id;
+          calendarEventLink = htmlLink;
+          console.log("📆 Evento creado por pago aprobado:", { calendarEventId, calendarEventLink });
+        } catch (e: any) {
+          console.error("❌ Error creando evento post-aprobación:", e.response?.data || e.message);
+        }
+      }
+    } else {
+      console.log("ℹ️ Pago no aprobado; no se crea evento. Estado:", estado.code);
+    }
+
+    // ---------- E-mail de confirmación (con o sin evento) ----------
     await sendConfirmationEmail({
       recipient: TECHNICIAN_EMAIL,
       cc: formData.email,
       fullName: formData.fullName,
       phone: formData.phone,
-      appointment: `${formData.appointmentSlot?.date} ${formData.appointmentSlot?.time}`,
+      appointment: `${formData.appointmentSlot?.date ?? "-"} ${formData.appointmentSlot?.time ?? "-"}`,
       address: formData.address,
       location: formData.location,
       coords: formData.coords,
@@ -324,10 +370,15 @@ app.post("/api/confirm-payment", async (req, res) => {
       estado,
     });
 
-    res.json({ success: true, estado });
+    return res.json({
+      success: true,
+      estado,                     // { code, label }
+      calendarEventId,            // puede venir undefined si no se creó
+      calendarEventLink,          // idem
+    });
   } catch (err: any) {
     console.error("❌ Error confirmando pago:", err.message);
-    res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 
