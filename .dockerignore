@@ -1,0 +1,33 @@
+# Node
+node_modules
+npm-debug.log
+yarn-error.log
+pnpm-lock.yaml
+package-lock.json
+
+# Build outputs
+dist
+dist-server
+build
+.cache
+.next
+out
+
+# Local env files
+.env
+*.local
+*.env
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Test files
+coverage
+__tests__
+*.spec.ts
+*.test.ts
+
+# Editor
+.vscode
+.idea

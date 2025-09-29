@@ -11,6 +11,14 @@ interface Props {
   onPaymentFailure: () => void;
 }
 
+// 🔧 Extender el tipo de Wallet para aceptar onSubmit
+interface WalletWithSubmitProps {
+  initialization: { preferenceId: string };
+  onSubmit?: (paramData: any) => void;
+  onError?: (error: any) => void;
+}
+const WalletWithSubmit = Wallet as unknown as React.FC<WalletWithSubmitProps>;
+
 const Step6Payment: React.FC<Props> = ({
   quote,
   formData,
@@ -40,8 +48,8 @@ const Step6Payment: React.FC<Props> = ({
           title: "Servicio técnico Pont",
           quantity: 1,
           unit_price: quote.total,
-          formData, // 🔹 Enviar formData completo
-          quote,    // 🔹 Enviar quote completo
+          formData,
+          quote,
         }),
       });
 
@@ -116,7 +124,7 @@ const Step6Payment: React.FC<Props> = ({
         initialization && (
           <div className="flex justify-center">
             {console.log("🟦 Renderizando Wallet con prefId:", preferenceId)}
-            <Wallet
+            <WalletWithSubmit
               initialization={initialization}
               onSubmit={async (paramData) => {
                 console.log("🟢 Pago procesado:", paramData);
