@@ -15,6 +15,7 @@ import Snowfall from "react-snowfall";
 import { motion } from "framer-motion";
 
 
+
 // 📋 Estado inicial del formulario
 const initialFormData: FormData = {
   fullName: "",
@@ -75,6 +76,46 @@ function App() {
     setQuote((prev) => ({ ...prev!, paymentStatus: "cash_home" }));
     setCurrentStep(7);
   };
+
+  useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+  const paymentId = params.get("payment_id");
+  const status = params.get("status");
+
+  if (paymentId) {
+    console.log("🔎 Pago detectado en redirect:", { paymentId, status });
+
+    setShowSplash(false);   // ✅ Saltar splash
+    setCurrentStep(7);      // ✅ Ir directo a Step7
+
+    fetch("/api/confirm-payment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ formData, quote, paymentId }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        console.log("📦 Respuesta confirm-payment redirect:", data);
+        if (data.success) {
+          const estado =
+            typeof data.estado === "string" ? data.estado : data.estado?.code || "approved";
+          setQuote((prev) => ({ ...prev!, paymentStatus: estado }));
+        } else {
+          setQuote((prev) => ({ ...prev!, paymentStatus: "rejected" }));
+        }
+      })
+      .catch((err) => {
+        console.error("❌ Error confirmando pago en redirect:", err);
+        setQuote((prev) => ({ ...prev!, paymentStatus: "rejected" }));
+      })
+      .finally(() => {
+        if (window?.history?.replaceState) {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+      });
+  }
+}, []);
+
 
   const renderStep = () => {
     switch (currentStep) {
