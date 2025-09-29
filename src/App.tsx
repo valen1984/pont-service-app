@@ -14,6 +14,7 @@ import Step7Result from "@/components/Step7Result";
 import Snowfall from "react-snowfall";
 import { motion } from "framer-motion";
 
+
 // 📋 Estado inicial del formulario
 const initialFormData: FormData = {
   fullName: "",
@@ -95,6 +96,38 @@ function App() {
         return <Step1UserInfo formData={formData} updateFormData={updateFormData} nextStep={nextStep} />;
     }
   };
+  useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+  const paymentId = params.get("payment_id");
+  const status = params.get("status");
+
+  if (paymentId) {
+    console.log("🔎 Pago detectado en redirect:", { paymentId, status });
+
+    fetch("/api/confirm-payment", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ formData, quote, paymentId }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        console.log("📦 Respuesta confirm-payment redirect:", data);
+
+        if (data.success) {
+          setQuote((prev) => ({ ...prev!, paymentStatus: data.estado.code || "approved" }));
+          setCurrentStep(7);
+        } else {
+          setQuote((prev) => ({ ...prev!, paymentStatus: "rejected" }));
+          setCurrentStep(7);
+        }
+      })
+      .catch((err) => {
+        console.error("❌ Error confirmando pago en redirect:", err);
+        setQuote((prev) => ({ ...prev!, paymentStatus: "rejected" }));
+        setCurrentStep(7);
+      });
+  }
+}, []);
 
   const isFinalStep = currentStep === 7;
 
