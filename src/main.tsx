@@ -4,6 +4,7 @@ import App from "./App";
 import { initMercadoPago } from "@mercadopago/sdk-react";
 
 const publicKey = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
+console.log("🔑 PUBLIC_KEY desde Vite:", publicKey);
 
 if (!publicKey) {
   console.error("⚠️ Mercado Pago PUBLIC KEY no está definida. Revisá Railway (.env).");
@@ -17,4 +18,3 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <App />
   </React.StrictMode>
 );
-
