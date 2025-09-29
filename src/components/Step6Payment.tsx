@@ -140,37 +140,7 @@ const Step6Payment: React.FC<Props> = ({
           <div className="flex justify-center w-full mt-4">
             <div className="w-[300px]">
               {console.log("🟦 Renderizando Wallet con prefId:", preferenceId)}
-
-              <WalletComponent
-                initialization={initialization}
-                onSubmit={async (paramData: any) => {
-                  console.log("🟢 Datos recibidos del Brick:", paramData);
-
-                  try {
-                    const res = await fetch("/api/process-payment", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ paramData, formData, quote }),
-                    });
-
-                    const data = await res.json();
-                    console.log("🔁 Respuesta process-payment:", data);
-
-                    if (data.success) {
-                      onPaymentSuccess(data.estado?.code || "approved");
-                    } else {
-                      onPaymentFailure();
-                    }
-                  } catch (err) {
-                    console.error("❌ Error en process-payment:", err);
-                    onPaymentFailure();
-                  }
-                }}
-                onError={(err: any) => {
-                  console.error("❌ Error desde Wallet Brick:", err);
-                  onPaymentFailure();
-                }}
-              />
+              <WalletComponent initialization={initialization} />
             </div>
           </div>
         )
