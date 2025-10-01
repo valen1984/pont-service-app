@@ -93,7 +93,7 @@ const Step4Quote: React.FC<Props> = ({ formData, setQuote, nextStep, prevStep })
       </div>
 
       <p className="text-xs text-center text-slate-500">
-        ℹ️ Atención: El presupuesto se mantendrá vigente durante los proximos 7 dias y estara sujeto a cambios de ultimo momento; especialmente por cualquier variacion de precios de proveedores o materiales a partir de la fecha de pago o abono en domicilio.
+        ℹ️ Atención: El presupuesto se mantiene vigente durante los próximos 7 dias a partir de la fecha de pago o abono en domicilio. El presupuesto se encuentra sujeto a cambios de último momento; especialmente por cualquier variacion de precios de proveedores o materiales.
         <br />
         🚗 Los primeros 5 km de traslado desde General Villegas están <b>bonificados</b>.
       </p>
