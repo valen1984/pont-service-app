@@ -11,7 +11,6 @@ export const SERVICE_BASE_PRICES: Record<ServiceType, number> = {
   [ServiceType.HOME_DIAGNOSIS]: 20000,
   [ServiceType.AUTOMOTIVE_DIAGNOSIS]: 20000,
   [ServiceType.HOME_SERVICE]: 80000,
-  [ServiceType.AUTOMOTIVE_SERVICE]: 25000,
   [ServiceType.AUTOMOTIVE_MULTIPLE]: 1,
   [ServiceType.HOME_REFILL]: 95000,
 };
@@ -22,14 +21,13 @@ export const IVA_RATE = 0.21; // 21%
 // Opciones visibles en el selector
 export const SERVICE_OPTIONS: { value: ServiceType; label: string }[] = [
   { value: ServiceType.NEW_INSTALLATION, label: "Hogar - Instalación split [sin materiales]" },
-  { value: ServiceType.COMERCIAL_DIAGNOSIS, label: "Equipos Comerciales - Diagnostico AC" },
-  { value: ServiceType.AUTOMOTIVE_PREVENTATIVE, label: "Automotriz - Mantenimiento preventivo AC" },
-  { value: ServiceType.HOME_DIAGNOSIS, label: "Hogar - Diagnostico AC" },
-  { value: ServiceType.AUTOMOTIVE_DIAGNOSIS, label: "Automotriz - Diagnóstico AC" },
   { value: ServiceType.HOME_SERVICE, label: "Hogar - Mantenimiento preventivo split" },
   { value: ServiceType.HOME_REFILL, label: "Hogar - Carga completa gas refrigerante" },
+  { value: ServiceType.HOME_DIAGNOSIS, label: "Hogar - Diagnostico AC" },
+  { value: ServiceType.AUTOMOTIVE_PREVENTATIVE, label: "Automotriz - Mantenimiento preventivo AC" },
+  { value: ServiceType.AUTOMOTIVE_DIAGNOSIS, label: "Automotriz - Diagnóstico AC" },
   { value: ServiceType.AUTOMOTIVE_MULTIPLE, label: "Automotriz - Reparaciones varias AC [A convenir presencialmente]" },
-  { value: ServiceType.AUTOMOTIVE_SERVICE, label: "Hogar - Carga completa gas refrigerante" },
+  { value: ServiceType.COMERCIAL_DIAGNOSIS, label: "Equipos Comerciales - Diagnostico AC" },
 ];
 
 export const BASE_LOCATION = "General Villegas";
