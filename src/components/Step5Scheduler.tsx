@@ -27,7 +27,7 @@ const Step5Scheduler: React.FC<Props> = ({
         headers: { Accept: "application/json" },
       });
 
-        console.log("📡 Response status:", res.status, res.statusText);
+        console.log("📡 Response status:");
 
         if (!res.ok) {
           throw new Error(`HTTP ${res.status}`);

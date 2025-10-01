@@ -5,7 +5,7 @@ import { TECHNICIAN_EMAIL } from "../dist/server/constants.js";
 // ⚡ Configuración de API Key (desde Railway envs)
 const SENDGRID_KEY = process.env.SENDGRID_API_KEY ?? "";
 if (!SENDGRID_KEY) {
-  console.warn("⚠️ Falta SENDGRID_API_KEY en env");
+
 }
 sgMail.setApiKey(SENDGRID_KEY);
 

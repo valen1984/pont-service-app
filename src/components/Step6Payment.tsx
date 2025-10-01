@@ -144,7 +144,7 @@ const createPreference = async () => {
         WalletComponent && (
           <div className="flex justify-center w-full mt-4">
             <div className="w-[300px]">
-              {console.log("🟦 Renderizando Wallet con prefId:", preferenceId)}
+              {console.log("🟦 Renderizando Wallet con prefId:")}
               <WalletComponent initialization={initialization} />
             </div>
           </div>

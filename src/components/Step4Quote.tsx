@@ -93,10 +93,9 @@ const Step4Quote: React.FC<Props> = ({ formData, setQuote, nextStep, prevStep })
       </div>
 
       <p className="text-xs text-center text-slate-500">
-        ℹ️ Atención: el presupuesto se encuentra sujeto a cambios.  
-        El monto requerido tiene como fin garantizar la disponibilidad de los materiales.  
+        ℹ️ Atención: El presupuesto se mantendrá vigente durante los proximos 7 dias y estara sujeto a cambios de ultimo momento; especialmente por cualquier variacion de precios de proveedores o materiales a partir de la fecha de pago o abono en domicilio.
         <br />
-        🚗 Los primeros 5 km desde General Villegas están <b>bonificados</b>.
+        🚗 Los primeros 5 km de traslado desde General Villegas están <b>bonificados</b>.
       </p>
 
       <div className="flex gap-4 pt-2">

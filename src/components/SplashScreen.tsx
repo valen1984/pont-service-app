@@ -77,7 +77,7 @@ export default function SplashScreen({ onFinish }: SplashProps) {
           href="mailto:valentin.alvarez@alvarezllc.net"
           className="inline-flex items-center gap-1 text-sky-600 hover:text-sky-700 transition-colors font-semibold tracking-wide underline underline-offset-4 decoration-sky-400 hover:decoration-sky-600"
         >
-          ⚡ Powered by ALVAREZ LLC 2025®
+          ⚡ Powered by ALVAREZ LLC 2025®  v1.09.30.251
         </a>
       </p>
     </motion.div>
