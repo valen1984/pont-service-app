@@ -1,11 +1,12 @@
 export enum ServiceType {
-  NEW_INSTALLATION = 'Instalación hogar',
-  HIGH_ALTITUDE_INSTALLATION = 'Instalación en altura',
-  AUTOMOTIVE_INSTALLATION = 'Instalación automotriz',
-  HOME_DIAGNOSIS = 'Diagnóstico hogar',
-  AUTOMOTIVE_DIAGNOSIS = 'Diagnóstico automotriz',
-  HOME_SERVICE = 'Service hogar',
-  AUTOMOTIVE_SERVICE = 'Service automotriz',
+  NEW_INSTALLATION = 'Hogar - Instalación split [sin materiales]',
+  COMERCIAL_DIAGNOSIS = 'Equipos Comerciales - Diagnostico AC',
+  AUTOMOTIVE_PREVENTATIVE = 'Automotriz - Mantenimiento preventivo AC',
+  HOME_DIAGNOSIS = 'Hogar - Diagnostico AC',
+  AUTOMOTIVE_DIAGNOSIS = 'Automotriz - Diagnóstico AC',
+  HOME_SERVICE = 'Hogar - Mantenimiento preventivo split',
+  AUTOMOTIVE_MULTIPLE = 'Automotriz - Reparaciones varias AC [A convenir presencialmente]',
+  HOME_REFILL = 'Hogar - Carga completa gas refrigerante',
 }
 
 export interface FormData {

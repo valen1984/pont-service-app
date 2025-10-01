@@ -31,7 +31,7 @@ const Step6Payment: React.FC<Props> = ({
         const publicKey = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
         if (!publicKey || publicKey === "undefined") {
           console.warn("⚠️ PUBLIC_KEY ausente, no se inicializa Mercado Pago");
-          console.log("🌍 import.meta.env:", import.meta.env);
+          console.log("🌍 import.meta.env:");
           return;
         }
 
@@ -75,7 +75,7 @@ const createPreference = async () => {
     });
 
     const data = await response.json();
-    console.log("📦 Respuesta create_preference:", data);
+    console.log("📦 Respuesta create_preference:");
 
     const prefId = data.id || data.preferenceId;
     if (!prefId) throw new Error("No se recibió un preferenceId válido");
@@ -104,7 +104,7 @@ const createPreference = async () => {
       });
 
       const data = await response.json();
-      console.log("📦 Respuesta confirm-onsite:", data);
+      console.log("📦 Respuesta confirm-onsite:");
 
       if (data.success) {
         onPayOnSite();

@@ -75,7 +75,7 @@ async function generateSchedule() {
     });
 
     const events = eventsRes.data.items || [];
-    console.log("📅 Eventos de Google Calendar recibidos:", events.length);
+    console.log("📅 Eventos de Google Calendar recibidos:");
 
     const WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // lunes a sábado
     const START_HOUR = 9;
