@@ -310,7 +310,7 @@ app.post("/api/confirm-payment", async (req, res) => {
 
     const payment = await new Payment(mpClient).get({ id: paymentId });
 
-    const estadoCode: string = payment.status ?? "unknown";
+    const estadoCode = payment.status ?? "unknown";
     console.log("📦 Estado real de pago:", estadoCode);
 
     // Estado tipado + fallback seguro
