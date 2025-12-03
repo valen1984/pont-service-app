@@ -44,5 +44,8 @@
   "fileHandlers": [],
   "launchHandlerClientMode": "",
   "displayOverride": [],
-  "appVersion": "1"
+  "appVersion": "1",
+
+  "iconUrl": "https://pontrefrigeracion.com.ar/icon-transparent.png",
+  "splashScreenFadeOutDuration": 0
 }
