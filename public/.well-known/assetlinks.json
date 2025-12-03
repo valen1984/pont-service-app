@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.pontrefrigeracion.twa",
+      "sha256_cert_fingerprints": [
+        "59:14:5A:8C:1D:C6:C8:19:3D:DF:73:80:8F:98:6F:87:2A:15:41:76:FC:0E:2E:63:53:50:29:9F:89:07:F4:4F"
+      ]
+    }
+  }
+]
