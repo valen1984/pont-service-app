@@ -374,32 +374,16 @@ app.post("/api/confirm-payment", async (req, res) => {
 });
 
 // ======================
-// 📦 Servir frontend SPA + archivos estáticos
+// 📌 Servir frontend
 // ======================
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-import fs from "fs"; // 👈 asegurate de tener este import arriba si no está
-
-const distPath = path.join(__dirname, "../dist");
-
-// ✅ Servir archivos estáticos (incluye manifest.json, íconos, etc.)
-app.use(express.static(distPath));
-
-// ⛔️ Versión anterior (comentada para seguridad)
-// app.get(/^\/(?!api).*/, (req, res) => {
-//   res.sendFile(path.join(__dirname, "../dist", "index.html"));
-// });
-
-// ✅ Versión nueva: solo redirigimos al index.html si el archivo solicitado NO existe
-app.get("*", (req, res) => {
-  const requestedPath = path.join(distPath, req.path);
-
-  if (fs.existsSync(requestedPath)) {
-    res.sendFile(requestedPath);
-  } else {
-    res.sendFile(path.join(distPath, "index.html"));
-  }
+app.use(express.static(path.join(__dirname, "../dist")));
+//app.get(/^\/(?!api).*/, (req, res) => {//
+app.get(/^\/(?!api|icon-|manifest\.json|favicon\.ico).*/, (req, res) => {
+  res.sendFile(path.join(__dirname, "../dist", "index.html"));
 });
-
 
 // ======================
 // 🚀 Start Server
